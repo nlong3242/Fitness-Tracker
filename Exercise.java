@@ -15,6 +15,7 @@ public class Exercise {
 
     void removeSet(int index){
         sets.remove(index);
-        System.out.println("Set removed");
+        System.out.println("Set " + (index+1) + " removed");
     }
+
 }

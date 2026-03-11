@@ -5,12 +5,7 @@ public class Main {
 
         System.out.println(bench.name);
 
-        bench.addSet(set1);
-        
-        System.out.println(bench.sets);
-
-        bench.removeSet(0);
-        System.out.println(bench.sets);
+        System.out.println(set1);
         
     }
 }

@@ -23,7 +23,7 @@ public class Exercise {
         String header = "Exercise: " + this.name + "\n";
         
         for (int i = 0; i < this.sets.size(); i++) {
-            String set = "Set " + (i+1) + ": " + this.sets.get(i) +"\n";
+            String set = "Set " + (i+1) + ": \n" + this.sets.get(i) +"-----\n";
             header += set;
         }
         return header;

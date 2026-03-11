@@ -7,7 +7,10 @@ public class Main {
 
         bench.addSet(set1);
         
+        System.out.println(bench.sets);
 
+        bench.removeSet(0);
+        System.out.println(bench.sets);
         
     }
 }

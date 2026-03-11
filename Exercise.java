@@ -10,6 +10,11 @@ public class Exercise {
     
     void addSet(ExerciseSet set){
         sets.add(set);
-        System.out.println("Set added")
+        System.out.println("Set added");
+    }
+
+    void removeSet(int index){
+        sets.remove(index);
+        System.out.println("Set removed");
     }
 }

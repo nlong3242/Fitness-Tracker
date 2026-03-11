@@ -18,4 +18,14 @@ public class Exercise {
         System.out.println("Set " + (index+1) + " removed");
     }
 
+    @Override
+    public String toString(){
+        String header = "Exercise: " + this.name + "\n";
+        
+        for (int i = 0; i < this.sets.size(); i++) {
+            String set = "Set " + (i+1) + ": " + this.sets.get(i) +"\n";
+            header += set;
+        }
+        return header;
+    }
 }

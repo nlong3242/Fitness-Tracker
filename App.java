@@ -8,7 +8,6 @@ public class App {
     void createWorkout(){
         boolean running = true;
         System.out.print("Enter workout name: ");
-        scanner.nextLine();
         String name = scanner.nextLine();
         int input = 0;
 
@@ -53,6 +52,7 @@ public class App {
             // Handling invalid inputs
             try {
                 input = scanner.nextInt();
+                scanner.nextLine();
             } catch (Exception e) {
                 System.out.println("Invalid choice, please enter a number");
                 scanner.nextLine();
@@ -65,7 +65,7 @@ public class App {
 
             else if (input == 1)
                 createWorkout();
-            
+
             else
                 System.out.println("Please choose option from menu");
         }

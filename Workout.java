@@ -18,4 +18,13 @@ public class Workout {
         System.out.println(exercise.name + " removed");
     }
     
+    @Override
+    public String toString(){
+        String header = "Workout: " + this.workout_name +"\n----\nExercises:";
+
+        for (int i = 0; i < this.exercises.size(); i++){
+            header += "\n" + (i + 1) +". " + exercises.get(i).name;
+        }
+        return header;
+    }
 }

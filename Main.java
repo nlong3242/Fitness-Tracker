@@ -2,16 +2,8 @@
 
 public class Main {
     public static void main(String[] args) {
-        Exercise bench = new Exercise("Bench Press");
-        Exercise pulldown = new Exercise("Pull down");
-        ExerciseSet set1_pll = new ExerciseSet(50, 8);
+        App app = new App();
 
-        pulldown.addSet(set1_pll);
-        Workout workoutA = new Workout("Upper");
-        
-        workoutA.addExercise(bench);
-        workoutA.addExercise(pulldown);
-        
-        System.out.println(workoutA.exercises.get(1));
+        app.run();
     }
 }

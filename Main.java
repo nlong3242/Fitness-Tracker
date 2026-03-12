@@ -12,6 +12,6 @@ public class Main {
         workoutA.addExercise(bench);
         workoutA.addExercise(pulldown);
         
-        System.out.println(workoutA);
+        System.out.println(workoutA.exercises.get(1));
     }
 }

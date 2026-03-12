@@ -2,21 +2,13 @@
 
 public class Main {
     public static void main(String[] args) {
-        ExerciseSet set1 = new ExerciseSet(20.25, 10);
-
-        ExerciseSet set2 = new ExerciseSet(20.25, 8);
-
         Exercise bench = new Exercise("Bench Press");
 
-        bench.addSet(set1);
-        bench.addSet(set2);
+        Workout workoutA = new Workout("Upper");
+        workoutA.addExercise(bench);
+        System.out.println(workoutA.exercises);
 
-        System.out.println(bench);
-
-        bench.removeSet(0);
-
-        System.out.println("After:");
-        System.out.println(bench);
-        
+        workoutA.removeExercise(bench);
+        System.out.println(workoutA.exercises);
     }
 }

@@ -5,6 +5,7 @@ public class App {
     Scanner scanner = new Scanner(System.in);
     ArrayList<Workout> workouts = new ArrayList<>();
 
+    // Method to create a new workout
     void createWorkout(){
         boolean running = true;
         System.out.print("Enter workout name: ");
@@ -35,12 +36,24 @@ public class App {
         }
     }
 
+    // Method to view and modify workouts
+    void viewWorkout(){
+        System.out.println("Workouts:");
+        for (int i = 0; i < workouts.size(); i++) {
+            System.out.println((i+1) + ". " + workouts.get(i).workout_name);
+        }
+        System.out.println("-----");
+    }
+
+    // Method to add an exercise to a workout
     void addExercise(Workout workout){
         System.out.print("Enter the name of your exercise: ");
         String exerciseName = scanner.nextLine();
         Exercise exercise = new Exercise(exerciseName);
         workout.addExercise(exercise);
     }
+
+    // Run the app
     void run(){
         boolean running = true;
         int input = 0;
@@ -67,6 +80,9 @@ public class App {
 
             else if (input == 1)
                 createWorkout();
+
+            else if (input == 2)
+            viewWorkout();
 
             else
                 System.out.println("Please choose option from menu");

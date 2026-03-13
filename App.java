@@ -26,12 +26,8 @@ public class App {
             }
 
             scanner.nextLine(); 
-            if (input == 1){
-                System.out.print("Enter the name of your exercise: ");
-                String exerciseName = scanner.nextLine();
-                Exercise exercise = new Exercise(exerciseName);
-                workout.addExercise(exercise);
-            }
+            if (input == 1)
+                addExercise(workout);
             else if (input == 2)
                 running = false;
             else
@@ -39,6 +35,12 @@ public class App {
         }
     }
 
+    void addExercise(Workout workout){
+        System.out.print("Enter the name of your exercise: ");
+        String exerciseName = scanner.nextLine();
+        Exercise exercise = new Exercise(exerciseName);
+        workout.addExercise(exercise);
+    }
     void run(){
         boolean running = true;
         int input = 0;

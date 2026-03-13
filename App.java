@@ -39,11 +39,11 @@ public class App {
 
     // Method to view and modify workouts
     void viewWorkout(){
+        // If no workouts then return user to main menu
         if (workouts.isEmpty()){
             System.out.println("No workouts created yet");
             return;
         }
-
 
         boolean running = true;
         System.out.println("Workouts:");

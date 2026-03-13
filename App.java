@@ -10,39 +10,49 @@ public class App {
         boolean running = true;
         System.out.print("Enter workout name: ");
         String name = scanner.nextLine();
-        int input = 0;
+        String input = " ";
 
         Workout workout = new Workout(name);
         workouts.add(workout);
         while (running) {
             System.out.println("1. Add new exercise");
-            System.out.println("2. Back to menu");
-            System.out.print("Choose an option: ");
-            try {
-                input = scanner.nextInt();
-            } catch (Exception e) {
-                System.out.println("Invalid choice, please enter a number");
-                scanner.nextLine();
-                continue;
-            }
-
-            scanner.nextLine(); 
-            if (input == 1)
-                addExercise(workout);
-            else if (input == 2)
+            System.out.print("Choose an option or Enter to quit: ");
+            input = scanner.nextLine();
+            
+            // Handling inputs
+            if (input.equals(""))
                 running = false;
-            else
-                System.out.println("Please choose option from menu");
+            else{
+                // Handling invalid inputs and out of order input
+                try {
+                    int choice = Integer.parseInt(input);
+                    if (choice == 1)
+                        addExercise(workout);
+                    else
+                        System.out.println("Please choose option from menu");
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid Input");
+                }
+            }
         }
     }
 
     // Method to view and modify workouts
     void viewWorkout(){
+        boolean running = true;
         System.out.println("Workouts:");
         for (int i = 0; i < workouts.size(); i++) {
             System.out.println((i+1) + ". " + workouts.get(i).workout_name);
         }
         System.out.println("-----");
+        while (running){
+            System.out.print("Choose a workout to modify or Enter to quit: ");
+            String input = scanner.nextLine();
+
+            if (input.equals(""))
+                running = false;
+        }
+
     }
 
     // Method to add an exercise to a workout
@@ -56,38 +66,33 @@ public class App {
     // Run the app
     void run(){
         boolean running = true;
-        int input = 0;
+        String input = " ";
         System.out.println("Welcome to Tsu2Track!");
         while (running) { 
             System.out.println("\nMAIN MENU:");
             System.out.println("-------");
             System.out.println("1. Create Workout");
             System.out.println("2. View Workout");
-            System.out.println("3. Quit");
-            System.out.print("Choose an option: ");
+            System.out.print("Choose an option or Enter to quit: ");
 
-            // Handling invalid inputs
-            try {
-                input = scanner.nextInt();
-                scanner.nextLine();
-            } catch (Exception e) {
-                System.out.println("Invalid choice, please enter a number");
-                scanner.nextLine();
-                continue;
-            }
-
-            //Handling inputs 
-            if (input == 3)
+            // Handling inputs
+            input = scanner.nextLine();
+            if (input.equals(""))
                 running = false;
-
-            else if (input == 1)
-                createWorkout();
-
-            else if (input == 2)
-            viewWorkout();
-
-            else
-                System.out.println("Please choose option from menu");
+            else {
+                //Handling invalid inputs and out of order inputs
+                try {
+                    int choice = Integer.parseInt(input);
+                    if (choice == 1)
+                        createWorkout();
+                    else if (choice == 2)
+                        viewWorkout();
+                    else
+                        System.out.println("Please choose option from menu");
+                } catch (NumberFormatException e){
+                    System.out.println("Invalid input");
+                }
+            }
         }
     }
 }

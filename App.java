@@ -39,6 +39,12 @@ public class App {
 
     // Method to view and modify workouts
     void viewWorkout(){
+        if (workouts.isEmpty()){
+            System.out.println("No workouts created yet");
+            return;
+        }
+
+
         boolean running = true;
         System.out.println("Workouts:");
         for (int i = 0; i < workouts.size(); i++) {

@@ -59,6 +59,8 @@ public class App {
         int input = 0;
         System.out.println("Welcome to Tsu2Track!");
         while (running) { 
+            System.out.println("\nMAIN MENU:");
+            System.out.println("-------");
             System.out.println("1. Create Workout");
             System.out.println("2. View Workout");
             System.out.println("3. Quit");

@@ -70,11 +70,11 @@ public class App {
                     // Returning the correct workout that got chosen
                     int choice = Integer.parseInt(input);
                     if (choice <= workouts.size() && choice >= 1){
-                    Workout workout = workouts.get(choice - 1);
-                    modifyWorkout(workout);
-                }
-                else
-                    System.out.println("Please choose from list of workouts");
+                        Workout workout = workouts.get(choice - 1);
+                        modifyWorkout(workout);
+                    }
+                    else
+                        System.out.println("Please choose from list of workouts");
                     
                 } catch (NumberFormatException e) {
                     System.out.println("Invalid input");
@@ -98,9 +98,10 @@ public class App {
     void deleteExercise(Workout workout){
         boolean running = true;
 
+        // If no exercies then return to the previous menu
         if(workout.exercises.isEmpty()){
             System.out.println("No exercises to remove!");
-            running = false;
+            return;
         }
 
         while (running){
@@ -119,7 +120,7 @@ public class App {
                     }
                     else
                         System.out.println("Please choose exercise from list of exerices");
-                } catch (Exception e) {
+                } catch (NumberFormatException e) {
                     System.out.println("Invalid choice");
                 }
             }    
@@ -135,7 +136,7 @@ public class App {
             System.out.println("1. Add exercise");
             System.out.println("2. Delete exercise");
             System.out.println("3. Delete workout");
-            System.out.print("Choose and option or Enter to quit: ");
+            System.out.print("Choose an option or Enter to quit: ");
             String input = scanner.nextLine();
             if (input.equals(""))
                 running = false;
@@ -172,8 +173,10 @@ public class App {
 
             // Handling inputs
             String input = scanner.nextLine();
-            if (input.equals(""))
+            if (input.equals("")){
+                System.out.println("See you again!");
                 running = false;
+            }
             else {
                 //Handling invalid inputs and out of order inputs
                 try {

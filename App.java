@@ -67,8 +67,10 @@ public class App {
             else{
                 // Handling valid and invalid inputs
                 try {
-                    if (Integer.parseInt(input) <= workouts.size()){
-                    Workout workout = workouts.get(Integer.parseInt(input) - 1);
+                    // Returning the correct workout that got chosen
+                    int choice = Integer.parseInt(input);
+                    if (choice <= workouts.size() && choice >= 1){
+                    Workout workout = workouts.get(choice - 1);
                     System.out.println(workout);
                 }
                 else
@@ -88,6 +90,26 @@ public class App {
         String exerciseName = scanner.nextLine();
         Exercise exercise = new Exercise(exerciseName);
         workout.addExercise(exercise);
+    }
+
+    // Method to delete 
+    void deleteExercise(Workout workout){
+        System.out.print("Choose an exercise to delete: ");
+
+        // Handling inputs
+        try {
+            // Handling valid and invalid inputs
+            String input = scanner.nextLine();
+            int choice = Integer.parseInt(input);
+            if (choice <= workout.exercises.size() && choice >= 1){
+                Exercise removed_exercise = workout.exercises.remove(choice - 1); // Remnove the chosen exercise
+                System.out.println(removed_exercise.name + " removed");
+            }
+            else
+                System.out.println("Please choose exercise from list of exerices");
+        } catch (Exception e) {
+            System.out.println("Invalid choice");
+        }
     }
 
     // Run the app

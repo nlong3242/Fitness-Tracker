@@ -94,21 +94,28 @@ public class App {
 
     // Method to delete 
     void deleteExercise(Workout workout){
-        System.out.print("Choose an exercise to delete: ");
+        boolean running = true;
 
-        // Handling inputs
-        try {
-            // Handling valid and invalid inputs
+        while (running){
+            System.out.print("Choose an exercise to delete or Enter to quit: ");
             String input = scanner.nextLine();
-            int choice = Integer.parseInt(input);
-            if (choice <= workout.exercises.size() && choice >= 1){
-                Exercise removed_exercise = workout.exercises.remove(choice - 1); // Remnove the chosen exercise
-                System.out.println(removed_exercise.name + " removed");
-            }
-            else
-                System.out.println("Please choose exercise from list of exerices");
-        } catch (Exception e) {
-            System.out.println("Invalid choice");
+            if (input.equals(""))
+                running = false;
+            else{
+                try {
+                // Handling valid and invalid inputs
+                    int choice = Integer.parseInt(input);
+                    if (choice <= workout.exercises.size() && choice >= 1){
+                        Exercise removed_exercise = workout.exercises.remove(choice - 1); // Remnove the chosen exercise
+                        System.out.println(removed_exercise.name + " removed");
+                        running = false;
+                    }
+                    else
+                        System.out.println("Please choose exercise from list of exerices");
+                } catch (Exception e) {
+                    System.out.println("Invalid choice");
+                }
+            }    
         }
     }
 

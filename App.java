@@ -60,15 +60,24 @@ public class App {
             System.out.print("Choose a workout to modify or Enter to quit: ");
             String input = scanner.nextLine();
 
+            // Handling inputs
             if (input.equals(""))
                 running = false;
 
-            else if (Integer.parseInt(input) <= workouts.size()){
-                Workout workout = workouts.get(Integer.parseInt(input) - 1);
-                System.out.println(workout);
+            else{
+                // Handling valid and invalid inputs
+                try {
+                    if (Integer.parseInt(input) <= workouts.size()){
+                    Workout workout = workouts.get(Integer.parseInt(input) - 1);
+                    System.out.println(workout);
+                }
+                else
+                    System.out.println("Please choose from list of workouts");
+                    
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid input");
+                }
             }
-            else
-                System.out.println("Please choose from list of workouts");
         }
 
     }

@@ -96,6 +96,11 @@ public class App {
     void deleteExercise(Workout workout){
         boolean running = true;
 
+        if(workout.exercises.isEmpty()){
+            System.out.println("No exercises to remove!");
+            running = false;
+        }
+
         while (running){
             System.out.print("Choose an exercise to delete or Enter to quit: ");
             String input = scanner.nextLine();

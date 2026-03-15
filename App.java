@@ -7,14 +7,16 @@ public class App {
 
     // Method to create a new workout
     void createWorkout(){
+        // Create Workout object and ADD it to the list of workouts
         boolean running = true;
         System.out.print("Enter workout name: ");
         String name = scanner.nextLine();
         String input = " ";
-
         Workout workout = new Workout(name);
         workouts.add(workout);
+
         while (running) {
+            // Print menu
             System.out.println("1. Add new exercise");
             System.out.print("Choose an option or Enter to quit: ");
             input = scanner.nextLine();
@@ -45,18 +47,28 @@ public class App {
             return;
         }
 
+        // Print out list of available workouts
         boolean running = true;
         System.out.println("Workouts:");
         for (int i = 0; i < workouts.size(); i++) {
             System.out.println((i+1) + ". " + workouts.get(i).workout_name);
         }
         System.out.println("-----");
+
+        // Print out menu
         while (running){
             System.out.print("Choose a workout to modify or Enter to quit: ");
             String input = scanner.nextLine();
 
             if (input.equals(""))
                 running = false;
+
+            else if (Integer.parseInt(input) <= workouts.size()){
+                Workout workout = workouts.get(Integer.parseInt(input) - 1);
+                System.out.println(workout);
+            }
+            else
+                System.out.println("Please choose from list of workouts");
         }
 
     }
@@ -75,6 +87,7 @@ public class App {
         String input = " ";
         System.out.println("Welcome to Tsu2Track!");
         while (running) { 
+            // Print main menu
             System.out.println("\nMAIN MENU:");
             System.out.println("-------");
             System.out.println("1. Create Workout");

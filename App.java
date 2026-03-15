@@ -86,8 +86,10 @@ public class App {
 
     // Method to add an exercise to a workout
     void addExercise(Workout workout){
-        System.out.print("Enter the name of your exercise: ");
+        System.out.print("Enter the name of your exercise or Enter to quit: ");
         String exerciseName = scanner.nextLine();
+        if (exerciseName.equals(""))
+            return;
         Exercise exercise = new Exercise(exerciseName);
         workout.addExercise(exercise);
     }

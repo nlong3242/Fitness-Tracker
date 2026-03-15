@@ -11,7 +11,6 @@ public class App {
         boolean running = true;
         System.out.print("Enter workout name: ");
         String name = scanner.nextLine();
-        String input = " ";
         Workout workout = new Workout(name);
         workouts.add(workout);
 
@@ -19,7 +18,7 @@ public class App {
             // Print menu
             System.out.println("1. Add new exercise");
             System.out.print("Choose an option or Enter to quit: ");
-            input = scanner.nextLine();
+            String input = scanner.nextLine();
             
             // Handling inputs
             if (input.equals(""))
@@ -47,17 +46,18 @@ public class App {
             return;
         }
 
-        // Print out list of available workouts
         boolean running = true;
-        System.out.println("Workouts:");
-        for (int i = 0; i < workouts.size(); i++) {
-            System.out.println((i+1) + ". " + workouts.get(i).workout_name);
-        }
-        System.out.println("-----");
 
         // Print out menu
         while (running){
+            // Print out list of available workouts
+            System.out.println("Workouts:");
+            for (int i = 0; i < workouts.size(); i++) {
+                System.out.println((i+1) + ". " + workouts.get(i).workout_name);
+            }
+            System.out.println("-----");
             System.out.print("Choose a workout to modify or Enter to quit: ");
+
             String input = scanner.nextLine();
 
             // Handling inputs
@@ -71,7 +71,7 @@ public class App {
                     int choice = Integer.parseInt(input);
                     if (choice <= workouts.size() && choice >= 1){
                     Workout workout = workouts.get(choice - 1);
-                    System.out.println(workout);
+                    modifyWorkout(workout);
                 }
                 else
                     System.out.println("Please choose from list of workouts");
@@ -112,10 +112,41 @@ public class App {
         }
     }
 
+    // Method to modify a chosen workout
+    void modifyWorkout(Workout workout){
+        boolean running = true;
+        while (running){
+            System.out.println(workout);
+            System.out.println("------");
+            System.out.println("1. Add exercise");
+            System.out.println("2. Delete exercise");
+            System.out.println("3. Delete workout");
+            System.out.print("Choose and option or Enter to quit: ");
+            String input = scanner.nextLine();
+            if (input.equals(""))
+                running = false;
+            else{
+                try {
+                    int choice = Integer.parseInt(input);
+                    if (choice == 1){
+                        addExercise(workout);                     
+                    }
+                    else if (choice == 2){
+                        deleteExercise(workout);
+                    }
+                    else
+                        System.out.println("Please choose an option from menu");
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid choice");
+                }
+            }
+        }
+
+    }
+
     // Run the app
     void run(){
         boolean running = true;
-        String input = " ";
         System.out.println("Welcome to Tsu2Track!");
         while (running) { 
             // Print main menu
@@ -126,7 +157,7 @@ public class App {
             System.out.print("Choose an option or Enter to quit: ");
 
             // Handling inputs
-            input = scanner.nextLine();
+            String input = scanner.nextLine();
             if (input.equals(""))
                 running = false;
             else {

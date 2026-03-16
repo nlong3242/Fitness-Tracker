@@ -1,3 +1,8 @@
-Workout: A
-Exercise: pulldown
-Exercise: shoulder
+Workout:A
+Exercise:Bench
+Exercise:Shoulder
+Exercise:Pulldown
+Workout:B
+Exercise:Squat
+Exercise:Leg Press
+Exercise:hamstring curl

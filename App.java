@@ -3,6 +3,7 @@ import java.util.Scanner;
 
 public class App {
     Scanner scanner = new Scanner(System.in);
+    FileHandler handler = new FileHandler();
     ArrayList<Workout> workouts = new ArrayList<>();
 
     // Method to create a new workout
@@ -191,6 +192,7 @@ public class App {
             // Handling inputs
             String input = scanner.nextLine();
             if (input.equals("")){
+                handler.save(workouts);
                 System.out.println("See you again!");
                 running = false;
             }

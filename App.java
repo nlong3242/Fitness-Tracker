@@ -100,13 +100,13 @@ public class App {
     void deleteExercise(Workout workout){
         boolean running = true;
 
-        // If no exercies then return to the previous menu
-        if(workout.exercises.isEmpty()){
-            System.out.println("No exercises to remove!");
-            return;
-        }
-
         while (running){
+            // If no exercies then return to the previous menu
+            if(workout.exercises.isEmpty()){
+                System.out.println("No exercises to remove!");
+                return;
+            }
+            System.out.println(workout);
             System.out.print("Choose an exercise to delete or Enter to quit: ");
             String input = scanner.nextLine();
             if (input.equals(""))

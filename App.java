@@ -9,8 +9,10 @@ public class App {
     void createWorkout(){
         // Create Workout object and ADD it to the list of workouts
         boolean running = true;
-        System.out.print("Enter workout name: ");
+        System.out.print("Enter workout name or Enter to quit: ");
         String name = scanner.nextLine();
+        if (name.equals(""))
+            return;
         Workout workout = new Workout(name);
         workouts.add(workout);
 

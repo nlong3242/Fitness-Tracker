@@ -118,7 +118,7 @@ public class App {
                     if (choice <= workout.exercises.size() && choice >= 1){
                         Exercise removed_exercise = workout.exercises.remove(choice - 1); // Remnove the chosen exercise
                         System.out.println(removed_exercise.name + " removed");
-                        running = false;
+                        
                     }
                     else
                         System.out.println("Please choose exercise from list of exerices");

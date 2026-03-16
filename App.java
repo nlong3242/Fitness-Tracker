@@ -42,16 +42,15 @@ public class App {
 
     // Method to view and modify workouts
     void viewWorkout(){
-        // If no workouts then return user to main menu
-        if (workouts.isEmpty()){
-            System.out.println("No workouts created yet");
-            return;
-        }
-
         boolean running = true;
 
         // Print out menu
         while (running){
+            // If no workouts then return user to main menu
+            if (workouts.isEmpty()){
+                System.out.println("No workouts saved!");
+                return;
+            }
             // Print out list of available workouts
             System.out.println("Workouts:");
             for (int i = 0; i < workouts.size(); i++) {
@@ -96,7 +95,7 @@ public class App {
         workout.addExercise(exercise);
     }
 
-    // Method to delete 
+    // Method to delete an exercise from a selected workout
     void deleteExercise(Workout workout){
         boolean running = true;
 
@@ -107,6 +106,7 @@ public class App {
                 return;
             }
             System.out.println(workout);
+            System.out.println("------");
             System.out.print("Choose an exercise to delete or Enter to quit: ");
             String input = scanner.nextLine();
             if (input.equals(""))
@@ -127,6 +127,13 @@ public class App {
                 }
             }    
         }
+    }
+    
+    // Method to delete a selected workout from a list of workouts
+    void deleteWorkout (Workout workout){
+        workouts.remove(workout);
+        System.out.println("Workout: " + workout.workout_name + " removed");
+
     }
 
     // Method to modify a chosen workout
@@ -150,6 +157,10 @@ public class App {
                     }
                     else if (choice == 2){
                         deleteExercise(workout);
+                    }
+                    else if (choice == 3){
+                        deleteWorkout(workout);
+                        return;
                     }
                     else
                         System.out.println("Please choose an option from menu");

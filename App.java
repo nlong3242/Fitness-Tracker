@@ -98,11 +98,15 @@ public class App {
     // Method to delete an exercise from a selected workout
     void deleteExercise(Workout workout){
         boolean running = true;
+        if (workout.exercises.isEmpty()){
+            System.out.println("No exercises to remove!");
+            return;
+        }
 
         while (running){
             // If no exercies then return to the previous menu
             if(workout.exercises.isEmpty()){
-                System.out.println("No exercises to remove!");
+                System.out.println("All exercies removed!");
                 return;
             }
             System.out.println(workout);

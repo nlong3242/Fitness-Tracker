@@ -3,9 +3,10 @@
 
 public class Main {
     public static void main(String[] args) {
-        FileHandler handler = new FileHandler();
+        App app = new App();
+        app.run();
 
-        handler.load();
+       
         
     }
 }

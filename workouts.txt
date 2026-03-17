@@ -1,8 +1,8 @@
 Workout:A
 Exercise:Bench
 Exercise:Shoulder
-Exercise:Pulldown
+Exercise:whatever
 Workout:B
 Exercise:Squat
-Exercise:Leg Press
 Exercise:hamstring curl
+Exercise:hello

@@ -26,12 +26,22 @@ public class FileHandler {
         }
     }
 
-    void load(){
+    ArrayList<Workout> load(){
+        ArrayList<Workout> workouts = new ArrayList<>();
+
         String filename = "workouts.txt";
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
             while ((line = reader.readLine()) != null){
-                System.out.println(line);
+                String[] parts = line.split(":");
+                if (parts[0].equals("Workout")){
+                    Workout workout = new Workout(parts[1]);
+                    workouts.add(workout);
+                }
+                else if (parts[0].equals("Exercise")){
+                    Exercise exercise = new Exercise(parts[1]);
+                    workouts.get(workouts.size() - 1).addExercise(exercise);
+                }
             }
 
         } catch (FileNotFoundException e) {
@@ -40,5 +50,6 @@ public class FileHandler {
         catch (IOException e){ 
             System.out.println("Couldnt read file");
         }
+        return workouts;
     }
 }

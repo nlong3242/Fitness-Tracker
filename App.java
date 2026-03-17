@@ -4,7 +4,7 @@ import java.util.Scanner;
 public class App {
     Scanner scanner = new Scanner(System.in);
     FileHandler handler = new FileHandler();
-    ArrayList<Workout> workouts = new ArrayList<>();
+    ArrayList<Workout> workouts;
 
     // Method to create a new workout
     void createWorkout(){
@@ -180,6 +180,7 @@ public class App {
     // Run the app
     void run(){
         boolean running = true;
+        workouts = handler.load();
         System.out.println("Welcome to Tsu2Track!");
         while (running) { 
             // Print main menu

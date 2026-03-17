@@ -9,8 +9,9 @@ import java.util.ArrayList;
 
 
 public class FileHandler {
+    String filename = "workouts.txt";
+
     void save(ArrayList<Workout> workouts) {
-        String filename = "workouts.txt";
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename))) {
             for (Workout workout: workouts){
                 writer.write("Workout:" + workout.workout_name);
@@ -29,18 +30,17 @@ public class FileHandler {
     ArrayList<Workout> load(){
         ArrayList<Workout> workouts = new ArrayList<>();
 
-        String filename = "workouts.txt";
         try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
             String line;
             while ((line = reader.readLine()) != null){
-                String[] parts = line.split(":");
+                String[] parts = line.split(":", 2);
                 if (parts[0].equals("Workout")){
                     Workout workout = new Workout(parts[1]);
                     workouts.add(workout);
                 }
                 else if (parts[0].equals("Exercise")){
                     Exercise exercise = new Exercise(parts[1]);
-                    workouts.get(workouts.size() - 1).addExercise(exercise);
+                    workouts.get(workouts.size() - 1).exercises.add(exercise);
                 }
             }
 

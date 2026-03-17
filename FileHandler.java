@@ -45,7 +45,7 @@ public class FileHandler {
             }
 
         } catch (FileNotFoundException e) {
-            System.out.println("File not found");
+            return workouts;
         }
         catch (IOException e){ 
             System.out.println("Couldnt read file");

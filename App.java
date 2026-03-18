@@ -177,6 +177,49 @@ public class App {
 
     }
 
+    void startWorkout(){
+        // Print out list of available workouts
+        System.out.println("Workouts:");
+        for (int i = 0; i < workouts.size(); i++) {
+            System.out.println((i+1) + ". " + workouts.get(i).workout_name);
+        }
+        System.out.println("-----");
+        System.out.print("Choose a workout to start: ");
+
+        int workoutIndex = scanner.nextInt();
+        Workout workout = workouts.get(workoutIndex);
+
+        for (Exercise exercise: workout.exercises){
+            System.out.println(exercise.name);
+            System.out.println("1. Add Set");
+            System.out.println("2. Delete Set");
+            System.out.println("Choose an option or Enter for the next exericse: ");
+            String input = scanner.nextLine();
+            if (input == "")
+                continue;
+            else{
+                try {
+                    int choice = Integer.parseInt(input);
+                    if (choice == 1){
+                        System.out.println("Enter weight: ");
+                        double weight = scanner.nextDouble();
+                        System.out.println("Enter reps: ");
+                        byte reps = scanner.nextByte();
+                        ExerciseSet set = new ExerciseSet(weight, reps);
+                        exercise.addSet(set);
+                    }
+                    else
+                        continue;
+                }
+                catch (NumberFormatException e){
+                    System.out.println("Invalid input");
+                }
+            }
+
+        }
+
+    }
+
     // Run the app
     void run(){
         boolean running = true;
@@ -187,7 +230,7 @@ public class App {
             System.out.println("\nMAIN MENU:");
             System.out.println("-------");
             System.out.println("1. Create Workout");
-            System.out.println("2. View Workout");
+            System.out.println("2. View Workouts");
             System.out.print("Choose an option or Enter to quit: ");
 
             // Handling inputs
@@ -205,6 +248,8 @@ public class App {
                         createWorkout();
                     else if (choice == 2)
                         viewWorkout();
+                    else if (choice == 3)
+                        startWorkout();
                     else
                         System.out.println("Please choose option from menu");
                 } catch (NumberFormatException e){

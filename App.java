@@ -214,15 +214,20 @@ public class App {
         int index = 0;
         while (running){
             if (index >= workout.exercises.size()){
-                String header = "No more exercises Enter to save workout or 3 to previous exericse: ";
-                System.out.print(header);
-                String exit = scanner.nextLine();
-                if (exit.equals(""))
-                    return;
-                else if (exit.equals("3"))
-                    index--;
-                else
-                    System.out.println("Invalid choice");
+                boolean exiting = true;
+                while (exiting){
+                    String header = "No more exercises Enter to save workout or 3 to previous exericse: ";
+                    System.out.print(header);
+                    String exit = scanner.nextLine();
+                    if (exit.equals(""))
+                        return;
+                    else if (exit.equals("3")){
+                        index--;
+                        exiting = false;
+                    }
+                    else
+                        System.out.println("Invalid choice");
+                }
 
             }
 

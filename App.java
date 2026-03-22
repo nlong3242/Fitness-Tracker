@@ -216,7 +216,7 @@ public class App {
             if (index >= workout.exercises.size()){
                 boolean exiting = true;
                 while (exiting){
-                    String header = "No more exercises Enter to save workout or 3 to previous exericse: ";
+                    String header = "No more exercises Enter to finish workout or 3 to previous exericse: ";
                     System.out.print(header);
                     String exit = scanner.nextLine();
                     if (exit.equals(""))
@@ -235,6 +235,9 @@ public class App {
             System.out.println("------");
             System.out.print("Exercise: ");
             System.out.println(exercise.name);
+            for (int i = 0; i < exercise.sets.size(); i++){
+                System.out.println("Set: " + (i + 1) + ".\n" + exercise.sets.get(i));
+            }
             System.out.println("1. Add set");
             System.out.println("2. Remove Set");
             System.out.println("3. Previous exericse");
@@ -260,7 +263,7 @@ public class App {
                             boolean removing = true;
                             System.out.println("Sets:");
                             for (int i = 0; i < exercise.sets.size(); i++){
-                                System.out.println((i + 1) + ". " + exercise.sets.get(i));
+                                System.out.println("Set: "+ (i + 1) + ".\n" + exercise.sets.get(i));
                             }
                             while (removing){
                                 int setIndex = getInt("Choose a set to remove: ");
@@ -293,7 +296,8 @@ public class App {
                 }
             }
         }
-
+    
+    // Return a double value 
     double getDouble(String prompt){
         while (true) { 
             System.out.print(prompt);
@@ -305,6 +309,7 @@ public class App {
         }
     }
 
+    // Return a int value
     int getInt(String prompt){
         while (true) { 
             System.out.print(prompt);
@@ -313,6 +318,21 @@ public class App {
             } catch (NumberFormatException e) {
                 System.out.println("Invalid input");
             }   
+        }
+    }
+
+    // Return either -1 if Enter or an int value
+    int getIntOrCancel(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = scanner.nextLine();
+            if (input.equals(""))
+                return -1;
+            try {
+                return Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input");
+            }
         }
     }
     // Run the app

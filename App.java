@@ -231,12 +231,18 @@ public class App {
                 try {
                     int int_option = Integer.parseInt(option);
                     if (int_option == 1){
-                        System.out.print("Enter Weight: ");
-                        double weight = Double.parseDouble(scanner.nextLine());
-                        System.out.print("Enter reps: ");
-                        int reps = Integer.parseInt(scanner.nextLine());
-                        ExerciseSet set = new ExerciseSet(weight, reps);
-                        exercise.addSet(set);
+                        boolean adding = true;
+                        while (adding){
+                            try{
+                                double weight = getDouble("Enter Weight:");
+                                int reps = getInt("Enter reps: ");
+                                ExerciseSet set = new ExerciseSet(weight, reps);
+                                exercise.addSet(set);
+                                adding = false;
+                            } catch (NumberFormatException e){
+                                System.out.println("Invalid input");
+                            }
+                        }
                     }
                     else if (int_option == 2){
                         if (exercise.sets.isEmpty()){
@@ -277,6 +283,27 @@ public class App {
             }
         }
 
+    double getDouble(String prompt){
+        while (true) { 
+            System.out.print(prompt);
+            try {
+                return Double.parseDouble(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input");
+            }
+        }
+    }
+
+    int getInt(String prompt){
+        while (true) { 
+            System.out.print(prompt);
+            try {
+                return  Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input");
+            }   
+        }
+    }
     // Run the app
     void run(){
         boolean running = true;

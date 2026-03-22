@@ -187,8 +187,14 @@ public class App {
 
         }
 
+        if (workout.exercises.isEmpty()){
+            System.out.println("No exercises saved!");
+            return;
+        }
+
         boolean running = true;
         int index = 0;
+
         while (running){
             // If out of indexing then print out exiting menu
             if (index >= workout.exercises.size()){
@@ -203,8 +209,9 @@ public class App {
                     String header = "No more exercises Enter to finish workout or 3 to previous exericse: ";
                     System.out.print(header);
                     String exit = scanner.nextLine();
-                    if (exit.equals(""))
+                    if (exit.equals("")){
                         return;
+                    }
                     else if (exit.equals("3")){
                         index--;
                         exiting = false;

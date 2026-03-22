@@ -19,6 +19,10 @@ public class FileHandler {
                 for (Exercise exercise: workout.exercises){
                     writer.write("Exercise:" + exercise.name);
                     writer.newLine();
+                    for (ExerciseSet set: exercise.sets){
+                        writer.write("Set:" + "Weight:" + set.weight + "Reps:" + set.reps);
+                        writer.newLine();
+                    }
                 }
             }
 

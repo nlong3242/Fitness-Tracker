@@ -210,15 +210,19 @@ public class App {
         int index = 0;
         while (running){
             if (index >= workout.exercises.size()){
-                System.out.print("No more exercises Enter to return to menu");
+                String header = "No more exercises Enter to save workout: ";
+                System.out.print(header);
+
                 if (scanner.nextLine().equals(""))
                     return;
+
             }
 
             Exercise exercise = workout.exercises.get(index);
             System.out.println(exercise.name);
             System.out.println("1. Add set");
             System.out.println("2. Remove Set");
+            System.out.println("3. Previous exericse");
             System.out.print("Choose an option or Enter to go to the next exercise: ");
             String option = scanner.nextLine();
             if (option.equals(""))
@@ -237,7 +241,7 @@ public class App {
                     else if (int_option == 2){
                         if (exercise.sets.isEmpty()){
                             System.out.println("No sets saved!");
-                            continue;
+                            
                         }
                         else{
                             System.out.println("Sets:");
@@ -246,10 +250,25 @@ public class App {
                             }
                             System.out.print("Choose a set to remove: ");
                             int setIndex = Integer.parseInt(scanner.nextLine());
-                            exercise.removeSet(setIndex - 1);
+                            if (setIndex <= exercise.sets.size() && setIndex >= 1)
+                                exercise.removeSet(setIndex - 1);
+                            else{
+                                System.out.println("Please choose an option from menu");
+                            }
 
                         }
                     }
+                    else if (int_option == 3){
+                        if (index == 0){
+                            System.out.println("No previous exercise");
+                            continue;
+                        }
+                        index--;
+                    }
+                    else{
+                        System.out.println("Please choose option from menu");
+                    }
+
                     }catch (NumberFormatException e){
                         System.out.println("Invalid Input.");
                     }

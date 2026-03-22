@@ -20,17 +20,15 @@ public class App {
         while (running) {
             // Print menu
             System.out.println("1. Add new exercise");
-            System.out.print("Choose an option or Enter to quit: ");
-            String input = scanner.nextLine();
+            int input = getIntOrCancel("Choose an option or Enter to quit: ");
             
             // Handling inputs
-            if (input.equals(""))
+            if (input == -1)
                 running = false;
             else{
                 // Handling invalid inputs and out of order input
                 try {
-                    int choice = Integer.parseInt(input);
-                    if (choice == 1)
+                    if (input == 1)
                         addExercise(workout);
                     else
                         System.out.println("Please choose option from menu");
@@ -60,19 +58,19 @@ public class App {
             System.out.println("-----");
             System.out.print("Choose a workout to modify or Enter to quit: ");
 
-            String input = scanner.nextLine();
+            int input = getIntOrCancel("Choose a workout to modify or Enter to quit: ");
 
             // Handling inputs
-            if (input.equals(""))
+            if (input == -1)
                 running = false;
 
             else{
                 // Handling valid and invalid inputs
                 try {
                     // Returning the correct workout that got chosen
-                    int choice = Integer.parseInt(input);
-                    if (choice <= workouts.size() && choice >= 1){
-                        Workout workout = workouts.get(choice - 1);
+                    
+                    if (input <= workouts.size() && input >= 1){
+                        Workout workout = workouts.get(input - 1);
                         modifyWorkout(workout);
                     }
                     else
@@ -112,16 +110,14 @@ public class App {
             }
             System.out.println(workout);
             System.out.println("------");
-            System.out.print("Choose an exercise to delete or Enter to quit: ");
-            String input = scanner.nextLine();
-            if (input.equals(""))
+            int input = getIntOrCancel("Choose an exercise to delete or Enter to quit: ");
+            if (input == -1)
                 running = false;
             else{
                 try {
                 // Handling valid and invalid inputs
-                    int choice = Integer.parseInt(input);
-                    if (choice <= workout.exercises.size() && choice >= 1){
-                        Exercise removed_exercise = workout.exercises.remove(choice - 1); // Remnove the chosen exercise
+                    if (input <= workout.exercises.size() && input >= 1){
+                        Exercise removed_exercise = workout.exercises.remove(input - 1); // Remnove the chosen exercise
                         System.out.println(removed_exercise.name + " removed");
                         
                     }
@@ -150,20 +146,18 @@ public class App {
             System.out.println("1. Add exercise");
             System.out.println("2. Delete exercise");
             System.out.println("3. Delete workout");
-            System.out.print("Choose an option or Enter to quit: ");
-            String input = scanner.nextLine();
-            if (input.equals(""))
+            int input = getIntOrCancel("Choose an option or Enter to quit: ");
+            if (input == -1)
                 running = false;
             else{
                 try {
-                    int choice = Integer.parseInt(input);
-                    if (choice == 1){
+                    if (input == 1){
                         addExercise(workout);                     
                     }
-                    else if (choice == 2){
+                    else if (input == 2){
                         deleteExercise(workout);
                     }
-                    else if (choice == 3){
+                    else if (input == 3){
                         deleteWorkout(workout);
                         return;
                     }
@@ -178,6 +172,7 @@ public class App {
     }
 
     void startWorkout(){
+        // If no workout then return to main menu
         if (workouts.isEmpty()){
             System.out.println("No workout saved!");
             return;
@@ -192,14 +187,12 @@ public class App {
                 System.out.println((i+1) + ". " + workouts.get(i).workout_name);
             }
             System.out.println("-----");
-            System.out.print("Choose a workout to start or Enter to exit: ");
-            String input = scanner.nextLine();
-            if (input.equals(""))
+            int input = getIntOrCancel("Choose a workout to start or Enter to exit: ");
+            if (input == -1)
                 return;
             try {
-                int choice = Integer.parseInt(input);
-                if (choice <= workouts.size() && choice >= 1){
-                    workout = workouts.get(choice - 1);
+                if (input <= workouts.size() && input >= 1){
+                    workout = workouts.get(input - 1);
                     choosing = false;
                 }
                 else
@@ -213,9 +206,16 @@ public class App {
         boolean running = true;
         int index = 0;
         while (running){
+            // If out of indexing then print out exiting menu
             if (index >= workout.exercises.size()){
                 boolean exiting = true;
                 while (exiting){
+                    System.out.println("------");
+                    for (Exercise exercise: workout.exercises){
+                        System.out.println(exercise);
+                        System.out.println("-------");
+
+                    }
                     String header = "No more exercises Enter to finish workout or 3 to previous exericse: ";
                     System.out.print(header);
                     String exit = scanner.nextLine();
@@ -231,6 +231,7 @@ public class App {
 
             }
 
+            // Print out exercise name and its sets 
             Exercise exercise = workout.exercises.get(index);
             System.out.println("------");
             System.out.print("Exercise: ");
@@ -238,23 +239,24 @@ public class App {
             for (int i = 0; i < exercise.sets.size(); i++){
                 System.out.println("Set: " + (i + 1) + ".\n" + exercise.sets.get(i));
             }
+            System.out.println("------");
             System.out.println("1. Add set");
             System.out.println("2. Remove Set");
             System.out.println("3. Previous exericse");
-            System.out.print("Choose an option or Enter to go to the next exercise: ");
-            String option = scanner.nextLine();
-            if (option.equals(""))
+            int option = getIntOrCancel("Choose an option or Enter to go to the next exercise: ");
+
+            // If Enter then update index pointer to the next exercise
+            if (option == - 1)
                 index++;
             else{
                 try {
-                    int int_option = Integer.parseInt(option);
-                    if (int_option == 1){
+                    if (option == 1){
                         double weight = getDouble("Enter Weight: ");
                         int reps = getInt("Enter reps: ");
                         ExerciseSet set = new ExerciseSet(weight, reps);
                         exercise.addSet(set);
                     }
-                    else if (int_option == 2){
+                    else if (option == 2){
                         if (exercise.sets.isEmpty()){
                             System.out.println("No sets saved!");
                             
@@ -266,8 +268,11 @@ public class App {
                                 System.out.println("Set: "+ (i + 1) + ".\n" + exercise.sets.get(i));
                             }
                             while (removing){
-                                int setIndex = getInt("Choose a set to remove: ");
-                                if (setIndex <= exercise.sets.size() && setIndex >= 1){
+                                int setIndex = getIntOrCancel("Choose a set to remove or Enter to quit: ");
+                                if (setIndex == -1)
+                                    removing = false;
+
+                                else if (setIndex <= exercise.sets.size() && setIndex >= 1){
                                     exercise.removeSet(setIndex - 1);
                                     removing = false;
                                 }
@@ -278,12 +283,12 @@ public class App {
 
                         }
                     }
-                    else if (int_option == 3){
+                    else if (option == 3){
                         if (index == 0){
                             System.out.println("No previous exercise");
                             continue;
                         }
-                        index--;
+                        index--;  // Update index pointer to transverse backwards
                     }
                     else{
                         System.out.println("Please choose option from menu");
@@ -335,6 +340,7 @@ public class App {
             }
         }
     }
+
     // Run the app
     void run(){
         boolean running = true;
@@ -347,11 +353,10 @@ public class App {
             System.out.println("1. Create Workout");
             System.out.println("2. View Workouts");
             System.out.println("3. Start Workout");
-            System.out.print("Choose an option or Enter to quit: ");
 
             // Handling inputs
-            String input = scanner.nextLine();
-            if (input.equals("")){
+            int input = getIntOrCancel("Choose an option or Enter to quit: ");
+            if (input == -1){
                 handler.save(workouts);
                 System.out.println("See you again!");
                 running = false;
@@ -359,12 +364,11 @@ public class App {
             else {
                 //Handling invalid inputs and out of order inputs
                 try {
-                    int choice = Integer.parseInt(input);
-                    if (choice == 1)
+                    if (input == 1)
                         createWorkout();
-                    else if (choice == 2)
+                    else if (input == 2)
                         viewWorkout();
-                    else if (choice == 3)
+                    else if (input == 3)
                         startWorkout();
                     else
                         System.out.println("Please choose option from menu");

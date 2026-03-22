@@ -1,9 +1,14 @@
 Workout:A
 Exercise:Bench
-Set:Weight:20.0Reps:10
-Set:Weight:20.0Reps:8
+Set:20.0:10
+Set:20.0:6
 Exercise:Shoulder Press
-Set:Weight:20.0Reps:5
+Set:20.0:10
+Set:20.0:5
 Workout:B
 Exercise:Leg Press
+Set:20.0:1
+Set:20.0:2
 Exercise:Squat
+Set:20.0:12
+Set:20.0:10

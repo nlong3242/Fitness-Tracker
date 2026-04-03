@@ -3,7 +3,7 @@ import java.util.Scanner;
 
 public class App {
     Scanner scanner = new Scanner(System.in);
-    FileHandler handler = new FileHandler();
+    DatabaseHandler handler = new DatabaseHandler();
     ArrayList<Workout> workouts;
 
     // Method to create a new workout
@@ -14,7 +14,9 @@ public class App {
         String name = scanner.nextLine();
         if (name.equals(""))
             return;
+        int id = handler.saveWorkout(name);
         Workout workout = new Workout(name);
+        workout.id = id;
         workouts.add(workout);
 
         while (running) {

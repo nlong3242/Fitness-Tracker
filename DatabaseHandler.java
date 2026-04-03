@@ -1,5 +1,7 @@
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -16,5 +18,23 @@ public class DatabaseHandler {
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }
+    }
+
+    int saveWorkout(String name) {
+        String sql = "INSERT INTO workouts (name) VALUES (?)";
+            try (Connection conn = DriverManager.getConnection(url);
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, name);
+                pstmt.executeUpdate();
+                
+                // Get the auto-generated id
+                ResultSet keys = pstmt.getGeneratedKeys();
+                if (keys.next()) {
+                    return keys.getInt(1);
+                }
+            } catch (SQLException e) {
+                System.out.println("Database error: " + e.getMessage());
+            }
+            return -1;
     }
 }

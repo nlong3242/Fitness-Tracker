@@ -3,7 +3,8 @@ import java.util.ArrayList;
 public class Workout {
     String workout_name;
     ArrayList<Exercise> exercises = new ArrayList<>();
-    
+    int id;
+
     Workout(String workout_name){
         this.workout_name  = workout_name;
     }

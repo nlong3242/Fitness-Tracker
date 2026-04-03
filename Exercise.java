@@ -3,6 +3,7 @@ import java.util.ArrayList;
 public class Exercise {
     String name;
     ArrayList<ExerciseSet> sets = new ArrayList<>();
+    int id;
 
     Exercise(String name){
         this.name = name;

@@ -4,7 +4,7 @@ import java.util.Scanner;
 public class App {
     Scanner scanner = new Scanner(System.in);
     DatabaseHandler handler = new DatabaseHandler();
-    ArrayList<Workout> workouts;
+    ArrayList<Workout> workouts = new ArrayList<>();
 
     // Method to create a new workout
     void createWorkout(){
@@ -83,7 +83,9 @@ public class App {
         String exerciseName = scanner.nextLine();
         if (exerciseName.equals(""))
             return;
+        int id = handler.saveExercise(exerciseName, workout.id);
         Exercise exercise = new Exercise(exerciseName);
+        exercise.id = id;
         workout.addExercise(exercise);
     }
 
@@ -107,7 +109,6 @@ public class App {
             if (input == -1)
                 running = false;
             else{
-                
                 // Handling valid and invalid inputs
                 if (input <= workout.exercises.size() && input >= 1){
                     Exercise removed_exercise = workout.exercises.remove(input - 1); // Remnove the chosen exercise
@@ -158,6 +159,36 @@ public class App {
             }
         }
 
+    }
+
+    void addSet(Exercise exercise) {
+        double weight = getDouble("Enter Weight: ");
+        int reps = getInt("Enter reps: ");
+        int id = handler.saveSet(weight, reps, exercise.id);
+        ExerciseSet set = new ExerciseSet(weight, reps);
+        set.id = id;
+        exercise.addSet(set);
+    }
+
+    void deleteSet(Exercise exercise) {
+        boolean removing = true;
+        System.out.println("Sets:");
+        for (int i = 0; i < exercise.sets.size(); i++){
+            System.out.println("Set: "+ (i + 1) + ".\n" + exercise.sets.get(i));
+        }
+        while (removing){
+            int setIndex = getIntOrCancel("Choose a set to remove or Enter to quit: ");
+            if (setIndex == -1)
+                removing = false;
+
+            else if (setIndex <= exercise.sets.size() && setIndex >= 1){
+                exercise.removeSet(setIndex - 1);
+                removing = false;
+            }
+            else{
+                System.out.println("Please choose an option from menu");
+            }
+        }
     }
 
     void startWorkout(){
@@ -243,34 +274,14 @@ public class App {
                 index++;
             else{
                 if (option == 1){
-                    double weight = getDouble("Enter Weight: ");
-                    int reps = getInt("Enter reps: ");
-                    ExerciseSet set = new ExerciseSet(weight, reps);
-                    exercise.addSet(set);
+                    addSet(exercise);
                 }
                 else if (option == 2){
                     if (exercise.sets.isEmpty()){
                         System.out.println("No sets saved!");    
                     }
                     else{
-                        boolean removing = true;
-                        System.out.println("Sets:");
-                        for (int i = 0; i < exercise.sets.size(); i++){
-                            System.out.println("Set: "+ (i + 1) + ".\n" + exercise.sets.get(i));
-                        }
-                        while (removing){
-                            int setIndex = getIntOrCancel("Choose a set to remove or Enter to quit: ");
-                            if (setIndex == -1)
-                                removing = false;
-
-                            else if (setIndex <= exercise.sets.size() && setIndex >= 1){
-                                exercise.removeSet(setIndex - 1);
-                                removing = false;
-                            }
-                            else{
-                                System.out.println("Please choose an option from menu");
-                            }
-                        }
+                        deleteSet(exercise);
                     }
                 }
                 else if (option == 3){
@@ -330,7 +341,6 @@ public class App {
     // Run the app
     void run(){
         boolean running = true;
-        workouts = handler.load();
         System.out.println("Welcome to Tsu2Track!");
         while (running) { 
             // Print main menu
@@ -343,7 +353,7 @@ public class App {
             // Handling inputs
             int input = getIntOrCancel("Choose an option or Enter to quit: ");
             if (input == -1){
-                handler.save(workouts);
+                
                 System.out.println("See you again!");
                 running = false;
             }

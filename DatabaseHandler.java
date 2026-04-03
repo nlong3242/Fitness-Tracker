@@ -38,7 +38,7 @@ public class DatabaseHandler {
         return -1;
     }
 
-    int saveExerise(String name, int workoutId){
+    int saveExercise(String name, int workoutId){
         String sql = "INSERT INTO exercises (name, workout_id) VALUES (?, ?)";
         try (Connection conn = DriverManager.getConnection(url);
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -76,22 +76,37 @@ public class DatabaseHandler {
     }
 
     void deleteWorkout(int id) {
-        String sql = "DELETE FROM workouts WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection(url);
-            PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, id);
-            pstmt.executeUpdate();
+        String sqlSets = "DELETE FROM exercise_sets WHERE exercise_id IN (SELECT id FROM exercises WHERE workout_id = ?)";
+        String sqlExercises = "DELETE FROM exercises WHERE workout_id = ?";
+        String sqlWorkout = "DELETE FROM workouts WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(url)) {
+            PreparedStatement pstmt1 = conn.prepareStatement(sqlSets);
+            pstmt1.setInt(1, id);
+            pstmt1.executeUpdate();
+
+            PreparedStatement pstmt2 = conn.prepareStatement(sqlExercises);
+            pstmt2.setInt(1, id);
+            pstmt2.executeUpdate();
+
+            PreparedStatement pstmt3 = conn.prepareStatement(sqlWorkout);
+            pstmt3.setInt(1, id);
+            pstmt3.executeUpdate();
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }
     }
 
     void deleteExercise(int id) {
-        String sql = "DELETE FROM exercises WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection(url);
-            PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, id);
-            pstmt.executeUpdate();
+        String sqlSets = "DELETE FROM exercise_sets WHERE exercise_id = ?";
+        String sqlExercise = "DELETE FROM exercises WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(url)) {
+            PreparedStatement pstmt1 = conn.prepareStatement(sqlSets);
+            pstmt1.setInt(1, id);
+            pstmt1.executeUpdate();
+
+            PreparedStatement pstmt2 = conn.prepareStatement(sqlExercise);
+            pstmt2.setInt(1, id);
+            pstmt2.executeUpdate();
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }

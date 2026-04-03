@@ -1,6 +1,7 @@
 public class ExerciseSet {
     double weight;
     int reps;
+    int id;
     
     ExerciseSet(double weight, int reps){
         this.weight = weight;

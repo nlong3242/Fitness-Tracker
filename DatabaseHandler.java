@@ -74,4 +74,37 @@ public class DatabaseHandler {
         }
         return -1;       
     }
+
+    void deleteWorkout(int id) {
+        String sql = "DELETE FROM workouts WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+    }
+
+    void deleteExercise(int id) {
+        String sql = "DELETE FROM exercises WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+    }
+
+    void deleteSet(int id) {
+        String sql = "DELETE FROM exercise_sets WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+    }
 }

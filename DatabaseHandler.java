@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 
 
 public class DatabaseHandler {
@@ -121,5 +122,24 @@ public class DatabaseHandler {
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }
+    }
+
+    ArrayList<Workout> loadWorkout() {
+        ArrayList<Workout> workouts = new ArrayList<Workout>();
+        String sql = "SELECT * FROM workouts";
+        try (Connection conn = DriverManager.getConnection(url)){
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                Workout workout = new Workout(name);
+                workout.id = id;
+                workouts.add(workout);
+            }
+        } catch (SQLException e){
+            System.out.println("Database error: " + e.getMessage());
+        }
+        return workouts;
     }
 }

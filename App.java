@@ -125,6 +125,7 @@ public class App {
     // Method to delete a selected workout from a list of workouts
     void deleteWorkout (Workout workout){
         workouts.remove(workout);
+        handler.deleteWorkout(workout.id);
         System.out.println("Workout: " + workout.workout_name + " removed");
 
     }

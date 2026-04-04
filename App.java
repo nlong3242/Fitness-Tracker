@@ -112,6 +112,7 @@ public class App {
                 // Handling valid and invalid inputs
                 if (input <= workout.exercises.size() && input >= 1){
                     Exercise removed_exercise = workout.exercises.remove(input - 1); // Remnove the chosen exercise
+                    handler.deleteExercise(removed_exercise.id);
                     System.out.println(removed_exercise.name + " removed");
                         
                 }
@@ -183,7 +184,8 @@ public class App {
                 removing = false;
 
             else if (setIndex <= exercise.sets.size() && setIndex >= 1){
-                exercise.removeSet(setIndex - 1);
+                ExerciseSet removedSet = exercise.removeSet(setIndex - 1);
+                handler.deleteSet(removedSet.id);
                 removing = false;
             }
             else{

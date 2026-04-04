@@ -14,9 +14,10 @@ public class Exercise {
         System.out.println("Set added");
     }
 
-    void removeSet(int index){
-        sets.remove(index);
+    ExerciseSet removeSet(int index){
+        ExerciseSet removedSet = sets.remove(index);
         System.out.println("Set " + (index+1) + " removed");
+        return removedSet;
     }
 
     @Override

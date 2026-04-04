@@ -76,7 +76,6 @@ public class App {
         }
 
     
-
     // Method to add an exercise to a workout
     void addExercise(Workout workout){
         System.out.print("Enter the name of your exercise or Enter to quit: ");
@@ -87,6 +86,7 @@ public class App {
         Exercise exercise = new Exercise(exerciseName);
         exercise.id = id;
         workout.addExercise(exercise);
+        System.out.println(exercise.name + " added");
     }
 
     // Method to delete an exercise from a selected workout
@@ -105,13 +105,13 @@ public class App {
             }
             System.out.println(workout);
             System.out.println("------");
-            int input = getIntOrCancel("Choose an exercise to delete or Enter to quit: ");
-            if (input == -1)
+            int exerciseIndex = getIntOrCancel("Choose an exercise to delete or Enter to quit: ");
+            if (exerciseIndex == -1)
                 running = false;
             else{
                 // Handling valid and invalid inputs
-                if (input <= workout.exercises.size() && input >= 1){
-                    Exercise removed_exercise = workout.exercises.remove(input - 1); // Remnove the chosen exercise
+                if (exerciseIndex <= workout.exercises.size() && exerciseIndex >= 1){
+                    Exercise removed_exercise = workout.removeExercise(exerciseIndex - 1); // Remnove the chosen exercise
                     handler.deleteExercise(removed_exercise.id);
                     System.out.println(removed_exercise.name + " removed");
                         
@@ -170,6 +170,7 @@ public class App {
         ExerciseSet set = new ExerciseSet(weight, reps);
         set.id = id;
         exercise.addSet(set);
+        System.out.println("Set added");
     }
 
     void deleteSet(Exercise exercise) {
@@ -185,6 +186,7 @@ public class App {
 
             else if (setIndex <= exercise.sets.size() && setIndex >= 1){
                 ExerciseSet removedSet = exercise.removeSet(setIndex - 1);
+                System.out.println("Set " + (setIndex) + " removed");
                 handler.deleteSet(removedSet.id);
                 removing = false;
             }

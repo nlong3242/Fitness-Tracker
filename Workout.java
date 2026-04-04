@@ -11,12 +11,11 @@ public class Workout {
 
     void addExercise(Exercise exercise){
         exercises.add(exercise);
-        System.out.println(exercise.name + " added");
     }
 
-    void removeExercise(Exercise exercise){
-        exercises.remove(exercise);
-        System.out.println(exercise.name + " removed");
+    Exercise removeExercise(int index){
+        Exercise removedExercise = exercises.remove(index);
+        return removedExercise;
     }
     
     @Override

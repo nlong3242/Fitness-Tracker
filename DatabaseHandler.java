@@ -124,7 +124,28 @@ public class DatabaseHandler {
         }
     }
 
-    ArrayList<Exercise> loadExercises(int workoutId){
+    ArrayList<ExerciseSet> loadSet(int exerciseId) {
+        ArrayList<ExerciseSet> sets = new ArrayList<>();
+        String sql = "SELECT * FROM exercise_sets WHERE exercise_id = (?)";
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, exerciseId);
+            ResultSet rs = pstmt.executeQuery(sql);
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                double weight = rs.getDouble("weight");
+                int reps = rs.getInt("reps");
+                ExerciseSet set = new ExerciseSet(weight, reps);
+                set.id = id;
+                sets.add(set);
+            }    
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+        return sets;
+    }
+
+    ArrayList<Exercise> loadExercises(int workoutId) {
         ArrayList<Exercise> exercises = new ArrayList<>();
         String sql = "SELECT * FROM exercises WHERE workout_id = (?)";
         try (Connection conn = DriverManager.getConnection(url);
@@ -136,6 +157,7 @@ public class DatabaseHandler {
                 String name = rs.getString("name");
                 Exercise exercise =  new Exercise(name);
                 exercise.id = id;
+                exercise.sets = loadSet(exercise.id);
                 exercises.add(exercise);
             }
         } catch (SQLException e){

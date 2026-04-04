@@ -126,11 +126,11 @@ public class DatabaseHandler {
 
     ArrayList<ExerciseSet> loadSet(int exerciseId) {
         ArrayList<ExerciseSet> sets = new ArrayList<>();
-        String sql = "SELECT * FROM exercise_sets WHERE exercise_id = (?)";
+        String sql = "SELECT * FROM exercise_sets WHERE exercise_id = ?";
         try (Connection conn = DriverManager.getConnection(url);
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, exerciseId);
-            ResultSet rs = pstmt.executeQuery(sql);
+            ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
                 int id = rs.getInt("id");
                 double weight = rs.getDouble("weight");
@@ -147,11 +147,11 @@ public class DatabaseHandler {
 
     ArrayList<Exercise> loadExercises(int workoutId) {
         ArrayList<Exercise> exercises = new ArrayList<>();
-        String sql = "SELECT * FROM exercises WHERE workout_id = (?)";
+        String sql = "SELECT * FROM exercises WHERE workout_id = ?";
         try (Connection conn = DriverManager.getConnection(url);
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, workoutId);
-            ResultSet rs = pstmt.executeQuery(sql);
+            ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");

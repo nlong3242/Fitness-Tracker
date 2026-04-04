@@ -4,7 +4,7 @@ import java.util.Scanner;
 public class App {
     Scanner scanner = new Scanner(System.in);
     DatabaseHandler handler = new DatabaseHandler();
-    ArrayList<Workout> workouts = new ArrayList<>();
+    ArrayList<Workout> workouts = handler.loadWorkout();
 
     // Method to create a new workout
     void createWorkout(){

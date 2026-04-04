@@ -4,7 +4,12 @@ import java.util.Scanner;
 public class App {
     Scanner scanner = new Scanner(System.in);
     DatabaseHandler handler = new DatabaseHandler();
-    ArrayList<Workout> workouts = handler.loadWorkout();
+    ArrayList<Workout> workouts;
+
+    App (){
+        handler.createTables();
+        workouts = handler.loadWorkout();
+    }
 
     // Method to create a new workout
     void createWorkout(){

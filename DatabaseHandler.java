@@ -124,17 +124,38 @@ public class DatabaseHandler {
         }
     }
 
+    ArrayList<Exercise> loadExercises(int workoutId){
+        ArrayList<Exercise> exercises = new ArrayList<>();
+        String sql = "SELECT * FROM exercises WHERE workout_id = (?)";
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, workoutId);
+            ResultSet rs = pstmt.executeQuery(sql);
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                Exercise exercise =  new Exercise(name);
+                exercise.id = id;
+                exercises.add(exercise);
+            }
+        } catch (SQLException e){
+            System.out.println("Database error: " + e.getMessage());
+        }
+        return exercises;
+    }
+
     ArrayList<Workout> loadWorkout() {
-        ArrayList<Workout> workouts = new ArrayList<Workout>();
+        ArrayList<Workout> workouts = new ArrayList<>();
         String sql = "SELECT * FROM workouts";
-        try (Connection conn = DriverManager.getConnection(url)){
-            Statement stmt = conn.createStatement();
+        try (Connection conn = DriverManager.getConnection(url);
+            Statement stmt = conn.createStatement()) {
             ResultSet rs = stmt.executeQuery(sql);
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
                 Workout workout = new Workout(name);
                 workout.id = id;
+                workout.exercises = loadExercises(workout.id);
                 workouts.add(workout);
             }
         } catch (SQLException e){

@@ -238,12 +238,16 @@ public class App {
 
         boolean running = true;
         int index = 0;
-        String date = LocalDate.now().toString();
-        int sessionId = handler.saveSession(workout.id, date);
+
+        // Getting previous saved data
         ArrayList<ArrayList<ExerciseSet>> previousSets = new ArrayList<>();
         for (Exercise exercise : workout.exercises) {
             previousSets.add(handler.loadLatestSet(exercise.id, workout.id));
         }
+
+        // Create new session
+        String date = LocalDate.now().toString();
+        int sessionId = handler.saveSession(workout.id, date);
 
         while (running){
             // If out of indexing then print out exiting menu

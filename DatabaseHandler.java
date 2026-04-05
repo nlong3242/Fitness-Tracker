@@ -162,7 +162,7 @@ public class DatabaseHandler {
 
     ArrayList<ExerciseSet> loadLatestSet(int exerciseId, int workoutId) {
         ArrayList<ExerciseSet> sets = new ArrayList<>();
-        String sqlSession = "SELECT id FROM sessions WHERE workout_id = ? ORDER BY date DESC LIMIT 1";
+        String sqlSession = "SELECT id FROM sessions WHERE workout_id = ? ORDER BY id DESC LIMIT 1";
         String sqlSets = "SELECT * FROM exercise_sets WHERE exercise_id = ? AND session_id = ?";
         try (Connection conn = DriverManager.getConnection(url)) {
             PreparedStatement pstmt1 = conn.prepareStatement(sqlSession);
@@ -207,7 +207,6 @@ public class DatabaseHandler {
                 String name = rs.getString("name");
                 Exercise exercise =  new Exercise(name);
                 exercise.id = id;
-                exercise.sets = loadLatestSet(exercise.id, workoutId);
                 exercises.add(exercise);
             }
         } catch (SQLException e){

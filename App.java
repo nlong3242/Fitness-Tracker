@@ -297,6 +297,7 @@ public class App {
                 System.out.println("Set: " + (i + 1) + ".\n" + latestSets.get(i));
             }
             System.out.println("------");
+            System.out.println("TODAY:");
             for (int i = 0; i < exercise.sets.size(); i++){
                 System.out.println("Set: " + (i + 1) + ".\n" + exercise.sets.get(i));
             }

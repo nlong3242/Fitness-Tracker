@@ -15,7 +15,8 @@ public class DatabaseHandler {
             Statement stmt = conn.createStatement();
             stmt.execute("CREATE TABLE IF NOT EXISTS workouts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)");
             stmt.execute("CREATE TABLE IF NOT EXISTS exercises (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, name TEXT NOT NULL, FOREIGN KEY (workout_id) REFERENCES workouts(id))");
-            stmt.execute("CREATE TABLE IF NOT EXISTS exercise_sets (id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, weight REAL NOT NULL, reps INTEGER NOT NULL, FOREIGN KEY (exercise_id) REFERENCES exercises(id))");
+            stmt.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, date TEXT NOT NULL, FOREIGN KEY (workout_id) REFERENCES workouts(id))");
+            stmt.execute("CREATE TABLE IF NOT EXISTS exercise_sets (id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, weight REAL NOT NULL, reps INTEGER NOT NULL, session_id INTEGER NOT NULL, FOREIGN KEY (exercise_id) REFERENCES exercises(id)), FOREIGN KEY (session_id) REFERENCES sessions(id)");
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }
@@ -57,13 +58,32 @@ public class DatabaseHandler {
         return -1;
     }
 
-    int saveSet (double weight, int reps, int exerciseId){
-        String sql = "INSERT INTO exercise_sets (weight, reps, exercise_id) VALUES (?, ?, ?)";
+    int saveSession(int workoutId, String date) {
+        String sql = "INSERT INTO sessions (date, workout_id) VALUES (?, ?)";
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString (1, date);
+            pstmt.setInt(2, workoutId);
+            pstmt.executeUpdate();
+                        
+            ResultSet keys = pstmt.getGeneratedKeys();
+            if (keys.next())
+                return keys.getInt(1);
+                        
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    int saveSet (double weight, int reps, int exerciseId, int sessonId){
+        String sql = "INSERT INTO exercise_sets (weight, reps, exercise_id, session_id) VALUES (?, ?, ?, ?)";
         try (Connection conn = DriverManager.getConnection(url);
             PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setDouble (1, weight);
                 pstmt.setInt(2, reps);
                 pstmt.setInt(3, exerciseId);
+                pstmt.setInt(4, sessonId);
                 pstmt.executeUpdate();
                 
                 ResultSet keys = pstmt.getGeneratedKeys();
@@ -78,6 +98,7 @@ public class DatabaseHandler {
 
     void deleteWorkout(int id) {
         String sqlSets = "DELETE FROM exercise_sets WHERE exercise_id IN (SELECT id FROM exercises WHERE workout_id = ?)";
+        String sqlSessions = "DELETE FROM sessions WHERE workout_id = ?";
         String sqlExercises = "DELETE FROM exercises WHERE workout_id = ?";
         String sqlWorkout = "DELETE FROM workouts WHERE id = ?";
         try (Connection conn = DriverManager.getConnection(url)) {
@@ -85,13 +106,17 @@ public class DatabaseHandler {
             pstmt1.setInt(1, id);
             pstmt1.executeUpdate();
 
-            PreparedStatement pstmt2 = conn.prepareStatement(sqlExercises);
+            PreparedStatement pstmt2 = conn.prepareStatement(sqlSessions);
             pstmt2.setInt(1, id);
             pstmt2.executeUpdate();
 
-            PreparedStatement pstmt3 = conn.prepareStatement(sqlWorkout);
+            PreparedStatement pstmt3 = conn.prepareStatement(sqlExercises);
             pstmt3.setInt(1, id);
             pstmt3.executeUpdate();
+
+            PreparedStatement pstmt4 = conn.prepareStatement(sqlWorkout);
+            pstmt4.setInt(1, id);
+            pstmt4.executeUpdate();
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }

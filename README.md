@@ -14,6 +14,8 @@ A Fitness Tracker App that lets user create workouts, log exercise and track pro
   + Implemented DatabaseHandler using SQLite to save data locally
   + Fully tested with adding data, deleting to database and loading data back from database using SQL (Java integrated)
   + Polished console-based front end with clear instruction and display
+- Version 5:
+  + Implemented history tracking to the App, now user will track their data by session, eachh exercise will print out its saved data from previous session
     
 ## How to Run
 1. Clone the repo: git clone https://github.com/nlong3242/Fitness-Tracker.git

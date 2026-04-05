@@ -16,7 +16,7 @@ public class DatabaseHandler {
             stmt.execute("CREATE TABLE IF NOT EXISTS workouts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)");
             stmt.execute("CREATE TABLE IF NOT EXISTS exercises (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, name TEXT NOT NULL, FOREIGN KEY (workout_id) REFERENCES workouts(id))");
             stmt.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, date TEXT NOT NULL, FOREIGN KEY (workout_id) REFERENCES workouts(id))");
-            stmt.execute("CREATE TABLE IF NOT EXISTS exercise_sets (id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, weight REAL NOT NULL, reps INTEGER NOT NULL, session_id INTEGER NOT NULL, FOREIGN KEY (exercise_id) REFERENCES exercises(id)), FOREIGN KEY (session_id) REFERENCES sessions(id)");
+            stmt.execute("CREATE TABLE IF NOT EXISTS exercise_sets (id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, weight REAL NOT NULL, reps INTEGER NOT NULL, session_id INTEGER NOT NULL, FOREIGN KEY (exercise_id) REFERENCES exercises(id), FOREIGN KEY (session_id) REFERENCES sessions(id))");
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }
@@ -149,21 +149,35 @@ public class DatabaseHandler {
         }
     }
 
-    ArrayList<ExerciseSet> loadSet(int exerciseId) {
+    ArrayList<ExerciseSet> loadLastestSet(int exerciseId, int workoutId) {
         ArrayList<ExerciseSet> sets = new ArrayList<>();
-        String sql = "SELECT * FROM exercise_sets WHERE exercise_id = ?";
-        try (Connection conn = DriverManager.getConnection(url);
-            PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, exerciseId);
-            ResultSet rs = pstmt.executeQuery();
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                double weight = rs.getDouble("weight");
-                int reps = rs.getInt("reps");
+        String sqlSession = "SELECT id FROM sessions WHERE workout_id = ? ORDER BY date DESC LIMIT 1";
+        String sqlSets = "SELECT * FROM exercise_sets WHERE exercise_id = ? AND session_id = ?";
+        try (Connection conn = DriverManager.getConnection(url)) {
+            PreparedStatement pstmt1 = conn.prepareStatement(sqlSession);
+            pstmt1.setInt(1, workoutId);
+            ResultSet rs = pstmt1.executeQuery();
+
+            if (!rs.next())
+                return sets; //No lastest session saved
+
+            int sessionId = rs.getInt("id");
+
+            // Get sets from that session
+            PreparedStatement pstmt2 = conn.prepareStatement(sqlSets);
+            pstmt2.setInt(1, exerciseId);
+            pstmt2.setInt(2, sessionId);
+            ResultSet rs2 = pstmt2.executeQuery();
+
+            while (rs2.next()){
+                int id = rs2.getInt("id");
+                double weight = rs2.getDouble("weight");
+                int reps = rs2.getInt("reps");
                 ExerciseSet set = new ExerciseSet(weight, reps);
                 set.id = id;
                 sets.add(set);
-            }    
+            }
+
         } catch (SQLException e) {
             System.out.println("Database error: " + e.getMessage());
         }
@@ -182,7 +196,7 @@ public class DatabaseHandler {
                 String name = rs.getString("name");
                 Exercise exercise =  new Exercise(name);
                 exercise.id = id;
-                exercise.sets = loadSet(exercise.id);
+                exercise.sets = loadLastestSet(exercise.id, workoutId);
                 exercises.add(exercise);
             }
         } catch (SQLException e){

@@ -137,6 +137,17 @@ public class DatabaseHandler {
             System.out.println("Database error: " + e.getMessage());
         }
     }
+ 
+    void deleteSession(int id) {
+        String sql = "DELETE FROM sessions WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Database error: " + e.getMessage());
+        }
+    }
 
     void deleteSet(int id) {
         String sql = "DELETE FROM exercise_sets WHERE id = ?";

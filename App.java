@@ -260,6 +260,16 @@ public class App {
                     System.out.print(header);
                     String exit = scanner.nextLine();
                     if (exit.equals("")){
+                        boolean hasNewSets = false;
+                        for (Exercise exercise : workout.exercises){
+                            if (!exercise.sets.isEmpty()){
+                                hasNewSets = true;
+                                break;
+                            }
+                        }
+                        if (!hasNewSets) {
+                            handler.deleteSession(sessionId);
+                        }
                         return;
                     }
                     else if (exit.equals("3")){

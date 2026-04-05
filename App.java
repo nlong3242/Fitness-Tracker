@@ -1,3 +1,4 @@
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -168,10 +169,10 @@ public class App {
 
     }
 
-    void addSet(Exercise exercise) {
+    void addSet(Exercise exercise, int sessionId) {
         double weight = getDouble("Enter Weight: ");
         int reps = getInt("Enter reps: ");
-        int id = handler.saveSet(weight, reps, exercise.id);
+        int id = handler.saveSet(weight, reps, exercise.id, sessionId);
         ExerciseSet set = new ExerciseSet(weight, reps);
         set.id = id;
         exercise.addSet(set);
@@ -237,6 +238,12 @@ public class App {
 
         boolean running = true;
         int index = 0;
+        String date = LocalDate.now().toString();
+        int sessionId = handler.saveSession(workout.id, date);
+        ArrayList<ArrayList<ExerciseSet>> previousSets = new ArrayList<>();
+        for (Exercise exercise : workout.exercises) {
+            previousSets.add(handler.loadLatestSet(exercise.id, workout.id));
+        }
 
         while (running){
             // If out of indexing then print out exiting menu
@@ -267,9 +274,15 @@ public class App {
 
             // Print out exercise name and its sets 
             Exercise exercise = workout.exercises.get(index);
+            ArrayList<ExerciseSet> latestSets = previousSets.get(index);
             System.out.println("------");
             System.out.print("Exercise: ");
             System.out.println(exercise.name);
+            System.out.println("LAST SESSION:");
+            for (int i = 0; i < latestSets.size(); i ++){
+                System.out.println("Set: " + (i + 1) + ".\n" + latestSets.get(i));
+            }
+            System.out.println("------");
             for (int i = 0; i < exercise.sets.size(); i++){
                 System.out.println("Set: " + (i + 1) + ".\n" + exercise.sets.get(i));
             }
@@ -284,7 +297,7 @@ public class App {
                 index++;
             else{
                 if (option == 1){
-                    addSet(exercise);
+                    addSet(exercise, sessionId);
                 }
                 else if (option == 2){
                     if (exercise.sets.isEmpty()){

@@ -149,7 +149,7 @@ public class DatabaseHandler {
         }
     }
 
-    ArrayList<ExerciseSet> loadLastestSet(int exerciseId, int workoutId) {
+    ArrayList<ExerciseSet> loadLatestSet(int exerciseId, int workoutId) {
         ArrayList<ExerciseSet> sets = new ArrayList<>();
         String sqlSession = "SELECT id FROM sessions WHERE workout_id = ? ORDER BY date DESC LIMIT 1";
         String sqlSets = "SELECT * FROM exercise_sets WHERE exercise_id = ? AND session_id = ?";
@@ -196,7 +196,7 @@ public class DatabaseHandler {
                 String name = rs.getString("name");
                 Exercise exercise =  new Exercise(name);
                 exercise.id = id;
-                exercise.sets = loadLastestSet(exercise.id, workoutId);
+                exercise.sets = loadLatestSet(exercise.id, workoutId);
                 exercises.add(exercise);
             }
         } catch (SQLException e){

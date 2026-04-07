@@ -47,3 +47,31 @@ body {
      max-width: 500px;
      margin: 0 auto;   
     }
+
+    .exercise-card {
+        background-color: #16213e;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+    }
+
+    .exercise-card h3 {
+        margin: 0 0 10px 0;
+    }
+
+    .set-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px solid #2a2a4a;
+    }
+
+    .set-row button {
+        background-color: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        padding: 2px 8px;
+        cursor: pointer;
+    }

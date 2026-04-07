@@ -43,17 +43,18 @@ function viewWorkout(index) {
     let workout = workouts[index];
     let container = document.getElementById("container");
     container.innerHTML = `
-        <h2>${workout.name}</h2>
-        <button onclick="addExercise(${index})">Add Exercise</button>
-        <ul id="exercise-list">
-        </ul>
-        <button onclick="renderWorkouts()">Back</button>
-    `;
+    <h2>${workout.name}</h2>
+    <button onclick="addExercise(${index})">Add Exercise</button>
+    <button onclick="startWorkout(${index})">Start Workout</button>
+    <ul id="exercise-list">
+    </ul>
+    <button onclick="renderWorkouts()">Back</button>
+`;
 
     let list = document.getElementById("exercise-list");
     for (let i = 0 ; i < workout.exercises.length; i++) {
         let item = document.createElement("li");
-        let nameText = document.createTextNode(workout.exercises[i]);
+        let nameText = document.createTextNode(`${i + 1}. ${workout.exercises[i].name}`);
 
         let deleteBtn = document.createElement("button");
         deleteBtn.textContent = "Delete";
@@ -61,6 +62,7 @@ function viewWorkout(index) {
             workout.exercises.splice(i, 1);
             viewWorkout(index);
         };
+
 
         item.appendChild(nameText);
         item.appendChild(deleteBtn);
@@ -71,8 +73,70 @@ function viewWorkout(index) {
 function addExercise(workoutIndex) {
     let name = prompt("Enter exercise name:")
     if (name) {
-        workouts[workoutIndex].exercises.push(name);
+        workouts[workoutIndex].exercises.push({name: name, sets: []});
         viewWorkout(workoutIndex);
+    }
+}
+
+function startWorkout(index) {
+    let workout = workouts[index];
+    let container = document.getElementById("container");
+    container.innerHTML = `
+        <h2>${workout.name} - Workout</h2>
+        <div id="exercise-cards"></div>
+        <button onclick="renderWorkouts()">Finish Workout</button>
+    `;
+
+    let cards = document.getElementById("exercise-cards");
+    for (let i = 0; i < workout.exercises.length; i++) {
+        let exercise = workout.exercises[i];
+
+        let card = document.createElement("div");
+        card.className = "exercise-card";
+        card.innerHTML = `
+            <h3>${exercise.name}</h3>
+            <div id="sets-${i}"></div>
+        `;
+
+        let addSetBtn = document.createElement("button");
+        addSetBtn.textContent = "Add Set";
+        addSetBtn.onclick = function() {
+            let weight = prompt("Enter weight:");
+            let reps = prompt("Enter reps:");
+            if (weight && reps) {
+                exercise.sets.push({ weight: parseFloat(weight), reps: parseInt(reps) });
+                renderSets(i, exercise);
+            }
+        };
+
+        card.appendChild(addSetBtn);
+        cards.appendChild(card);
+        renderSets(i, exercise);
+    }
+}
+
+function renderSets(exerciseIndex, exercise) {
+    let setsDiv = document.getElementById("sets-" + exerciseIndex);
+    setsDiv.innerHTML = "";
+    for (let j = 0; j < exercise.sets.length; j++) {
+        let set = exercise.sets[j];
+        let setRow = document.createElement("div");
+        setRow.className = "set-row";
+
+        let setText = document.createTextNode(
+            "Set " + (j + 1) + ": " + set.weight + "kg x " + set.reps
+        );
+
+        let deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "X";
+        deleteBtn.onclick = function() {
+            exercise.sets.splice(j, 1);
+            renderSets(exerciseIndex, exercise);
+        };
+
+        setRow.appendChild(setText);
+        setRow.appendChild(deleteBtn);
+        setsDiv.appendChild(setRow);
     }
 }
 

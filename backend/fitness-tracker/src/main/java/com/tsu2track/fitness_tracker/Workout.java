@@ -1,9 +1,13 @@
 package com.tsu2track.fitness_tracker;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Workout {
@@ -11,6 +15,10 @@ public class Workout {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
+
+
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL)
+    private List<Exercise> exercises = new ArrayList<>();
 
     public Workout() {}
 

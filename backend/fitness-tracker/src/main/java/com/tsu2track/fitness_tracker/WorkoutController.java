@@ -22,4 +22,9 @@ public class WorkoutController {
     public Workout creaWorkout(@RequestBody Workout workout){
         return workoutRepository.save(workout);
     }
+
+    @DeleteMapping("/{id}")
+    public void deleteWorkout(@PathVariable Long id){
+        workoutRepository.deleteById(id);
+    }
 }

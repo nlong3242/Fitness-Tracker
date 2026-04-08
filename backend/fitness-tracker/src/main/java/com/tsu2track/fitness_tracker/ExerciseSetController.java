@@ -26,7 +26,7 @@ public class ExerciseSetController {
 
     @GetMapping("/sessions/{sessionId}/sets")
     public List<ExerciseSet> getSets(@PathVariable Long sessionId){
-        return exerciseSetRepository.findBySessionId(sessionId);
+        return exerciseSetRepository.findBySession_Id(sessionId);
     }
 
     @PostMapping("/sessions/{sessionId}/sets")

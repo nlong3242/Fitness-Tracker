@@ -68,4 +68,12 @@ public class ExerciseSet {
     public void setSession(Session session) {
         this.session = session;
     }
+
+    public Long getExerciseId() {
+        return exercise != null ? exercise.getId() : null;
+    }
+
+    public Long getSessionId() {
+        return session != null ? session.getId() : null;
+    }
 }

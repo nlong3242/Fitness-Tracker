@@ -22,6 +22,10 @@ public class ExerciseSet {
     @JoinColumn(name = "exercise_id")
     private Exercise exercise;
 
+    @JsonIgnore
+    @ManyToOne
+    @JoinColumn(name = "session_id")
+    private Session session;
 
     public ExerciseSet() {}
 
@@ -55,5 +59,13 @@ public class ExerciseSet {
 
     public void setExercise(Exercise exercise) {
         this.exercise = exercise;
+    }
+
+    public Session getSession() {
+        return session;
+    }
+
+    public void setSession(Session session) {
+        this.session = session;
     }
 }

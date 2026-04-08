@@ -16,7 +16,7 @@ public class Session {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    final String date = LocalDate.now().toString();
+    private LocalDate date;
 
     @JsonIgnore
     @ManyToOne
@@ -25,7 +25,7 @@ public class Session {
 
     public Session() {}
     
-    public String getDate() {
+    public LocalDate getDate() {
         return date;
     }
 
@@ -36,6 +36,10 @@ public class Session {
     public Workout getWorkout() {
         return workout;
     } 
+
+    public void setDate(LocalDate date){
+        this.date = date;
+    }
 
     public void setId(Long id) {
         this.id = id;

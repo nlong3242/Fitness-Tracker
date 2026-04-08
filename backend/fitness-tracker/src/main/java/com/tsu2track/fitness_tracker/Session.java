@@ -33,7 +33,7 @@ public class Session {
         return id;
     }
 
-    public Workout getWorkout() {
+    public Workout gettWorkout() {
         return workout;
     } 
 

@@ -1,5 +1,7 @@
 package com.tsu2track.fitness_tracker;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,6 +17,7 @@ public class ExerciseSet {
     private double weight;
     private int reps;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "exercise_id")
     private Exercise exercise;

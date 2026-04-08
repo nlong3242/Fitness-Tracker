@@ -33,7 +33,7 @@ public class Session {
         return id;
     }
 
-    public Workout gettWorkout() {
+    public Workout getWorkout() {
         return workout;
     } 
 
@@ -47,5 +47,9 @@ public class Session {
 
     public void setWorkout(Workout workout){
         this.workout = workout;
+    }
+
+    public Long getWorkoutId() {
+        return workout != null ? workout.getId() : null;
     }
 }

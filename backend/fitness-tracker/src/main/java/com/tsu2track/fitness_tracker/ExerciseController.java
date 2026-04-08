@@ -25,7 +25,7 @@ public class ExerciseController {
     
     @GetMapping
     public List<Exercise> getExercises(@PathVariable Long workoutId){
-        return exerciseRepository.findByWorkoutId(workoutId);
+        return exerciseRepository.findByWorkout_Id(workoutId);
     }
 
     @PostMapping

@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,12 +21,8 @@ public class SessionController {
     }
 
     @GetMapping("/workouts/{workoutId}/sessions")
-    public Workout getWorkout(@PathVariable Long workoutId) {
-        Optional<Workout> workout = workoutRepository.findById(workoutId);
-        boolean present = workout.isPresent();
-        if (present)
-            return workout.get();
-        return null;
+    public List<Session> getSessions(@PathVariable Long workoutId){
+        return sessionRepository.findByWorkout_Id(workoutId);
     }
 
     @PostMapping("/workouts/{workoutId}/sessions")

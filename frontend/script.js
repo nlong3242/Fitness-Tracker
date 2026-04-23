@@ -34,8 +34,11 @@ function renderWorkouts() {
 
         let deleteBtn = document.createElement("button");
         deleteBtn.textContent = "Delete";
-        deleteBtn.onclick = function(event) {
+        deleteBtn.onclick = async function(event) {
             event.stopPropagation();
+            await fetch(`http://localhost:8080/workouts/${workouts[i].id}`, {
+                method: "DELETE"
+            });
             workouts.splice(i, 1);
             renderWorkouts();
         };

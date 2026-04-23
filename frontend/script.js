@@ -140,4 +140,11 @@ function renderSets(exerciseIndex, exercise) {
     }
 }
 
-renderWorkouts()
+async function loadWorkout() {
+    const response = await fetch("http://localhost:8080/workouts");
+    const data = await response.json();
+    workout = data;
+    renderWorkouts()
+}
+
+loadWorkout()

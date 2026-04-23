@@ -1,11 +1,18 @@
 let workouts = [];
 
-function createWorkout() {
-    let name = prompt("Enter workout name:");
-    if (name) {
-        workouts.push({name: name, exercises: []});
-        renderWorkouts();
-    }
+async function createWorkout() {
+    const name = prompt("Enter Workout name:");
+    if (!name) return;
+    const response = await fetch("http://localhost:8080/workouts", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name: name })
+    });
+    const newWorkout = await response.json();
+    workouts.push(newWorkout);
+    renderWorkouts()
 }
 
 function renderWorkouts() {
@@ -140,11 +147,11 @@ function renderSets(exerciseIndex, exercise) {
     }
 }
 
-async function loadWorkout() {
+async function loadWorkouts() {
     const response = await fetch("http://localhost:8080/workouts");
     const data = await response.json();
-    workout = data;
+    workouts = data;
     renderWorkouts()
 }
 
-loadWorkout()
+loadWorkouts()

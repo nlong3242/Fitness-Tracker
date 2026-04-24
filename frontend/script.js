@@ -72,8 +72,10 @@ function renderWorkouts() {
 
         let deleteBtn = document.createElement("button");
         deleteBtn.textContent = "Delete";
-        deleteBtn.onclick = function() {
-            workout.exercises.splice(i, 1);
+        deleteBtn.onclick = async function() {
+            await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${workout.exercises[i].id}`, {
+                method: "DELETE",
+            });
             viewWorkout(index);
         };
 
@@ -88,7 +90,7 @@ async function addExercise(workoutIndex) {
     const workout = workouts[workoutIndex]
     let name = prompt("Enter exercise name:")
     if (!name) return;
-    const response = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`, {
+    await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"

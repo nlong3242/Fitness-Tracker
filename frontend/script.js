@@ -11,6 +11,7 @@ async function createWorkout() {
         body: JSON.stringify({ name: name })
     });
     const newWorkout = await response.json();
+    newWorkout.exercises = [];
     workouts.push(newWorkout);
     renderWorkouts()
 }
@@ -49,8 +50,11 @@ function renderWorkouts() {
     }
 }
 
-function viewWorkout(index) {
+ async function viewWorkout(index) {
     let workout = workouts[index];
+    const response = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
+    const data = await response.json();
+    workout.exercises = data;
     let container = document.getElementById("container");
     container.innerHTML = `
     <h2>${workout.name}</h2>
@@ -80,12 +84,18 @@ function viewWorkout(index) {
     }
 }
 
-function addExercise(workoutIndex) {
+async function addExercise(workoutIndex) {
+    const workout = workouts[workoutIndex]
     let name = prompt("Enter exercise name:")
-    if (name) {
-        workouts[workoutIndex].exercises.push({name: name, sets: []});
-        viewWorkout(workoutIndex);
-    }
+    if (!name) return;
+    const response = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name: name })
+    });
+    viewWorkout(workoutIndex);
 }
 
 function startWorkout(index) {

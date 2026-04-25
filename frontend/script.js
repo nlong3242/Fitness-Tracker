@@ -51,16 +51,16 @@ function renderWorkouts() {
     }
 }
 
- async function viewWorkout(index) {
-    let workout = workouts[index];
+ async function viewWorkout(workoutIndex) {
+    const workout = workouts[workoutIndex];
     const response = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
     const data = await response.json();
     workout.exercises = data;
     let container = document.getElementById("container");
     container.innerHTML = `
     <h2>${workout.name}</h2>
-    <button onclick="addExercise(${index})">Add Exercise</button>
-    <button onclick="startWorkout(${index})">Start Workout</button>
+    <button onclick="addExercise(${workoutIndex})">Add Exercise</button>
+    <button onclick="startWorkout(${workoutIndex})">Start Workout</button>
     <ul id="exercise-list">
     </ul>
     <button onclick="renderWorkouts()">Back</button>
@@ -77,7 +77,7 @@ function renderWorkouts() {
             await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${workout.exercises[i].id}`, {
                 method: "DELETE",
             });
-            viewWorkout(index);
+            viewWorkout(workoutIndex);
         };
 
 
@@ -101,8 +101,8 @@ async function addExercise(workoutIndex) {
     viewWorkout(workoutIndex);
 }
 
-async function startWorkout(index) {
-    let workout = workouts[index];
+async function startWorkout(workoutIndex) {
+    const workout = workouts[workoutIndex];
     // Get the exercises of this workout from DB
     const exerciseResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
     const exercises = await exerciseResponse.json();
@@ -120,7 +120,7 @@ async function startWorkout(index) {
     container.innerHTML = `
         <h2>${workout.name} - Workout</h2>
         <div id="exercise-cards"></div>
-        <button onclick="finishWorkout(${index})">Finish Workout</button>
+        <button onclick="finishWorkout(${workoutIndex})">Finish Workout</button>
     `;
 
     let cards = document.getElementById("exercise-cards");
@@ -194,8 +194,8 @@ async function loadWorkouts() {
     renderWorkouts()
 }
 
-async function finishWorkout(index) {
-    let workout = workouts[index];
+async function finishWorkout(workoutIndex) {
+    const workout = workouts[workoutIndex];
     let hasAnySets = false;
     for (const exercise of workout.exercises){
         if (exercise.sets.length > 0){

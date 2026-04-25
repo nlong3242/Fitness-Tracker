@@ -120,7 +120,7 @@ async function startWorkout(index) {
     container.innerHTML = `
         <h2>${workout.name} - Workout</h2>
         <div id="exercise-cards"></div>
-        <button onclick="renderWorkouts()">Finish Workout</button>
+        <button onclick="finishWorkout(${index})">Finish Workout</button>
     `;
 
     let cards = document.getElementById("exercise-cards");
@@ -136,11 +136,19 @@ async function startWorkout(index) {
 
         let addSetBtn = document.createElement("button");
         addSetBtn.textContent = "Add Set";
-        addSetBtn.onclick = function() {
+        addSetBtn.onclick = async function() {
             let weight = prompt("Enter weight:");
             let reps = prompt("Enter reps:");
             if (weight && reps) {
-                exercise.sets.push({ weight: parseFloat(weight), reps: parseInt(reps) });
+                const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ weight: parseFloat(weight), reps: parseInt(reps) })
+                });
+                const set = await response.json();
+                exercise.sets.push(set);
                 renderSets(i, exercise);
             }
         };
@@ -165,7 +173,10 @@ function renderSets(exerciseIndex, exercise) {
 
         let deleteBtn = document.createElement("button");
         deleteBtn.textContent = "X";
-        deleteBtn.onclick = function() {
+        deleteBtn.onclick = async function() {
+            await fetch(`http://localhost:8080/sets/${set.id}`, {
+                method: "DELETE",
+            });
             exercise.sets.splice(j, 1);
             renderSets(exerciseIndex, exercise);
         };
@@ -183,4 +194,21 @@ async function loadWorkouts() {
     renderWorkouts()
 }
 
+async function finishWorkout(index) {
+    let workout = workouts[index];
+    let hasAnySets = false;
+    for (const exercise of workout.exercises){
+        if (exercise.sets.length > 0){
+            hasAnySets = true;
+            break
+        }
+    }
+    if (!hasAnySets) {
+        await fetch(`http://localhost:8080/sessions/${currentSessionId}`, {
+            method: "DELETE",
+        });
+    }
+    currentSessionId = null;
+    renderWorkouts();
+}
 loadWorkouts()

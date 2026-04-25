@@ -1,4 +1,5 @@
 let workouts = [];
+let currentSessionId = null;
 
 async function createWorkout() {
     const name = prompt("Enter Workout name:");
@@ -100,8 +101,21 @@ async function addExercise(workoutIndex) {
     viewWorkout(workoutIndex);
 }
 
-function startWorkout(index) {
+async function startWorkout(index) {
     let workout = workouts[index];
+    // Get the exercises of this workout from DB
+    const exerciseResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
+    const exercises = await exerciseResponse.json();
+    exercises.forEach(ex => ex.sets = []);
+    workout.exercises = exercises;
+
+    // Start a new session with today's date and attach it to a workout
+    const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
+        method: "POST"
+    });
+    const session = await sessionResponse.json();
+    currentSessionId = session.id;
+
     let container = document.getElementById("container");
     container.innerHTML = `
         <h2>${workout.name} - Workout</h2>

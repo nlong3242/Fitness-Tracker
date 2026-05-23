@@ -29,6 +29,16 @@ public class ExerciseSetController {
         return exerciseSetRepository.findBySession_Id(sessionId);
     }
 
+    @GetMapping("/workouts/{workoutId}/exercises/{exerciseId}/last-sets")
+    public List<ExerciseSet> getLastSets(
+        @PathVariable Long workoutId,
+        @PathVariable Long exerciseId,
+        @RequestParam Long excludeSessionId
+    ) {
+        return exerciseSetRepository.findLastSetsForExercise(workoutId, exerciseId, excludeSessionId);
+    }
+
+    
     @PostMapping("/sessions/{sessionId}/sets")
     public ExerciseSet createSet (@RequestBody ExerciseSet set, @RequestParam Long exerciseId, @PathVariable Long sessionId){
         Optional<Session> session = sessionRepository.findById(sessionId);

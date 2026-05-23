@@ -64,6 +64,10 @@ function renderWorkouts() {
     <button onclick="startWorkout(${workoutIndex})">Start Workout</button>
     <ul id="exercise-list">
     </ul>
+    <h3>Previous Sessions</h3>
+    <div id="session-list"></div>
+    <button id="load-more-sessions" style="display:none">Load More</button>
+    <br><br>
     <button onclick="renderWorkouts()">Back</button>
 `;
 
@@ -86,6 +90,39 @@ function renderWorkouts() {
         item.appendChild(deleteBtn);
         list.appendChild(item);
     }
+
+    let nextPage = 0;
+    let sessionIndex = 1;
+    const loadMoreBtn = document.getElementById("load-more-sessions");
+    const sessionList = document.getElementById("session-list");
+
+    async function loadSessionPage() {
+        const pageResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions?page=${nextPage}&size=5`);
+        const pageData = await pageResponse.json();
+        if (nextPage === 0 && pageData.content.length === 0) {
+            sessionList.innerHTML = `<div class="empty-sessions">No previous sessions yet.</div>`;
+            return;
+        }
+        for (const session of pageData.content) {
+            const row = document.createElement("div");
+            row.className = "session-row";
+            const [y, m, d] = session.date.split("-").map(Number);
+            const formatted = new Date(y, m - 1, d).toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric"
+            });
+            row.innerHTML = `<span class="session-index">${sessionIndex}.</span> ${formatted}`;
+            sessionList.appendChild(row);
+            sessionIndex++;
+        }
+        nextPage++;
+        loadMoreBtn.style.display = pageData.last ? "none" : "inline-block";
+    }
+
+    loadMoreBtn.onclick = loadSessionPage;
+    await loadSessionPage();
 }
 
 async function addExercise(workoutIndex) {

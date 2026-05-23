@@ -1,13 +1,15 @@
 package com.tsu2track.fitness_tracker;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -21,8 +23,12 @@ public class SessionController {
     }
 
     @GetMapping("/workouts/{workoutId}/sessions")
-    public List<Session> getSessions(@PathVariable Long workoutId){
-        return sessionRepository.findByWorkout_Id(workoutId);
+    public Page<Session> getSessions(
+        @PathVariable Long workoutId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "5") int size
+    ) {
+        return sessionRepository.findByWorkout_IdOrderByDateDescIdDesc(workoutId, PageRequest.of(page, size));
     }
 
     @PostMapping("/workouts/{workoutId}/sessions")

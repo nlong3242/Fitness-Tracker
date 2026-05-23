@@ -14,12 +14,12 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
         SELECT s FROM ExerciseSet s
         WHERE s.exercise.id = :exerciseId
           AND s.session.workout.id = :workoutId
-          AND s.session.id <> :excludeSessionId
+          AND (:excludeSessionId IS NULL OR s.session.id <> :excludeSessionId)
           AND s.session.id = (
             SELECT s2.session.id FROM ExerciseSet s2
             WHERE s2.exercise.id = :exerciseId
               AND s2.session.workout.id = :workoutId
-              AND s2.session.id <> :excludeSessionId
+              AND (:excludeSessionId IS NULL OR s2.session.id <> :excludeSessionId)
             ORDER BY s2.session.date DESC, s2.session.id DESC
             LIMIT 1
           )

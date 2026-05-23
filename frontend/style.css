@@ -59,6 +59,25 @@ body {
         margin: 0 0 10px 0;
     }
 
+    .previous-sets {
+        background-color: #0f1a30;
+        padding: 8px 10px;
+        margin: 0 0 10px 0;
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: #b0b8c8;
+    }
+
+    .previous-sets-label {
+        font-weight: bold;
+        margin-bottom: 4px;
+        color: #d0d8e8;
+    }
+
+    .previous-set-row {
+        padding: 2px 0;
+    }
+
     .set-row {
         display: flex;
         justify-content: space-between;

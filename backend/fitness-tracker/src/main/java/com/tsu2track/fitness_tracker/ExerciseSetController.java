@@ -33,7 +33,7 @@ public class ExerciseSetController {
     public List<ExerciseSet> getLastSets(
         @PathVariable Long workoutId,
         @PathVariable Long exerciseId,
-        @RequestParam Long excludeSessionId
+        @RequestParam(required = false) Long excludeSessionId
     ) {
         return exerciseSetRepository.findLastSetsForExercise(workoutId, exerciseId, excludeSessionId);
     }

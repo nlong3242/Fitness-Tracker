@@ -109,12 +109,8 @@ async function startWorkout(workoutIndex) {
     exercises.forEach(ex => ex.sets = []);
     workout.exercises = exercises;
 
-    // Start a new session with today's date and attach it to a workout
-    const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
-        method: "POST"
-    });
-    const session = await sessionResponse.json();
-    currentSessionId = session.id;
+    // Session is created lazily — only when the first set is logged
+    currentSessionId = null;
 
     let container = document.getElementById("container");
     container.innerHTML = `
@@ -127,10 +123,22 @@ async function startWorkout(workoutIndex) {
     for (let i = 0; i < workout.exercises.length; i++) {
         let exercise = workout.exercises[i];
 
+        const lastSetsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}/last-sets`);
+        const lastSets = await lastSetsResponse.json();
+
         let card = document.createElement("div");
         card.className = "exercise-card";
+        let previousSetsHtml = "";
+        if (lastSets.length > 0) {
+            previousSetsHtml = `<div class="previous-sets"><div class="previous-sets-label">Previous:</div>`;
+            for (let k = 0; k < lastSets.length; k++) {
+                previousSetsHtml += `<div class="previous-set-row">Set ${k + 1}: ${lastSets[k].weight}kg x ${lastSets[k].reps}</div>`;
+            }
+            previousSetsHtml += `</div>`;
+        }
         card.innerHTML = `
             <h3>${exercise.name}</h3>
+            ${previousSetsHtml}
             <div id="sets-${i}"></div>
         `;
 
@@ -140,6 +148,13 @@ async function startWorkout(workoutIndex) {
             let weight = prompt("Enter weight:");
             let reps = prompt("Enter reps:");
             if (weight && reps) {
+                if (currentSessionId === null) {
+                    const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
+                        method: "POST"
+                    });
+                    const session = await sessionResponse.json();
+                    currentSessionId = session.id;
+                }
                 const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
                     method: "POST",
                     headers: {
@@ -195,19 +210,6 @@ async function loadWorkouts() {
 }
 
 async function finishWorkout(workoutIndex) {
-    const workout = workouts[workoutIndex];
-    let hasAnySets = false;
-    for (const exercise of workout.exercises){
-        if (exercise.sets.length > 0){
-            hasAnySets = true;
-            break
-        }
-    }
-    if (!hasAnySets) {
-        await fetch(`http://localhost:8080/sessions/${currentSessionId}`, {
-            method: "DELETE",
-        });
-    }
     currentSessionId = null;
     renderWorkouts();
 }

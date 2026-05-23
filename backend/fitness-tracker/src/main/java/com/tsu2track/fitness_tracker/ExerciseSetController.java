@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +49,18 @@ public class ExerciseSetController {
         if (sessionPresent && exercisePresent){
             set.setExercise(exercise.get());
             set.setSession(session.get());
+            return exerciseSetRepository.save(set);
+        }
+        return null;
+    }
+
+    @PutMapping("/sets/{setId}")
+    public ExerciseSet updateSet(@PathVariable Long setId, @RequestBody ExerciseSet body) {
+        Optional<ExerciseSet> existing = exerciseSetRepository.findById(setId);
+        if (existing.isPresent()) {
+            ExerciseSet set = existing.get();
+            set.setWeight(body.getWeight());
+            set.setReps(body.getReps());
             return exerciseSetRepository.save(set);
         }
         return null;

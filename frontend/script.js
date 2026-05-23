@@ -180,6 +180,7 @@ async function startWorkout(workoutIndex) {
         addSetBtn.onclick = function() {
             const container = document.getElementById("sets-" + i);
             container.appendChild(createInputRow(workout, exercise, i));
+            updateHeaderVisibility(i);
             renumberSetRows(i, exercise);
         };
 
@@ -187,10 +188,10 @@ async function startWorkout(workoutIndex) {
         cards.appendChild(card);
 
         const container = document.getElementById("sets-" + i);
-        container.appendChild(createHeaderRow());
         for (let k = 0; k < exercise.previousSets.length; k++) {
             container.appendChild(createInputRow(workout, exercise, i));
         }
+        updateHeaderVisibility(i);
         renumberSetRows(i, exercise);
     }
 }
@@ -200,59 +201,147 @@ function createInputRow(workout, exercise, exerciseIndex) {
     row.className = "set-input-row";
     row.innerHTML = `
         <div class="set-input-num"></div>
-        <input type="number" step="0.5" class="set-input weight-input">
-        <input type="number" class="set-input reps-input">
-        <button class="set-input-save">&#10003;</button>
+        <div class="set-input-cell">
+            <input type="number" step="0.5" class="set-input weight-input">
+            <span class="set-input-delta weight-delta"></span>
+        </div>
+        <div class="set-input-cell">
+            <input type="number" class="set-input reps-input">
+            <span class="set-input-delta reps-delta"></span>
+        </div>
         <button class="set-input-cancel">&#10005;</button>
     `;
     const weightInput = row.querySelector(".weight-input");
     const repsInput = row.querySelector(".reps-input");
-    row.querySelector(".set-input-save").onclick = async function() {
-        const weight = weightInput.value;
-        const reps = repsInput.value;
-        if (!weight || !reps) return;
-        if (currentSessionId === null) {
-            const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
-                method: "POST"
-            });
-            const session = await sessionResponse.json();
-            currentSessionId = session.id;
-            currentSessionDate = session.date;
+    const weightDelta = row.querySelector(".weight-delta");
+    const repsDelta = row.querySelector(".reps-delta");
+    const cancelBtn = row.querySelector(".set-input-cancel");
+    let savedSet = null;
+    let persisting = false;
+
+    function renderDeltaSpan(el, delta) {
+        if (delta === 0) {
+            el.textContent = "";
+            el.classList.remove("pos", "neg");
+            return;
         }
-        const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ weight: parseFloat(weight), reps: parseInt(reps) })
-        });
-        const set = await response.json();
-        exercise.sets.push(set);
-        row.replaceWith(createSavedRow(workout, exercise, exerciseIndex, set));
-        renumberSetRows(exerciseIndex, exercise);
-    };
-    row.querySelector(".set-input-cancel").onclick = function() {
+        const sign = delta > 0 ? "+" : "";
+        el.textContent = `${sign}${delta}`;
+        el.classList.toggle("pos", delta > 0);
+        el.classList.toggle("neg", delta < 0);
+    }
+
+    function updateDeltas() {
+        const container = document.getElementById("sets-" + exerciseIndex);
+        const rows = Array.from(container.children).filter(c => !c.classList.contains("set-header-row"));
+        const position = rows.indexOf(row) + 1;
+        const prev = exercise.previousSets[position - 1];
+        if (!prev) {
+            weightDelta.textContent = "";
+            repsDelta.textContent = "";
+            weightDelta.classList.remove("pos", "neg");
+            repsDelta.classList.remove("pos", "neg");
+            return;
+        }
+        const w = parseFloat(weightInput.value);
+        const r = parseInt(repsInput.value);
+        if (isNaN(w)) {
+            weightDelta.textContent = "";
+            weightDelta.classList.remove("pos", "neg");
+        } else {
+            renderDeltaSpan(weightDelta, w - prev.weight);
+        }
+        if (isNaN(r)) {
+            repsDelta.textContent = "";
+            repsDelta.classList.remove("pos", "neg");
+        } else {
+            renderDeltaSpan(repsDelta, r - prev.reps);
+        }
+    }
+
+    row._updateDeltas = updateDeltas;
+
+    weightInput.oninput = updateDeltas;
+    repsInput.oninput = updateDeltas;
+
+    async function persist() {
+        if (persisting) return;
+        const w = parseFloat(weightInput.value);
+        const r = parseInt(repsInput.value);
+        if (isNaN(w) || isNaN(r)) return;
+        if (savedSet && w === savedSet.weight && r === savedSet.reps) return;
+        persisting = true;
+        try {
+            if (savedSet) {
+                const response = await fetch(`http://localhost:8080/sets/${savedSet.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ weight: w, reps: r })
+                });
+                const updated = await response.json();
+                savedSet.weight = updated.weight;
+                savedSet.reps = updated.reps;
+            } else {
+                if (currentSessionId === null) {
+                    const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
+                        method: "POST"
+                    });
+                    const session = await sessionResponse.json();
+                    currentSessionId = session.id;
+                    currentSessionDate = session.date;
+                }
+                const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ weight: w, reps: r })
+                });
+                savedSet = await response.json();
+                exercise.sets.push(savedSet);
+                row.classList.add("saved");
+            }
+        } finally {
+            persisting = false;
+        }
+    }
+
+    weightInput.onchange = persist;
+    repsInput.onchange = persist;
+
+    cancelBtn.onclick = async function() {
+        if (savedSet) {
+            await fetch(`http://localhost:8080/sets/${savedSet.id}`, { method: "DELETE" });
+            const idx = exercise.sets.indexOf(savedSet);
+            if (idx >= 0) exercise.sets.splice(idx, 1);
+            let hasAnySets = false;
+            for (const ex of workout.exercises) {
+                if (ex.sets.length > 0) {
+                    hasAnySets = true;
+                    break;
+                }
+            }
+            if (!hasAnySets && currentSessionId !== null) {
+                await fetch(`http://localhost:8080/sessions/${currentSessionId}`, { method: "DELETE" });
+                currentSessionId = null;
+                currentSessionDate = null;
+            }
+        }
         row.remove();
+        updateHeaderVisibility(exerciseIndex);
         renumberSetRows(exerciseIndex, exercise);
     };
+
     return row;
 }
 
-function createSavedRow(workout, exercise, exerciseIndex, set) {
-    const row = document.createElement("div");
-    row.className = "set-input-row saved";
-    row.innerHTML = `
-        <div class="set-input-num"></div>
-        <div class="set-input saved-cell">${set.weight}</div>
-        <div class="set-input saved-cell">${set.reps}</div>
-        <button class="set-input-cancel set-delete">&#10005;</button>
-    `;
-    row.querySelector(".set-delete").onclick = async function() {
-        await fetch(`http://localhost:8080/sets/${set.id}`, { method: "DELETE" });
-        const idx = exercise.sets.indexOf(set);
-        if (idx >= 0) exercise.sets.splice(idx, 1);
-        row.remove();
-        renumberSetRows(exerciseIndex, exercise);
-    };
-    return row;
+function updateHeaderVisibility(exerciseIndex) {
+    const container = document.getElementById("sets-" + exerciseIndex);
+    const existingHeader = container.querySelector(".set-header-row");
+    const hasRows = Array.from(container.children).some(c => !c.classList.contains("set-header-row"));
+    if (hasRows && !existingHeader) {
+        container.insertBefore(createHeaderRow(), container.firstChild);
+    } else if (!hasRows && existingHeader) {
+        existingHeader.remove();
+    }
 }
 
 function createHeaderRow() {
@@ -282,6 +371,7 @@ function renumberSetRows(exerciseIndex, exercise) {
             weightInput.placeholder = prev ? prev.weight : "";
             repsInput.placeholder = prev ? prev.reps : "";
         }
+        if (child._updateDeltas) child._updateDeltas();
     }
 }
 

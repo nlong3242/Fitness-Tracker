@@ -1,5 +1,6 @@
 let workouts = [];
 let currentSessionId = null;
+let currentSessionDate = null;
 
 async function createWorkout() {
     const name = prompt("Enter Workout name:");
@@ -111,6 +112,7 @@ async function startWorkout(workoutIndex) {
 
     // Session is created lazily — only when the first set is logged
     currentSessionId = null;
+    currentSessionDate = null;
 
     let container = document.getElementById("container");
     container.innerHTML = `
@@ -154,6 +156,7 @@ async function startWorkout(workoutIndex) {
                     });
                     const session = await sessionResponse.json();
                     currentSessionId = session.id;
+                    currentSessionDate = session.date;
                 }
                 const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
                     method: "POST",
@@ -210,7 +213,57 @@ async function loadWorkouts() {
 }
 
 async function finishWorkout(workoutIndex) {
+    const workout = workouts[workoutIndex];
+    if (currentSessionId === null) {
+        renderWorkouts();
+        return;
+    }
+    const sessionDate = currentSessionDate;
     currentSessionId = null;
-    renderWorkouts();
+    currentSessionDate = null;
+    renderWorkoutSummary(workout, sessionDate);
+}
+
+function renderWorkoutSummary(workout, sessionDate) {
+    let exercisesCount = 0;
+    let setsCount = 0;
+    let repsTotal = 0;
+    let volumeTotal = 0;
+    for (const exercise of workout.exercises) {
+        if (exercise.sets.length > 0) {
+            exercisesCount++;
+        }
+        for (const set of exercise.sets) {
+            setsCount++;
+            repsTotal += set.reps;
+            volumeTotal += set.weight * set.reps;
+        }
+    }
+
+    let container = document.getElementById("container");
+    container.innerHTML = `
+        <h2>Workout Summary</h2>
+        <div class="summary-date">${sessionDate}</div>
+        <div class="summary-stats">
+            <div class="stat-box">
+                <div class="stat-label">Exercises</div>
+                <div class="stat-value">${exercisesCount}</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Sets</div>
+                <div class="stat-value">${setsCount}</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Reps</div>
+                <div class="stat-value">${repsTotal}</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Volume<span class="stat-unit">(kg)</span></div>
+                <div class="stat-value">${volumeTotal}</div>
+            </div>
+        </div>
+        <div id="summary-content"></div>
+        <button onclick="renderWorkouts()">Back</button>
+    `;
 }
 loadWorkouts()

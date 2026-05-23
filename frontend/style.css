@@ -59,6 +59,41 @@ body {
         margin: 0 0 10px 0;
     }
 
+    .summary-date {
+        font-size: 1.1em;
+        color: #b0b8c8;
+        margin-bottom: 15px;
+    }
+
+    .summary-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .stat-box {
+        background-color: #16213e;
+        padding: 15px;
+        border-radius: 5px;
+    }
+
+    .stat-label {
+        font-weight: bold;
+        font-size: 1.1em;
+        margin-bottom: 8px;
+    }
+
+    .stat-unit {
+        font-size: 0.7em;
+        font-weight: normal;
+        color: #b0b8c8;
+    }
+
+    .stat-value {
+        font-size: 1.3em;
+    }
+
     .previous-sets {
         background-color: #0f1a30;
         padding: 8px 10px;

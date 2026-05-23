@@ -94,6 +94,59 @@ body {
         font-size: 1.3em;
     }
 
+    .summary-exercise-card {
+        background-color: #16213e;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+    }
+
+    .summary-exercise-name {
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+
+    .summary-exercise-count {
+        color: #4CAF50;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .summary-set-header,
+    .summary-set-row {
+        display: grid;
+        grid-template-columns: 70px 1fr 1fr;
+        align-items: center;
+        padding: 8px 0;
+    }
+
+    .summary-set-header {
+        color: #b0b8c8;
+        font-weight: bold;
+        border-bottom: 1px solid #2a2a4a;
+    }
+
+    .summary-set-row {
+        border-bottom: 1px solid #2a2a4a;
+    }
+
+    .summary-set-num {
+        font-weight: bold;
+    }
+
+    .delta {
+        font-size: 0.85em;
+        font-weight: bold;
+    }
+
+    .delta.pos {
+        color: #4CAF50;
+    }
+
+    .delta.neg {
+        color: #e74c3c;
+    }
+
     .previous-sets {
         background-color: #0f1a30;
         padding: 8px 10px;

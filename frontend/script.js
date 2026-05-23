@@ -218,13 +218,21 @@ async function finishWorkout(workoutIndex) {
         renderWorkouts();
         return;
     }
+    const sessionId = currentSessionId;
     const sessionDate = currentSessionDate;
     currentSessionId = null;
     currentSessionDate = null;
-    renderWorkoutSummary(workout, sessionDate);
+    await renderWorkoutSummary(workout, sessionId, sessionDate);
 }
 
-function renderWorkoutSummary(workout, sessionDate) {
+function deltaSpan(delta) {
+    if (delta === 0) return "";
+    const sign = delta > 0 ? "+" : "";
+    const cls = delta > 0 ? "pos" : "neg";
+    return ` <span class="delta ${cls}">(${sign}${delta})</span>`;
+}
+
+async function renderWorkoutSummary(workout, sessionId, sessionDate) {
     let exercisesCount = 0;
     let setsCount = 0;
     let repsTotal = 0;
@@ -240,10 +248,19 @@ function renderWorkoutSummary(workout, sessionDate) {
         }
     }
 
+    const [year, month, day] = sessionDate.split("-").map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const formattedDate = dateObj.toLocaleDateString("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+    });
+
     let container = document.getElementById("container");
     container.innerHTML = `
-        <h2>Workout Summary</h2>
-        <div class="summary-date">${sessionDate}</div>
+        <h2>Workout Summary - ${workout.name}</h2>
+        <div class="summary-date">${formattedDate}</div>
         <div class="summary-stats">
             <div class="stat-box">
                 <div class="stat-label">Exercises</div>
@@ -262,8 +279,53 @@ function renderWorkoutSummary(workout, sessionDate) {
                 <div class="stat-value">${volumeTotal}</div>
             </div>
         </div>
-        <div id="summary-content"></div>
+        <div id="summary-exercises"></div>
         <button onclick="renderWorkouts()">Back</button>
     `;
+
+    const exercisesContainer = document.getElementById("summary-exercises");
+    for (const exercise of workout.exercises) {
+        const lastSetsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}/last-sets?excludeSessionId=${sessionId}`);
+        const lastSets = await lastSetsResponse.json();
+
+        let setsTableHtml = "";
+        if (exercise.sets.length > 0) {
+            let rows = "";
+            for (let k = 0; k < exercise.sets.length; k++) {
+                const set = exercise.sets[k];
+                const prev = lastSets[k];
+                let weightDelta = "";
+                let repsDelta = "";
+                if (prev) {
+                    weightDelta = deltaSpan(set.weight - prev.weight);
+                    repsDelta = deltaSpan(set.reps - prev.reps);
+                }
+                rows += `
+                    <div class="summary-set-row">
+                        <div class="summary-set-num">Set ${String(k + 1).padStart(2, "0")}</div>
+                        <div class="summary-set-cell">${set.weight}${weightDelta}</div>
+                        <div class="summary-set-cell">${set.reps}${repsDelta}</div>
+                    </div>
+                `;
+            }
+            setsTableHtml = `
+                <div class="summary-set-header">
+                    <div class="summary-set-num"></div>
+                    <div class="summary-set-cell">Weight <span class="stat-unit">(kg)</span></div>
+                    <div class="summary-set-cell">Reps</div>
+                </div>
+                ${rows}
+            `;
+        }
+
+        const exerciseCard = document.createElement("div");
+        exerciseCard.className = "summary-exercise-card";
+        exerciseCard.innerHTML = `
+            <div class="summary-exercise-name">${exercise.name}</div>
+            <div class="summary-exercise-count">${exercise.sets.length} sets</div>
+            ${setsTableHtml}
+        `;
+        exercisesContainer.appendChild(exerciseCard);
+    }
 }
 loadWorkouts()

@@ -114,6 +114,9 @@ function renderWorkouts() {
                 year: "numeric"
             });
             row.innerHTML = `<span class="session-index">${sessionIndex}.</span> ${formatted}`;
+            row.onclick = function() {
+                viewSessionSummary(workoutIndex, session.id, session.date);
+            };
             sessionList.appendChild(row);
             sessionIndex++;
         }
@@ -259,7 +262,30 @@ async function finishWorkout(workoutIndex) {
     const sessionDate = currentSessionDate;
     currentSessionId = null;
     currentSessionDate = null;
-    await renderWorkoutSummary(workout, sessionId, sessionDate);
+    await renderWorkoutSummary(workout, sessionId, sessionDate, "renderWorkouts()");
+}
+
+async function viewSessionSummary(workoutIndex, sessionId, sessionDate) {
+    const workout = workouts[workoutIndex];
+    if (!workout.exercises || workout.exercises.length === 0) {
+        const exerciseResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
+        workout.exercises = await exerciseResponse.json();
+    }
+
+    const setsResponse = await fetch(`http://localhost:8080/sessions/${sessionId}/sets`);
+    const sets = await setsResponse.json();
+    const setsByExerciseId = new Map();
+    for (const set of sets) {
+        if (!setsByExerciseId.has(set.exerciseId)) {
+            setsByExerciseId.set(set.exerciseId, []);
+        }
+        setsByExerciseId.get(set.exerciseId).push(set);
+    }
+    for (const exercise of workout.exercises) {
+        exercise.sets = setsByExerciseId.get(exercise.id) || [];
+    }
+
+    await renderWorkoutSummary(workout, sessionId, sessionDate, `viewWorkout(${workoutIndex})`);
 }
 
 function deltaSpan(delta) {
@@ -269,7 +295,7 @@ function deltaSpan(delta) {
     return ` <span class="delta ${cls}">(${sign}${delta})</span>`;
 }
 
-async function renderWorkoutSummary(workout, sessionId, sessionDate) {
+async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick) {
     let exercisesCount = 0;
     let setsCount = 0;
     let repsTotal = 0;
@@ -317,7 +343,7 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate) {
             </div>
         </div>
         <div id="summary-exercises"></div>
-        <button onclick="renderWorkouts()">Back</button>
+        <button onclick="${backOnClick}">Back</button>
     `;
 
     const exercisesContainer = document.getElementById("summary-exercises");

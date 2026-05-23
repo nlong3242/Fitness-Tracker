@@ -166,82 +166,122 @@ async function startWorkout(workoutIndex) {
         let exercise = workout.exercises[i];
 
         const lastSetsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}/last-sets`);
-        const lastSets = await lastSetsResponse.json();
+        exercise.previousSets = await lastSetsResponse.json();
 
         let card = document.createElement("div");
         card.className = "exercise-card";
-        let previousSetsHtml = "";
-        if (lastSets.length > 0) {
-            previousSetsHtml = `<div class="previous-sets"><div class="previous-sets-label">Previous:</div>`;
-            for (let k = 0; k < lastSets.length; k++) {
-                previousSetsHtml += `<div class="previous-set-row">Set ${k + 1}: ${lastSets[k].weight}kg x ${lastSets[k].reps}</div>`;
-            }
-            previousSetsHtml += `</div>`;
-        }
         card.innerHTML = `
             <h3>${exercise.name}</h3>
-            ${previousSetsHtml}
             <div id="sets-${i}"></div>
         `;
 
         let addSetBtn = document.createElement("button");
         addSetBtn.textContent = "Add Set";
-        addSetBtn.onclick = async function() {
-            let weight = prompt("Enter weight:");
-            let reps = prompt("Enter reps:");
-            if (weight && reps) {
-                if (currentSessionId === null) {
-                    const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
-                        method: "POST"
-                    });
-                    const session = await sessionResponse.json();
-                    currentSessionId = session.id;
-                    currentSessionDate = session.date;
-                }
-                const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ weight: parseFloat(weight), reps: parseInt(reps) })
-                });
-                const set = await response.json();
-                exercise.sets.push(set);
-                renderSets(i, exercise);
-            }
+        addSetBtn.onclick = function() {
+            const container = document.getElementById("sets-" + i);
+            container.appendChild(createInputRow(workout, exercise, i));
+            renumberSetRows(i, exercise);
         };
 
         card.appendChild(addSetBtn);
         cards.appendChild(card);
-        renderSets(i, exercise);
+
+        const container = document.getElementById("sets-" + i);
+        container.appendChild(createHeaderRow());
+        for (let k = 0; k < exercise.previousSets.length; k++) {
+            container.appendChild(createInputRow(workout, exercise, i));
+        }
+        renumberSetRows(i, exercise);
     }
 }
 
-function renderSets(exerciseIndex, exercise) {
-    let setsDiv = document.getElementById("sets-" + exerciseIndex);
-    setsDiv.innerHTML = "";
-    for (let j = 0; j < exercise.sets.length; j++) {
-        let set = exercise.sets[j];
-        let setRow = document.createElement("div");
-        setRow.className = "set-row";
-
-        let setText = document.createTextNode(
-            "Set " + (j + 1) + ": " + set.weight + "kg x " + set.reps
-        );
-
-        let deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "X";
-        deleteBtn.onclick = async function() {
-            await fetch(`http://localhost:8080/sets/${set.id}`, {
-                method: "DELETE",
+function createInputRow(workout, exercise, exerciseIndex) {
+    const row = document.createElement("div");
+    row.className = "set-input-row";
+    row.innerHTML = `
+        <div class="set-input-num"></div>
+        <input type="number" step="0.5" class="set-input weight-input">
+        <input type="number" class="set-input reps-input">
+        <button class="set-input-save">&#10003;</button>
+        <button class="set-input-cancel">&#10005;</button>
+    `;
+    const weightInput = row.querySelector(".weight-input");
+    const repsInput = row.querySelector(".reps-input");
+    row.querySelector(".set-input-save").onclick = async function() {
+        const weight = weightInput.value;
+        const reps = repsInput.value;
+        if (!weight || !reps) return;
+        if (currentSessionId === null) {
+            const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
+                method: "POST"
             });
-            exercise.sets.splice(j, 1);
-            renderSets(exerciseIndex, exercise);
-        };
+            const session = await sessionResponse.json();
+            currentSessionId = session.id;
+            currentSessionDate = session.date;
+        }
+        const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ weight: parseFloat(weight), reps: parseInt(reps) })
+        });
+        const set = await response.json();
+        exercise.sets.push(set);
+        row.replaceWith(createSavedRow(workout, exercise, exerciseIndex, set));
+        renumberSetRows(exerciseIndex, exercise);
+    };
+    row.querySelector(".set-input-cancel").onclick = function() {
+        row.remove();
+        renumberSetRows(exerciseIndex, exercise);
+    };
+    return row;
+}
 
-        setRow.appendChild(setText);
-        setRow.appendChild(deleteBtn);
-        setsDiv.appendChild(setRow);
+function createSavedRow(workout, exercise, exerciseIndex, set) {
+    const row = document.createElement("div");
+    row.className = "set-input-row saved";
+    row.innerHTML = `
+        <div class="set-input-num"></div>
+        <div class="set-input saved-cell">${set.weight}</div>
+        <div class="set-input saved-cell">${set.reps}</div>
+        <button class="set-input-cancel set-delete">&#10005;</button>
+    `;
+    row.querySelector(".set-delete").onclick = async function() {
+        await fetch(`http://localhost:8080/sets/${set.id}`, { method: "DELETE" });
+        const idx = exercise.sets.indexOf(set);
+        if (idx >= 0) exercise.sets.splice(idx, 1);
+        row.remove();
+        renumberSetRows(exerciseIndex, exercise);
+    };
+    return row;
+}
+
+function createHeaderRow() {
+    const row = document.createElement("div");
+    row.className = "set-header-row";
+    row.innerHTML = `
+        <div class="set-input-num"></div>
+        <div class="set-header-cell">Weight</div>
+        <div class="set-header-cell">Reps</div>
+    `;
+    return row;
+}
+
+function renumberSetRows(exerciseIndex, exercise) {
+    const container = document.getElementById("sets-" + exerciseIndex);
+    let position = 0;
+    for (const child of container.children) {
+        if (child.classList.contains("set-header-row")) continue;
+        position++;
+        const label = `Set ${String(position).padStart(2, "0")}`;
+        const numEl = child.querySelector(".set-num, .set-input-num");
+        if (numEl) numEl.textContent = label;
+        const weightInput = child.querySelector("input.weight-input");
+        const repsInput = child.querySelector("input.reps-input");
+        if (weightInput && repsInput) {
+            const prev = exercise.previousSets[position - 1];
+            weightInput.placeholder = prev ? prev.weight : "";
+            repsInput.placeholder = prev ? prev.reps : "";
+        }
     }
 }
 

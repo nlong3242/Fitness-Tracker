@@ -174,23 +174,69 @@ body {
         padding: 8px 0;
     }
 
-    .previous-sets {
-        background-color: #0f1a30;
-        padding: 8px 10px;
-        margin: 0 0 10px 0;
-        border-radius: 4px;
-        font-size: 0.9em;
-        color: #b0b8c8;
+    .set-input-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
     }
 
-    .previous-sets-label {
+    .set-input-num {
         font-weight: bold;
-        margin-bottom: 4px;
-        color: #d0d8e8;
+        min-width: 55px;
     }
 
-    .previous-set-row {
-        padding: 2px 0;
+    .set-input {
+        background-color: #0f1a30;
+        color: white;
+        border: 1px solid #2a2a4a;
+        border-radius: 4px;
+        padding: 6px 8px;
+        width: 70px;
+        font-size: 1em;
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    .set-input::-webkit-inner-spin-button,
+    .set-input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .set-input::placeholder {
+        color: #6b7a99;
+    }
+
+    .saved-cell {
+        background-color: #1a2f56;
+        color: white;
+        display: inline-block;
+        text-align: left;
+    }
+
+    .set-header-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0;
+        color: #b0b8c8;
+        font-weight: bold;
+    }
+
+    .set-header-cell {
+        width: 70px;
+        text-align: center;
+    }
+
+    .set-input-save,
+    .set-input-cancel {
+        padding: 6px 10px;
+        font-size: 0.9em;
+    }
+
+    .set-input-cancel {
+        background-color: #e74c3c;
     }
 
     .set-row {

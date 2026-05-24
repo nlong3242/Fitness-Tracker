@@ -3,6 +3,8 @@ package com.tsu2track.fitness_tracker;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,6 +18,9 @@ public class ExerciseSet {
     private Long id;
     private double weight;
     private int reps;
+
+    @Enumerated(EnumType.STRING)
+    private Side side;
 
     @JsonIgnore
     @ManyToOne
@@ -51,6 +56,14 @@ public class ExerciseSet {
 
     public void setReps(int reps) {
         this.reps = reps;
+    }
+
+    public Side getSide() {
+        return side;
+    }
+
+    public void setSide(Side side) {
+        this.side = side;
     }
 
     public Exercise getExercise() {

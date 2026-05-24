@@ -3,6 +3,7 @@ package com.tsu2track.fitness_tracker;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 public class ExerciseSetController {
@@ -47,6 +49,13 @@ public class ExerciseSetController {
         boolean sessionPresent = session.isPresent();
         boolean exercisePresent = exercise.isPresent();
         if (sessionPresent && exercisePresent){
+            boolean isUnilateral = Boolean.TRUE.equals(exercise.get().getUnilateral());
+            if (isUnilateral && set.getSide() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side is required for unilateral exercises");
+            }
+            if (!isUnilateral && set.getSide() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side must not be set for bilateral exercises");
+            }
             set.setExercise(exercise.get());
             set.setSession(session.get());
             return exerciseSetRepository.save(set);

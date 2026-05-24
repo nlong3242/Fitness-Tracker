@@ -369,9 +369,14 @@ async function startWorkout(workoutIndex) {
     let cards = document.getElementById("exercise-cards");
     for (let i = 0; i < workout.exercises.length; i++) {
         let exercise = workout.exercises[i];
+        const isUnilateral = exercise.unilateral === true;
 
         const lastSetsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}/last-sets`);
         exercise.previousSets = await lastSetsResponse.json();
+        if (isUnilateral) {
+            exercise.previousLSets = exercise.previousSets.filter(s => s.side === "LEFT");
+            exercise.previousRSets = exercise.previousSets.filter(s => s.side === "RIGHT");
+        }
 
         let card = document.createElement("div");
         card.className = "exercise-card";
@@ -384,7 +389,12 @@ async function startWorkout(workoutIndex) {
         addSetBtn.textContent = "Add Set";
         addSetBtn.onclick = function() {
             const container = document.getElementById("sets-" + i);
-            container.appendChild(createInputRow(workout, exercise, i));
+            if (isUnilateral) {
+                container.appendChild(createInputRow(workout, exercise, i, "LEFT"));
+                container.appendChild(createInputRow(workout, exercise, i, "RIGHT"));
+            } else {
+                container.appendChild(createInputRow(workout, exercise, i, null));
+            }
             updateHeaderVisibility(i);
             renumberSetRows(i, exercise);
         };
@@ -393,17 +403,26 @@ async function startWorkout(workoutIndex) {
         cards.appendChild(card);
 
         const container = document.getElementById("sets-" + i);
-        for (let k = 0; k < exercise.previousSets.length; k++) {
-            container.appendChild(createInputRow(workout, exercise, i));
+        if (isUnilateral) {
+            for (const prev of exercise.previousSets) {
+                container.appendChild(createInputRow(workout, exercise, i, prev.side));
+            }
+        } else {
+            for (let k = 0; k < exercise.previousSets.length; k++) {
+                container.appendChild(createInputRow(workout, exercise, i, null));
+            }
         }
         updateHeaderVisibility(i);
         renumberSetRows(i, exercise);
     }
 }
 
-function createInputRow(workout, exercise, exerciseIndex) {
+function createInputRow(workout, exercise, exerciseIndex, side) {
+    const isUnilateral = exercise.unilateral === true;
     const row = document.createElement("div");
     row.className = "set-input-row";
+    if (side) row.dataset.side = side;
+    row._savedSet = null;
     row.innerHTML = `
         <div class="set-input-num"></div>
         <div class="set-input-cell">
@@ -421,7 +440,6 @@ function createInputRow(workout, exercise, exerciseIndex) {
     const weightDelta = row.querySelector(".weight-delta");
     const repsDelta = row.querySelector(".reps-delta");
     const cancelBtn = row.querySelector(".set-input-cancel");
-    let savedSet = null;
     let persisting = false;
 
     function renderDeltaSpan(el, delta) {
@@ -436,11 +454,22 @@ function createInputRow(workout, exercise, exerciseIndex) {
         el.classList.toggle("neg", delta < 0);
     }
 
-    function updateDeltas() {
+    function lookupPrev() {
         const container = document.getElementById("sets-" + exerciseIndex);
         const rows = Array.from(container.children).filter(c => !c.classList.contains("set-header-row"));
-        const position = rows.indexOf(row) + 1;
-        const prev = exercise.previousSets[position - 1];
+        if (isUnilateral) {
+            const sameSide = rows.filter(r => r.dataset.side === side);
+            const position = sameSide.indexOf(row) + 1;
+            const prevList = side === "LEFT" ? exercise.previousLSets : exercise.previousRSets;
+            return prevList[position - 1];
+        } else {
+            const position = rows.indexOf(row) + 1;
+            return exercise.previousSets[position - 1];
+        }
+    }
+
+    function updateDeltas() {
+        const prev = lookupPrev();
         if (!prev) {
             weightDelta.textContent = "";
             repsDelta.textContent = "";
@@ -474,18 +503,18 @@ function createInputRow(workout, exercise, exerciseIndex) {
         const w = parseFloat(weightInput.value);
         const r = parseInt(repsInput.value);
         if (isNaN(w) || isNaN(r)) return;
-        if (savedSet && w === savedSet.weight && r === savedSet.reps) return;
+        if (row._savedSet && w === row._savedSet.weight && r === row._savedSet.reps) return;
         persisting = true;
         try {
-            if (savedSet) {
-                const response = await fetch(`http://localhost:8080/sets/${savedSet.id}`, {
+            if (row._savedSet) {
+                const response = await fetch(`http://localhost:8080/sets/${row._savedSet.id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ weight: w, reps: r })
                 });
                 const updated = await response.json();
-                savedSet.weight = updated.weight;
-                savedSet.reps = updated.reps;
+                row._savedSet.weight = updated.weight;
+                row._savedSet.reps = updated.reps;
             } else {
                 if (currentSessionId === null) {
                     const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
@@ -495,13 +524,15 @@ function createInputRow(workout, exercise, exerciseIndex) {
                     currentSessionId = session.id;
                     currentSessionDate = session.date;
                 }
+                const body = { weight: w, reps: r };
+                if (side) body.side = side;
                 const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ weight: w, reps: r })
+                    body: JSON.stringify(body)
                 });
-                savedSet = await response.json();
-                exercise.sets.push(savedSet);
+                row._savedSet = await response.json();
+                exercise.sets.push(row._savedSet);
                 row.classList.add("saved");
             }
         } finally {
@@ -512,25 +543,45 @@ function createInputRow(workout, exercise, exerciseIndex) {
     weightInput.onchange = persist;
     repsInput.onchange = persist;
 
-    cancelBtn.onclick = async function() {
-        if (savedSet) {
-            await fetch(`http://localhost:8080/sets/${savedSet.id}`, { method: "DELETE" });
-            const idx = exercise.sets.indexOf(savedSet);
+    async function deleteRowSet(r) {
+        if (r._savedSet) {
+            await fetch(`http://localhost:8080/sets/${r._savedSet.id}`, { method: "DELETE" });
+            const idx = exercise.sets.indexOf(r._savedSet);
             if (idx >= 0) exercise.sets.splice(idx, 1);
-            let hasAnySets = false;
-            for (const ex of workout.exercises) {
-                if (ex.sets.length > 0) {
-                    hasAnySets = true;
-                    break;
-                }
-            }
-            if (!hasAnySets && currentSessionId !== null) {
-                await fetch(`http://localhost:8080/sessions/${currentSessionId}`, { method: "DELETE" });
-                currentSessionId = null;
-                currentSessionDate = null;
+        }
+        r.remove();
+    }
+
+    async function maybeCleanupOrphanSession() {
+        let hasAnySets = false;
+        for (const ex of workout.exercises) {
+            if (ex.sets.length > 0) {
+                hasAnySets = true;
+                break;
             }
         }
-        row.remove();
+        if (!hasAnySets && currentSessionId !== null) {
+            await fetch(`http://localhost:8080/sessions/${currentSessionId}`, { method: "DELETE" });
+            currentSessionId = null;
+            currentSessionDate = null;
+        }
+    }
+
+    cancelBtn.onclick = async function() {
+        if (isUnilateral) {
+            const container = document.getElementById("sets-" + exerciseIndex);
+            const rows = Array.from(container.children).filter(c => !c.classList.contains("set-header-row"));
+            const sameSide = rows.filter(r => r.dataset.side === side);
+            const position = sameSide.indexOf(row) + 1;
+            const otherSide = side === "LEFT" ? "RIGHT" : "LEFT";
+            const otherSideRows = rows.filter(r => r.dataset.side === otherSide);
+            const partnerRow = otherSideRows[position - 1] || null;
+            await deleteRowSet(row);
+            if (partnerRow) await deleteRowSet(partnerRow);
+        } else {
+            await deleteRowSet(row);
+        }
+        await maybeCleanupOrphanSession();
         updateHeaderVisibility(exerciseIndex);
         renumberSetRows(exerciseIndex, exercise);
     };
@@ -562,21 +613,50 @@ function createHeaderRow() {
 
 function renumberSetRows(exerciseIndex, exercise) {
     const container = document.getElementById("sets-" + exerciseIndex);
-    let position = 0;
-    for (const child of container.children) {
-        if (child.classList.contains("set-header-row")) continue;
-        position++;
-        const label = `Set ${String(position).padStart(2, "0")}`;
-        const numEl = child.querySelector(".set-num, .set-input-num");
-        if (numEl) numEl.textContent = label;
-        const weightInput = child.querySelector("input.weight-input");
-        const repsInput = child.querySelector("input.reps-input");
-        if (weightInput && repsInput) {
-            const prev = exercise.previousSets[position - 1];
-            weightInput.placeholder = prev ? prev.weight : "";
-            repsInput.placeholder = prev ? prev.reps : "";
+    const isUnilateral = exercise.unilateral === true;
+    if (isUnilateral) {
+        let leftCount = 0;
+        let rightCount = 0;
+        for (const child of container.children) {
+            if (child.classList.contains("set-header-row")) continue;
+            const side = child.dataset.side;
+            let label, prev;
+            if (side === "LEFT") {
+                leftCount++;
+                label = `Set L${leftCount}`;
+                prev = exercise.previousLSets[leftCount - 1];
+            } else {
+                rightCount++;
+                label = `Set R${rightCount}`;
+                prev = exercise.previousRSets[rightCount - 1];
+            }
+            const numEl = child.querySelector(".set-num, .set-input-num");
+            if (numEl) numEl.textContent = label;
+            const weightInput = child.querySelector("input.weight-input");
+            const repsInput = child.querySelector("input.reps-input");
+            if (weightInput && repsInput) {
+                weightInput.placeholder = prev ? prev.weight : "";
+                repsInput.placeholder = prev ? prev.reps : "";
+            }
+            if (child._updateDeltas) child._updateDeltas();
         }
-        if (child._updateDeltas) child._updateDeltas();
+    } else {
+        let position = 0;
+        for (const child of container.children) {
+            if (child.classList.contains("set-header-row")) continue;
+            position++;
+            const label = `Set ${String(position).padStart(2, "0")}`;
+            const numEl = child.querySelector(".set-num, .set-input-num");
+            if (numEl) numEl.textContent = label;
+            const weightInput = child.querySelector("input.weight-input");
+            const repsInput = child.querySelector("input.reps-input");
+            if (weightInput && repsInput) {
+                const prev = exercise.previousSets[position - 1];
+                weightInput.placeholder = prev ? prev.weight : "";
+                repsInput.placeholder = prev ? prev.reps : "";
+            }
+            if (child._updateDeltas) child._updateDeltas();
+        }
     }
 }
 
@@ -685,26 +765,64 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
     for (const exercise of workout.exercises) {
         const lastSetsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}/last-sets?excludeSessionId=${sessionId}`);
         const lastSets = await lastSetsResponse.json();
+        const isUnilateral = exercise.unilateral === true;
 
         let setsTableHtml = "";
         if (exercise.sets.length > 0) {
             let rows = "";
-            for (let k = 0; k < exercise.sets.length; k++) {
-                const set = exercise.sets[k];
-                const prev = lastSets[k];
-                let weightDelta = "";
-                let repsDelta = "";
-                if (prev) {
-                    weightDelta = deltaSpan(set.weight - prev.weight);
-                    repsDelta = deltaSpan(set.reps - prev.reps);
+            if (isUnilateral) {
+                const byId = (a, b) => a.id - b.id;
+                const leftSets = exercise.sets.filter(s => s.side === "LEFT").sort(byId);
+                const rightSets = exercise.sets.filter(s => s.side === "RIGHT").sort(byId);
+                const prevLeft = lastSets.filter(s => s.side === "LEFT");
+                const prevRight = lastSets.filter(s => s.side === "RIGHT");
+                const pairs = Math.max(leftSets.length, rightSets.length);
+                for (let k = 0; k < pairs; k++) {
+                    const L = leftSets[k];
+                    const R = rightSets[k];
+                    if (L) {
+                        const prev = prevLeft[k];
+                        const wd = prev ? deltaSpan(L.weight - prev.weight) : "";
+                        const rd = prev ? deltaSpan(L.reps - prev.reps) : "";
+                        rows += `
+                            <div class="summary-set-row">
+                                <div class="summary-set-num">Set L${k + 1}</div>
+                                <div class="summary-set-cell">${L.weight}${wd}</div>
+                                <div class="summary-set-cell">${L.reps}${rd}</div>
+                            </div>
+                        `;
+                    }
+                    if (R) {
+                        const prev = prevRight[k];
+                        const wd = prev ? deltaSpan(R.weight - prev.weight) : "";
+                        const rd = prev ? deltaSpan(R.reps - prev.reps) : "";
+                        rows += `
+                            <div class="summary-set-row">
+                                <div class="summary-set-num">Set R${k + 1}</div>
+                                <div class="summary-set-cell">${R.weight}${wd}</div>
+                                <div class="summary-set-cell">${R.reps}${rd}</div>
+                            </div>
+                        `;
+                    }
                 }
-                rows += `
-                    <div class="summary-set-row">
-                        <div class="summary-set-num">Set ${String(k + 1).padStart(2, "0")}</div>
-                        <div class="summary-set-cell">${set.weight}${weightDelta}</div>
-                        <div class="summary-set-cell">${set.reps}${repsDelta}</div>
-                    </div>
-                `;
+            } else {
+                for (let k = 0; k < exercise.sets.length; k++) {
+                    const set = exercise.sets[k];
+                    const prev = lastSets[k];
+                    let weightDelta = "";
+                    let repsDelta = "";
+                    if (prev) {
+                        weightDelta = deltaSpan(set.weight - prev.weight);
+                        repsDelta = deltaSpan(set.reps - prev.reps);
+                    }
+                    rows += `
+                        <div class="summary-set-row">
+                            <div class="summary-set-num">Set ${String(k + 1).padStart(2, "0")}</div>
+                            <div class="summary-set-cell">${set.weight}${weightDelta}</div>
+                            <div class="summary-set-cell">${set.reps}${repsDelta}</div>
+                        </div>
+                    `;
+                }
             }
             setsTableHtml = `
                 <div class="summary-set-header">

@@ -6,48 +6,63 @@ A summary of what was built and discussed during the most recent working session
 
 ## Features Added Today
 
-### Workout / Exercise Logging UX
+### Dedicated Create Workout Page
 
-- **Previous sets shown contextually** — on the start-workout page, each exercise now displays previous-session data either as placeholders inside input boxes or as inline deltas (see below).
-- **Lazy session creation** — a session is no longer created when you click "Start Workout". It is created on the first successful set save. This means refreshing, closing the tab, or leaving without logging anything no longer leaves orphan empty sessions in the DB.
-- **Inline set input rows** — the old `prompt()` popups for weight and reps were replaced with inline number-input rows on each exercise card.
-- **Pre-populated input rows** — when starting an exercise, the card pre-renders one input row per set the user logged for that exercise in their previous session. Each row's placeholders show the corresponding previous values.
-- **Auto-save on tab-out** — both new sets and edits to saved sets persist automatically when both fields are valid and the input loses focus. No save tick button required. A `PUT /sets/{id}` endpoint was added for in-place edits.
-- **Live progress deltas** — as the user types a value, a small `+N` (green) / `-N` (red) badge appears in the corner of each input showing the difference vs. the corresponding previous-session set. Zero or empty values show no delta.
-- **Saved-state visual** — saved rows are clearly indicated with a 4px `#009E60` border. Padding adjusts so the box doesn't shift size between unsaved and saved states.
-- **Spin arrows removed** from number inputs.
-- **Weight / Reps column header** only appears when at least one input or saved row is present.
-- **Orphan-session safeguard** — when the last saved set in a workout is deleted, the session itself is also deleted and lazy-session state is reset. Invariant restored: an empty session never exists in the DB. The check uses a short-circuiting loop (break on first found set) rather than a full sum.
+- The home page's **Create Workout** button no longer opens a `prompt()`. It navigates to a new in-app page rendered by `renderCreateWorkoutPage()` containing:
+  - A text input for the workout name.
+  - An **Add Exercise** button that opens the new exercise-details modal (see below). Each pending exercise appears in a numbered list with a per-row Delete.
+  - A **Save Workout** button that is disabled until the workout-name field has non-empty trimmed input. Nothing is sent to the backend until Save is pressed; then the workout is POSTed first and each pending exercise is POSTed in order, preserving entry order.
+  - A **Back** button that opens an in-app confirmation modal if the name has been typed or any exercise has been added, and returns silently otherwise. Back-during-creation never leaves orphan rows in the DB because nothing was persisted yet.
 
-### Workout Summary Page
+### In-App Confirmation Modal
 
-- Shown after finishing a workout that had at least one set logged. If no sets were logged, the user goes straight back to the workouts list (since lazy creation means no session ever existed).
-- Heading shows **"Workout Summary - {workout name}"**.
-- Date formatted as **"Sunday, 24 May 2026"** (en-GB locale, day-first), parsed via split + `new Date(y, m-1, d)` to avoid the UTC-midnight timezone shift bug.
-- **2x2 stat grid**: Exercises (count with at least one set), Sets (total logged), Reps (sum of reps), Volume in kg (sum of `weight × reps`).
-- **Per-exercise breakdown** beneath the grid. Logged exercises show a set count and a Weight/Reps table per set with green/red deltas vs. the same-index set from the previous session. Exercises with no sets logged still appear with their name and "0 sets" but no table.
+- The browser-native `confirm()` dialog is replaced with a `showConfirmModal(message, confirmLabel)` helper. It overlays a dark-navy box with a grey Cancel button and a destructive (red) confirm button, and returns a Promise that resolves to `true` / `false`.
+- Used by the Back button on the Create Workout page ("Discard this workout?") and by the per-workout Delete button on the home page ("Delete workout \"{name}\"?").
 
-### Past Sessions Browser
+### Exercise Details Form Modal
 
-- The workout detail page (`viewWorkout`) now lists previous sessions under the exercise list.
-- Paginated: **5 per Load More** click. Backend `GET /workouts/{id}/sessions` accepts `page` and `size` (defaults `0` / `5`) and returns a `Page<Session>` ordered by date desc, id desc.
-- Sessions are 1-indexed with the **latest = 1**. The counter persists across pages so page 2 starts at 6, etc.
-- Each row is clickable; clicking opens the **same Workout Summary view** populated with that session's sets (grouped by exercise after fetching `/sessions/{id}/sets`). The summary's Back button is parameterized so a past-session view returns to the workout detail, while a just-finished view still returns to the workouts list.
+- `showExerciseFormModal()` returns a Promise that resolves to an exercise object (or `null` on Cancel) and is used in **both** places exercises can be created: the in-workout **Add Exercise** button (`viewWorkout`) and the **Create Workout** page (`renderCreateWorkoutPage`). Fields:
+  - **Name** — text, required.
+  - **Category** — required, six fixed pill buttons (Chest, Arms, Back, Legs, Shoulders, Core) acting as a single-select radio group. Free text intentionally not allowed.
+  - **Primary Muscle Groups**, **Exercise Type**, **Cues** — optional free text. Cues is a `<textarea>`; the others are single-line inputs.
+  - **Unilateral** — two Yes/No pills with **No preselected by default**, so an "unset" state is no longer reachable from the UI.
+- The Add Exercise button stays disabled until both Name and Category are filled.
+- Backend support:
+  - New enum `ExerciseCategory { CHEST, ARMS, BACK, LEGS, SHOULDERS, CORE }`.
+  - New fields on `Exercise`: `category` (enum, STRING), `primaryMuscleGroups` (string), `exerciseType` (string), `cues` (`@Column(length = 1000)`), `unilateral` (Boolean).
+  - `POST /workouts/{id}/exercises` returns 400 if `name` is blank or `category` is null.
 
-### Misc Polish
+### Unilateral L/R Set Logging (Locked Pairs)
 
-- Hover glow added to workout list items on the main page so they look consistent with other clickable rows.
-- Input boxes enlarged with a pale `#d8e3f2` background and black text, after the earlier dark-blue boxes made it hard to read deltas overlaid on a green glow.
-- Delta font bumped to `0.95em`; set-number labels bumped to `1.2em` to match the new box size.
-- README rewritten to describe the Spring Boot + JS architecture and the current feature set.
+- When an exercise is marked unilateral, set logging now records each logical set as a **pair** of LEFT and RIGHT entries that share an index. Labels become `Set L1, Set R1, Set L2, Set R2, ...` instead of `Set 01, Set 02, ...`.
+- Backend support:
+  - New enum `Side { LEFT, RIGHT }` and a nullable `side` column on `ExerciseSet`.
+  - `POST /sessions/{id}/sets` returns 400 if `side` is missing for a unilateral exercise's set, or present for a bilateral exercise's set. `PUT /sets/{id}` leaves `side` immutable so editing weight/reps in place can never change which side a set belongs to.
+- Frontend semantics:
+  - The **Add Set** button on a unilateral exercise appends **both** a LEFT and a RIGHT row at once, so the set counter always goes up by one logical set whether the exercise is bilateral or unilateral.
+  - Clicking the cancel × on either side of pair `n` deletes **both** rows of that pair (and both saved sets on the server, if any). The user is never left with an orphan side and no per-side Add affordance is needed.
+  - Pre-population from the previous session preserves each previous set's side, so `Set L2` lines up with last session's `Set L2`.
+  - The live progress delta in the input corner compares against the **same-side same-position** set from the previous session (`Set L2` vs previous `Set L2`).
+  - The Workout Summary table follows the same L/R labelling and per-side delta scheme. Totals (Exercises / Sets / Reps / Volume) still sum every row.
+
+### Past-Session Delta Anchor Bug Fix
+
+- The `last-sets` endpoint previously took an `excludeSessionId` parameter and returned the **latest** session that wasn't the given one. That was fine for "just finished a fresh workout" (the just-finished session is the latest, so excluding it gives the previous one), but wrong for viewing an older session — the latest session that isn't the one being viewed is often **newer** than it, so deltas were inverted and confusing.
+- The parameter is renamed `beforeSessionId` and its meaning becomes **anchor: return sets from the most recent session strictly older than this one** (by date, then by id as a tiebreaker). The controller looks up the anchor session's date via the existing `SessionRepository` injection and returns an empty list if the anchor session is missing.
+- When the parameter is omitted (live workout pre-population), behavior is unchanged: return the absolute latest session's sets.
+- The README API blurb is rewritten to match.
 
 ---
 
-## Position-Based vs Identity-Based Placeholders (Design Discussion)
+## Design Discussion — Pair Semantics for Unilateral
 
-When deleting a pre-populated input row in the middle of the list, the surviving rows shift up and their placeholders **shift with them** (position-based). For example, if Set 01's placeholder was 100×9 and Set 02's was 100×7, deleting Set 01 makes the surviving row "Set 01" with placeholder 100×9 — not 100×7.
+The original sketch for unilateral logging let the user cancel a single side and leave an asymmetric layout (e.g., `L1, R1, L2`). The follow-on question was: *if the user removes just one side, how do they add only that side back?* — answer was a per-side Add button, which conflicted with the goal that **Add Set always increments the visible set count by one** regardless of bilaterality.
 
-This is intentional. The mental model is **"Set N shows what you did at position N last time"**, which matches how the data is actually stored (deleting a set renumbers everything below it). The alternative — each row carries its own placeholder forever — was discussed but rejected because the labels would diverge from the placeholders, which gets confusing once users actually fill rows.
+The locked-pair design (cancel either side → both go) resolves this:
+- "Add Set" stays a single, intuitive action.
+- There is never asymmetric state to recover from, so no per-side Add is needed.
+- Editing values is still handled by retyping into the inputs (the existing `PUT /sets/{id}` path).
+- Pre-population can still display asymmetric history if it actually exists in the DB (e.g., a prior session that pre-dates this rule); the pair-cancel logic finds the partner by same-side position and gracefully no-ops if there is no partner row.
 
 ---
 

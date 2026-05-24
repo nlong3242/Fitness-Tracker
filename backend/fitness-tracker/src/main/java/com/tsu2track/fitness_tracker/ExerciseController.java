@@ -9,13 +9,12 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/workouts/{workoutId}/exercises")
 public class ExerciseController {
     private final ExerciseRepository exerciseRepository;
     private final WorkoutRepository workoutRepository;
@@ -24,15 +23,21 @@ public class ExerciseController {
         this.exerciseRepository = exerciseRepository;
         this.workoutRepository = workoutRepository;
     }
-    
-    @GetMapping
+
+    @GetMapping("/workouts/{workoutId}/exercises")
     public List<Exercise> getExercises(@PathVariable Long workoutId){
-        return exerciseRepository.findByWorkout_Id(workoutId);
+        return exerciseRepository.findByWorkout_IdAndDeletedFalse(workoutId);
     }
 
-    @PostMapping
+    @GetMapping("/exercises/{id}")
+    public Exercise getExercise(@PathVariable Long id){
+        return exerciseRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+    }
+
+    @PostMapping("/workouts/{workoutId}/exercises")
     public Exercise createExercise(@RequestBody Exercise exercise, @PathVariable Long workoutId){
-        if (exercise.getName() == null || exercise.getName().isBlank()) {
+        if (exercise.getName() == null || exercise.getName().trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
         }
         if (exercise.getCategory() == null) {
@@ -47,9 +52,36 @@ public class ExerciseController {
         return null;
     }
 
-    @DeleteMapping("/{id}")
+    @PutMapping("/workouts/{workoutId}/exercises/{id}")
+    public Exercise updateExercise(@PathVariable Long workoutId, @PathVariable Long id, @RequestBody Exercise body){
+        Exercise existing = exerciseRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        if (existing.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
+        }
+        if (body.getName() == null || body.getName().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
+        }
+        if (body.getCategory() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is required");
+        }
+        existing.setName(body.getName());
+        existing.setCategory(body.getCategory());
+        existing.setPrimaryMuscleGroups(body.getPrimaryMuscleGroups());
+        existing.setExerciseType(body.getExerciseType());
+        existing.setCues(body.getCues());
+        existing.setUnilateral(body.getUnilateral());
+        return exerciseRepository.save(existing);
+    }
+
+    @DeleteMapping("/workouts/{workoutId}/exercises/{id}")
     public void deleteExercise(@PathVariable Long id){
-        exerciseRepository.deleteById(id);
+        Optional<Exercise> existing = exerciseRepository.findById(id);
+        if (existing.isPresent()) {
+            Exercise exercise = existing.get();
+            exercise.setDeleted(true);
+            exerciseRepository.save(exercise);
+        }
     }
 
 }

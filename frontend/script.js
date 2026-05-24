@@ -231,6 +231,231 @@ function showExerciseFormModal() {
     });
 }
 
+function showExerciseDetailsModal(exercise) {
+    return new Promise(function(resolve) {
+        const categories = ["CHEST", "ARMS", "BACK", "LEGS", "SHOULDERS", "CORE"];
+        const original = {
+            name: exercise.name || "",
+            category: exercise.category || null,
+            primaryMuscleGroups: exercise.primaryMuscleGroups || "",
+            exerciseType: exercise.exerciseType || "",
+            cues: exercise.cues || "",
+            unilateral: exercise.unilateral === true
+        };
+
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">Exercise Details</div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Name <span class="required">*</span></label>
+                    <input type="text" id="ex-edit-name" placeholder="Enter exercise name">
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Category <span class="required">*</span></label>
+                    <div class="modal-pill-row" id="ex-edit-categories"></div>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Primary Muscle Groups</label>
+                    <input type="text" id="ex-edit-muscles" placeholder="None">
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Exercise Type</label>
+                    <input type="text" id="ex-edit-type" placeholder="None">
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Cues</label>
+                    <textarea id="ex-edit-cues" placeholder="None"></textarea>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Unilateral</label>
+                    <div class="modal-pill-row">
+                        <button type="button" class="modal-pill" data-unilateral="yes">Yes</button>
+                        <button type="button" class="modal-pill" data-unilateral="no">No</button>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-cancel">Cancel</button>
+                    <button class="modal-delete" id="ex-edit-delete">Delete</button>
+                    <button class="modal-add" id="ex-edit-save" disabled>Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const nameInput = overlay.querySelector("#ex-edit-name");
+        const musclesInput = overlay.querySelector("#ex-edit-muscles");
+        const typeInput = overlay.querySelector("#ex-edit-type");
+        const cuesInput = overlay.querySelector("#ex-edit-cues");
+        const catRow = overlay.querySelector("#ex-edit-categories");
+        const saveBtn = overlay.querySelector("#ex-edit-save");
+        const deleteBtn = overlay.querySelector("#ex-edit-delete");
+        const cancelBtn = overlay.querySelector(".modal-cancel");
+
+        nameInput.value = original.name;
+        musclesInput.value = original.primaryMuscleGroups;
+        typeInput.value = original.exerciseType;
+        cuesInput.value = original.cues;
+
+        let selectedCategory = original.category;
+        let unilateral = original.unilateral;
+
+        function currentValues() {
+            return {
+                name: nameInput.value,
+                category: selectedCategory,
+                primaryMuscleGroups: musclesInput.value,
+                exerciseType: typeInput.value,
+                cues: cuesInput.value,
+                unilateral: unilateral
+            };
+        }
+
+        function isDirty() {
+            const cur = currentValues();
+            return cur.name !== original.name
+                || cur.category !== original.category
+                || cur.primaryMuscleGroups !== original.primaryMuscleGroups
+                || cur.exerciseType !== original.exerciseType
+                || cur.cues !== original.cues
+                || cur.unilateral !== original.unilateral;
+        }
+
+        function updateSaveState() {
+            saveBtn.disabled = !(isDirty() && nameInput.value.trim() !== "" && selectedCategory !== null);
+        }
+
+        for (const cat of categories) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "modal-pill";
+            btn.textContent = formatCategoryLabel(cat);
+            if (cat === selectedCategory) btn.classList.add("selected");
+            btn.onclick = function() {
+                selectedCategory = cat;
+                catRow.querySelectorAll(".modal-pill").forEach(function(b) { b.classList.remove("selected"); });
+                btn.classList.add("selected");
+                updateSaveState();
+            };
+            catRow.appendChild(btn);
+        }
+
+        const uniPills = overlay.querySelectorAll('[data-unilateral]');
+        uniPills.forEach(function(btn) {
+            const isYes = btn.dataset.unilateral === "yes";
+            if (isYes === unilateral) btn.classList.add("selected");
+            btn.onclick = function() {
+                unilateral = isYes;
+                uniPills.forEach(function(b) { b.classList.remove("selected"); });
+                btn.classList.add("selected");
+                updateSaveState();
+            };
+        });
+
+        nameInput.oninput = updateSaveState;
+        musclesInput.oninput = updateSaveState;
+        typeInput.oninput = updateSaveState;
+        cuesInput.oninput = updateSaveState;
+
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+
+        cancelBtn.onclick = async function() {
+            if (!isDirty()) {
+                close(null);
+                return;
+            }
+            const requiredEmpty = nameInput.value.trim() === "" || selectedCategory === null;
+            const message = requiredEmpty
+                ? "Required field is empty. Discard changes?"
+                : "Discard unsaved changes?";
+            const confirmed = await showConfirmModal(message, "Discard");
+            if (confirmed) close(null);
+        };
+
+        deleteBtn.onclick = async function() {
+            const confirmed = await showConfirmModal(`Delete exercise "${original.name}"?`, "Delete");
+            if (confirmed) close({ action: "delete" });
+        };
+
+        saveBtn.onclick = function() {
+            const name = nameInput.value.trim();
+            if (!name || !selectedCategory) return;
+            const muscles = musclesInput.value.trim();
+            const type = typeInput.value.trim();
+            const cues = cuesInput.value.trim();
+            close({
+                action: "save",
+                data: {
+                    name: name,
+                    category: selectedCategory,
+                    primaryMuscleGroups: muscles || null,
+                    exerciseType: type || null,
+                    cues: cues || null,
+                    unilateral: unilateral
+                }
+            });
+        };
+
+        nameInput.focus();
+    });
+}
+
+function formatCategoryLabel(c) {
+    if (!c) return "";
+    return c.charAt(0) + c.slice(1).toLowerCase();
+}
+
+function showExerciseReadOnlyModal(exercise) {
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        const rows = [
+            ["Name", exercise.name],
+            ["Category", formatCategoryLabel(exercise.category)],
+            ["Primary Muscle Groups", exercise.primaryMuscleGroups],
+            ["Exercise Type", exercise.exerciseType],
+            ["Cues", exercise.cues],
+            ["Unilateral", exercise.unilateral === true ? "Yes" : "No"]
+        ];
+        let rowsHtml = "";
+        for (const [label, value] of rows) {
+            const display = value === null || value === undefined || value === ""
+                ? `<span class="modal-readonly-empty">None</span>`
+                : escapeHtml(String(value));
+            rowsHtml += `
+                <div class="modal-readonly-row">
+                    <div class="modal-readonly-label">${label}</div>
+                    <div class="modal-readonly-value">${display}</div>
+                </div>
+            `;
+        }
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">Exercise Details</div>
+                ${rowsHtml}
+                <div class="modal-actions">
+                    <button class="modal-cancel">Close</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector(".modal-cancel").onclick = function() {
+            document.body.removeChild(overlay);
+            resolve();
+        };
+    });
+}
+
+function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function(c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+}
+
 function showConfirmModal(message, confirmLabel) {
     return new Promise(function(resolve) {
         const overlay = document.createElement("div");
@@ -278,21 +503,28 @@ function showConfirmModal(message, confirmLabel) {
 
     let list = document.getElementById("exercise-list");
     for (let i = 0 ; i < workout.exercises.length; i++) {
+        const exercise = workout.exercises[i];
         let item = document.createElement("li");
-        let nameText = document.createTextNode(`${i + 1}. ${workout.exercises[i].name}`);
-
-        let deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "Delete";
-        deleteBtn.onclick = async function() {
-            await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${workout.exercises[i].id}`, {
-                method: "DELETE",
-            });
-            viewWorkout(workoutIndex);
+        item.className = "exercise-row";
+        item.style.cursor = "pointer";
+        item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
+        item.onclick = async function() {
+            const result = await showExerciseDetailsModal(exercise);
+            if (!result) return;
+            if (result.action === "save") {
+                await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(result.data)
+                });
+                viewWorkout(workoutIndex);
+            } else if (result.action === "delete") {
+                await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}`, {
+                    method: "DELETE"
+                });
+                viewWorkout(workoutIndex);
+            }
         };
-
-
-        item.appendChild(nameText);
-        item.appendChild(deleteBtn);
         list.appendChild(item);
     }
 
@@ -381,9 +613,12 @@ async function startWorkout(workoutIndex) {
         let card = document.createElement("div");
         card.className = "exercise-card";
         card.innerHTML = `
-            <h3>${exercise.name}</h3>
+            <h3 class="exercise-card-title">${exercise.name}</h3>
             <div id="sets-${i}"></div>
         `;
+        card.querySelector(".exercise-card-title").onclick = function() {
+            showExerciseReadOnlyModal(exercise);
+        };
 
         let addSetBtn = document.createElement("button");
         addSetBtn.textContent = "Add Set";
@@ -682,10 +917,9 @@ async function finishWorkout(workoutIndex) {
 
 async function viewSessionSummary(workoutIndex, sessionId, sessionDate) {
     const workout = workouts[workoutIndex];
-    if (!workout.exercises || workout.exercises.length === 0) {
-        const exerciseResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
-        workout.exercises = await exerciseResponse.json();
-    }
+
+    const exerciseResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
+    const currentExercises = await exerciseResponse.json();
 
     const setsResponse = await fetch(`http://localhost:8080/sessions/${sessionId}/sets`);
     const sets = await setsResponse.json();
@@ -696,9 +930,23 @@ async function viewSessionSummary(workoutIndex, sessionId, sessionDate) {
         }
         setsByExerciseId.get(set.exerciseId).push(set);
     }
-    for (const exercise of workout.exercises) {
+
+    const currentIds = new Set(currentExercises.map(e => e.id));
+    const deletedIdsWithSets = [];
+    for (const exerciseId of setsByExerciseId.keys()) {
+        if (!currentIds.has(exerciseId)) deletedIdsWithSets.push(exerciseId);
+    }
+    const deletedExercises = [];
+    for (const id of deletedIdsWithSets) {
+        const response = await fetch(`http://localhost:8080/exercises/${id}`);
+        if (response.ok) deletedExercises.push(await response.json());
+    }
+
+    const combined = currentExercises.concat(deletedExercises);
+    for (const exercise of combined) {
         exercise.sets = setsByExerciseId.get(exercise.id) || [];
     }
+    workout.exercises = combined;
 
     await renderWorkoutSummary(workout, sessionId, sessionDate, `viewWorkout(${workoutIndex})`);
 }
@@ -841,6 +1089,9 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
             <div class="summary-exercise-count">${exercise.sets.length} sets</div>
             ${setsTableHtml}
         `;
+        exerciseCard.querySelector(".summary-exercise-name").onclick = function() {
+            showExerciseReadOnlyModal(exercise);
+        };
         exercisesContainer.appendChild(exerciseCard);
     }
 }

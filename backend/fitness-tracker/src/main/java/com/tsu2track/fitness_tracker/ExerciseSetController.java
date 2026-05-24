@@ -41,7 +41,7 @@ public class ExerciseSetController {
         java.time.LocalDate beforeDate = null;
         if (beforeSessionId != null) {
             Optional<Session> anchor = sessionRepository.findById(beforeSessionId);
-            if (anchor.isEmpty()) {
+            if (!anchor.isPresent()) {
                 return java.util.Collections.emptyList();
             }
             beforeDate = anchor.get().getDate();

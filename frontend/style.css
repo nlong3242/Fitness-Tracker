@@ -167,6 +167,36 @@ body {
         border-color: #4CAF50;
     }
 
+    .modal-readonly-row {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 12px;
+        align-items: start;
+        padding: 8px 0;
+        border-bottom: 1px solid #2a2a4a;
+    }
+
+    .modal-readonly-label {
+        color: #b0b8c8;
+        font-weight: bold;
+    }
+
+    .modal-readonly-value {
+        color: white;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .modal-readonly-empty {
+        color: #6e7891;
+        font-style: italic;
+    }
+
+    .modal-delete {
+        background-color: #e74c3c;
+        margin-right: auto;
+    }
+
     ul {
         list-style: none;
         padding: 0;
@@ -209,6 +239,15 @@ body {
 
     .exercise-card h3 {
         margin: 0 0 10px 0;
+    }
+
+    .exercise-card-title {
+        cursor: pointer;
+        display: inline-block;
+    }
+
+    .exercise-card-title:hover {
+        color: #4CAF50;
     }
 
     .summary-date {
@@ -256,6 +295,12 @@ body {
     .summary-exercise-name {
         font-size: 1.2em;
         font-weight: bold;
+        cursor: pointer;
+        display: inline-block;
+    }
+
+    .summary-exercise-name:hover {
+        color: #4CAF50;
     }
 
     .summary-exercise-count {

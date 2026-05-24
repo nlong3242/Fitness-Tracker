@@ -35,6 +35,8 @@ public class Exercise {
 
     private Boolean unilateral;
 
+    private boolean deleted = false;
+
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "workout_id")
@@ -103,6 +105,14 @@ public class Exercise {
 
     public void setUnilateral(Boolean unilateral) {
         this.unilateral = unilateral;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 
     public Workout getWorkout() {

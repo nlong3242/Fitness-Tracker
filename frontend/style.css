@@ -35,8 +35,7 @@ body {
         margin-bottom: 8px;
     }
 
-    .create-workout-form input[type="text"],
-    .add-exercise-row input[type="text"] {
+    .create-workout-form input[type="text"] {
         background-color: #d8e3f2;
         color: #0a0a14;
         border: 2px solid #5c7099;
@@ -44,20 +43,7 @@ body {
         padding: 10px 12px;
         font-size: 1em;
         box-sizing: border-box;
-    }
-
-    .create-workout-form input[type="text"] {
         width: 100%;
-    }
-
-    .add-exercise-row {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 10px;
-    }
-
-    .add-exercise-row input[type="text"] {
-        flex: 1;
     }
 
     .create-workout-actions {
@@ -106,6 +92,89 @@ body {
 
     .modal-confirm {
         background-color: #e74c3c;
+    }
+
+    .modal-form-box {
+        background-color: #16213e;
+        padding: 24px;
+        border-radius: 8px;
+        width: 480px;
+        max-width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-form-title {
+        color: white;
+        font-size: 1.3em;
+        font-weight: bold;
+        margin-bottom: 16px;
+    }
+
+    .modal-field {
+        margin-bottom: 14px;
+    }
+
+    .modal-field-label {
+        display: block;
+        color: white;
+        font-weight: bold;
+        margin-bottom: 6px;
+    }
+
+    .modal-field-label .required {
+        color: #e74c3c;
+    }
+
+    .modal-field input[type="text"],
+    .modal-field textarea {
+        background-color: #d8e3f2;
+        color: #0a0a14;
+        border: 2px solid #5c7099;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 1em;
+        width: 100%;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+
+    .modal-field textarea {
+        resize: vertical;
+        min-height: 60px;
+    }
+
+    .modal-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .modal-pill {
+        background-color: #1a1a2e;
+        color: white;
+        border: 2px solid #5c7099;
+        padding: 6px 12px;
+        border-radius: 18px;
+        cursor: pointer;
+        font-size: 0.95em;
+    }
+
+    .modal-pill.selected {
+        background-color: #4CAF50;
+        border-color: #4CAF50;
+    }
+
+    .modal-pill-clear {
+        background: none;
+        border: none;
+        color: #b0b8c8;
+        padding: 6px 8px;
+        text-decoration: underline;
+        cursor: pointer;
+        font-size: 0.9em;
     }
 
     ul {

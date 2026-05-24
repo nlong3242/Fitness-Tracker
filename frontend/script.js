@@ -48,10 +48,7 @@ function renderCreateWorkoutPage() {
             <input type="text" id="new-workout-name" placeholder="Enter workout name">
         </div>
         <h3>Exercises</h3>
-        <div class="add-exercise-row">
-            <input type="text" id="new-exercise-name" placeholder="Enter exercise name">
-            <button id="add-exercise-btn">Add Exercise</button>
-        </div>
+        <button id="add-exercise-btn">Add Exercise</button>
         <ul id="pending-exercises-list"></ul>
         <div class="create-workout-actions">
             <button id="save-workout-btn" disabled>Save Workout</button>
@@ -60,7 +57,6 @@ function renderCreateWorkoutPage() {
     `;
 
     const nameInput = document.getElementById("new-workout-name");
-    const exerciseInput = document.getElementById("new-exercise-name");
     const addExerciseBtn = document.getElementById("add-exercise-btn");
     const saveBtn = document.getElementById("save-workout-btn");
     const backBtn = document.getElementById("back-btn");
@@ -82,21 +78,11 @@ function renderCreateWorkoutPage() {
         }
     }
 
-    function addExerciseFromInput() {
-        const name = exerciseInput.value.trim();
-        if (!name) return;
-        pendingExercises.push({ name });
-        exerciseInput.value = "";
+    addExerciseBtn.onclick = async function() {
+        const data = await showExerciseFormModal();
+        if (!data) return;
+        pendingExercises.push(data);
         renderPendingList();
-        exerciseInput.focus();
-    }
-
-    addExerciseBtn.onclick = addExerciseFromInput;
-    exerciseInput.onkeydown = function(e) {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            addExerciseFromInput();
-        }
     };
 
     nameInput.oninput = function() {
@@ -118,7 +104,7 @@ function renderCreateWorkoutPage() {
             const exResponse = await fetch(`http://localhost:8080/workouts/${newWorkout.id}/exercises`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: ex.name })
+                body: JSON.stringify(ex)
             });
             const savedEx = await exResponse.json();
             newWorkout.exercises.push(savedEx);
@@ -135,6 +121,119 @@ function renderCreateWorkoutPage() {
         }
         renderWorkouts();
     };
+}
+
+function showExerciseFormModal() {
+    return new Promise(function(resolve) {
+        const categories = ["CHEST", "ARMS", "BACK", "LEGS", "SHOULDERS", "CORE"];
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">New Exercise</div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Name <span class="required">*</span></label>
+                    <input type="text" id="ex-form-name" placeholder="Enter exercise name">
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Category <span class="required">*</span></label>
+                    <div class="modal-pill-row" id="ex-form-categories"></div>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Primary Muscle Groups</label>
+                    <input type="text" id="ex-form-muscles" placeholder="e.g. Pectoralis major, Triceps">
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Exercise Type</label>
+                    <input type="text" id="ex-form-type" placeholder="e.g. Compound, Isolation">
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Cues</label>
+                    <textarea id="ex-form-cues" placeholder="Form notes, technique reminders, etc."></textarea>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field-label">Unilateral</label>
+                    <div class="modal-pill-row">
+                        <button type="button" class="modal-pill" data-unilateral="yes">Yes</button>
+                        <button type="button" class="modal-pill" data-unilateral="no">No</button>
+                        <button type="button" class="modal-pill-clear" id="ex-form-unilateral-clear">Clear</button>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-cancel">Cancel</button>
+                    <button class="modal-add" id="ex-form-add" disabled>Add Exercise</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const catRow = overlay.querySelector("#ex-form-categories");
+        const nameInput = overlay.querySelector("#ex-form-name");
+        const addBtn = overlay.querySelector("#ex-form-add");
+        let selectedCategory = null;
+        let unilateral = null;
+
+        function updateAddState() {
+            addBtn.disabled = nameInput.value.trim() === "" || selectedCategory === null;
+        }
+
+        function formatLabel(c) {
+            return c.charAt(0) + c.slice(1).toLowerCase();
+        }
+
+        for (const cat of categories) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "modal-pill";
+            btn.textContent = formatLabel(cat);
+            btn.onclick = function() {
+                selectedCategory = cat;
+                catRow.querySelectorAll(".modal-pill").forEach(function(b) { b.classList.remove("selected"); });
+                btn.classList.add("selected");
+                updateAddState();
+            };
+            catRow.appendChild(btn);
+        }
+
+        const uniPills = overlay.querySelectorAll('[data-unilateral]');
+        uniPills.forEach(function(btn) {
+            btn.onclick = function() {
+                unilateral = btn.dataset.unilateral === "yes";
+                uniPills.forEach(function(b) { b.classList.remove("selected"); });
+                btn.classList.add("selected");
+            };
+        });
+        overlay.querySelector("#ex-form-unilateral-clear").onclick = function() {
+            unilateral = null;
+            uniPills.forEach(function(b) { b.classList.remove("selected"); });
+        };
+
+        nameInput.oninput = updateAddState;
+
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+
+        overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
+        addBtn.onclick = function() {
+            const name = nameInput.value.trim();
+            if (!name || !selectedCategory) return;
+            const muscles = overlay.querySelector("#ex-form-muscles").value.trim();
+            const type = overlay.querySelector("#ex-form-type").value.trim();
+            const cues = overlay.querySelector("#ex-form-cues").value.trim();
+            close({
+                name: name,
+                category: selectedCategory,
+                primaryMuscleGroups: muscles || null,
+                exerciseType: type || null,
+                cues: cues || null,
+                unilateral: unilateral
+            });
+        };
+
+        nameInput.focus();
+    });
 }
 
 function showConfirmModal(message, confirmLabel) {
@@ -240,15 +339,15 @@ function showConfirmModal(message, confirmLabel) {
 }
 
 async function addExercise(workoutIndex) {
-    const workout = workouts[workoutIndex]
-    let name = prompt("Enter exercise name:")
-    if (!name) return;
+    const workout = workouts[workoutIndex];
+    const data = await showExerciseFormModal();
+    if (!data) return;
     await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ name: name })
+        body: JSON.stringify(data)
     });
     viewWorkout(workoutIndex);
 }

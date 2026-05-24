@@ -36,9 +36,17 @@ public class ExerciseSetController {
     public List<ExerciseSet> getLastSets(
         @PathVariable Long workoutId,
         @PathVariable Long exerciseId,
-        @RequestParam(required = false) Long excludeSessionId
+        @RequestParam(required = false) Long beforeSessionId
     ) {
-        return exerciseSetRepository.findLastSetsForExercise(workoutId, exerciseId, excludeSessionId);
+        java.time.LocalDate beforeDate = null;
+        if (beforeSessionId != null) {
+            Optional<Session> anchor = sessionRepository.findById(beforeSessionId);
+            if (anchor.isEmpty()) {
+                return java.util.Collections.emptyList();
+            }
+            beforeDate = anchor.get().getDate();
+        }
+        return exerciseSetRepository.findLastSetsForExercise(workoutId, exerciseId, beforeSessionId, beforeDate);
     }
 
     

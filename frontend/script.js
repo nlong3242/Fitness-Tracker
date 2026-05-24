@@ -763,7 +763,7 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
 
     const exercisesContainer = document.getElementById("summary-exercises");
     for (const exercise of workout.exercises) {
-        const lastSetsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}/last-sets?excludeSessionId=${sessionId}`);
+        const lastSetsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}/last-sets?beforeSessionId=${sessionId}`);
         const lastSets = await lastSetsResponse.json();
         const isUnilateral = exercise.unilateral === true;
 

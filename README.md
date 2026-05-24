@@ -39,4 +39,4 @@ A web-based fitness tracker for creating workouts, logging sets per session, and
 - `GET /workouts/{id}/sessions?page=&size=`, `POST /workouts/{id}/sessions`, `DELETE /sessions/{id}`
 - `GET /sessions/{id}/sets`, `POST /sessions/{id}/sets?exerciseId=`
 - `PUT /sets/{id}`, `DELETE /sets/{id}`
-- `GET /workouts/{id}/exercises/{exerciseId}/last-sets?excludeSessionId=` — returns the most recent prior session's sets for a given exercise, used to drive placeholders and deltas.
+- `GET /workouts/{id}/exercises/{exerciseId}/last-sets?beforeSessionId=` — returns sets from the most recent session strictly older than `beforeSessionId` (by date, then by id) for a given exercise, used to drive placeholders and deltas. When omitted, returns the absolute latest session's sets.

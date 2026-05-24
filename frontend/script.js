@@ -155,8 +155,7 @@ function showExerciseFormModal() {
                     <label class="modal-field-label">Unilateral</label>
                     <div class="modal-pill-row">
                         <button type="button" class="modal-pill" data-unilateral="yes">Yes</button>
-                        <button type="button" class="modal-pill" data-unilateral="no">No</button>
-                        <button type="button" class="modal-pill-clear" id="ex-form-unilateral-clear">Clear</button>
+                        <button type="button" class="modal-pill selected" data-unilateral="no">No</button>
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -171,7 +170,7 @@ function showExerciseFormModal() {
         const nameInput = overlay.querySelector("#ex-form-name");
         const addBtn = overlay.querySelector("#ex-form-add");
         let selectedCategory = null;
-        let unilateral = null;
+        let unilateral = false;
 
         function updateAddState() {
             addBtn.disabled = nameInput.value.trim() === "" || selectedCategory === null;
@@ -203,10 +202,6 @@ function showExerciseFormModal() {
                 btn.classList.add("selected");
             };
         });
-        overlay.querySelector("#ex-form-unilateral-clear").onclick = function() {
-            unilateral = null;
-            uniPills.forEach(function(b) { b.classList.remove("selected"); });
-        };
 
         nameInput.oninput = updateAddState;
 

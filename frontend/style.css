@@ -167,16 +167,6 @@ body {
         border-color: #4CAF50;
     }
 
-    .modal-pill-clear {
-        background: none;
-        border: none;
-        color: #b0b8c8;
-        padding: 6px 8px;
-        text-decoration: underline;
-        cursor: pointer;
-        font-size: 0.9em;
-    }
-
     ul {
         list-style: none;
         padding: 0;

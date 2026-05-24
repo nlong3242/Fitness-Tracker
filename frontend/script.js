@@ -2,27 +2,11 @@ let workouts = [];
 let currentSessionId = null;
 let currentSessionDate = null;
 
-async function createWorkout() {
-    const name = prompt("Enter Workout name:");
-    if (!name) return;
-    const response = await fetch("http://localhost:8080/workouts", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ name: name })
-    });
-    const newWorkout = await response.json();
-    newWorkout.exercises = [];
-    workouts.push(newWorkout);
-    renderWorkouts()
-}
-
 function renderWorkouts() {
     let container = document.getElementById("container");
     container.innerHTML = `
         <h2>My Workouts</h2>
-        <button onclick="createWorkout()">Create Workout</button>
+        <button onclick="renderCreateWorkoutPage()">Create Workout</button>
         <ul id="workout-list">
         </ul>
     `;
@@ -39,6 +23,8 @@ function renderWorkouts() {
         deleteBtn.textContent = "Delete";
         deleteBtn.onclick = async function(event) {
             event.stopPropagation();
+            const confirmed = await showConfirmModal(`Delete workout "${workouts[i].name}"?`, "Delete");
+            if (!confirmed) return;
             await fetch(`http://localhost:8080/workouts/${workouts[i].id}`, {
                 method: "DELETE"
             });
@@ -50,6 +36,131 @@ function renderWorkouts() {
         item.appendChild(deleteBtn);
         list.appendChild(item);
     }
+}
+
+function renderCreateWorkoutPage() {
+    const pendingExercises = [];
+    const container = document.getElementById("container");
+    container.innerHTML = `
+        <h2>Create Workout</h2>
+        <div class="create-workout-form">
+            <label for="new-workout-name">Workout Name</label>
+            <input type="text" id="new-workout-name" placeholder="Enter workout name">
+        </div>
+        <h3>Exercises</h3>
+        <div class="add-exercise-row">
+            <input type="text" id="new-exercise-name" placeholder="Enter exercise name">
+            <button id="add-exercise-btn">Add Exercise</button>
+        </div>
+        <ul id="pending-exercises-list"></ul>
+        <div class="create-workout-actions">
+            <button id="save-workout-btn" disabled>Save Workout</button>
+            <button id="back-btn">Back</button>
+        </div>
+    `;
+
+    const nameInput = document.getElementById("new-workout-name");
+    const exerciseInput = document.getElementById("new-exercise-name");
+    const addExerciseBtn = document.getElementById("add-exercise-btn");
+    const saveBtn = document.getElementById("save-workout-btn");
+    const backBtn = document.getElementById("back-btn");
+    const list = document.getElementById("pending-exercises-list");
+
+    function renderPendingList() {
+        list.innerHTML = "";
+        for (let i = 0; i < pendingExercises.length; i++) {
+            const item = document.createElement("li");
+            item.appendChild(document.createTextNode(`${i + 1}. ${pendingExercises[i].name}`));
+            const deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "Delete";
+            deleteBtn.onclick = function() {
+                pendingExercises.splice(i, 1);
+                renderPendingList();
+            };
+            item.appendChild(deleteBtn);
+            list.appendChild(item);
+        }
+    }
+
+    function addExerciseFromInput() {
+        const name = exerciseInput.value.trim();
+        if (!name) return;
+        pendingExercises.push({ name });
+        exerciseInput.value = "";
+        renderPendingList();
+        exerciseInput.focus();
+    }
+
+    addExerciseBtn.onclick = addExerciseFromInput;
+    exerciseInput.onkeydown = function(e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            addExerciseFromInput();
+        }
+    };
+
+    nameInput.oninput = function() {
+        saveBtn.disabled = nameInput.value.trim() === "";
+    };
+
+    saveBtn.onclick = async function() {
+        const name = nameInput.value.trim();
+        if (!name) return;
+        saveBtn.disabled = true;
+        const response = await fetch("http://localhost:8080/workouts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name })
+        });
+        const newWorkout = await response.json();
+        newWorkout.exercises = [];
+        for (const ex of pendingExercises) {
+            const exResponse = await fetch(`http://localhost:8080/workouts/${newWorkout.id}/exercises`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: ex.name })
+            });
+            const savedEx = await exResponse.json();
+            newWorkout.exercises.push(savedEx);
+        }
+        workouts.push(newWorkout);
+        renderWorkouts();
+    };
+
+    backBtn.onclick = async function() {
+        const hasChanges = nameInput.value.trim() !== "" || pendingExercises.length > 0;
+        if (hasChanges) {
+            const confirmed = await showConfirmModal("Discard this workout?", "Discard");
+            if (!confirmed) return;
+        }
+        renderWorkouts();
+    };
+}
+
+function showConfirmModal(message, confirmLabel) {
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-box">
+                <div class="modal-message"></div>
+                <div class="modal-actions">
+                    <button class="modal-cancel">Cancel</button>
+                    <button class="modal-confirm"></button>
+                </div>
+            </div>
+        `;
+        overlay.querySelector(".modal-message").textContent = message;
+        overlay.querySelector(".modal-confirm").textContent = confirmLabel;
+        document.body.appendChild(overlay);
+
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+        overlay.querySelector(".modal-cancel").onclick = function() { close(false); };
+        overlay.querySelector(".modal-confirm").onclick = function() { close(true); };
+    });
 }
 
  async function viewWorkout(workoutIndex) {

@@ -24,15 +24,18 @@ public class SessionController {
     private final ExerciseRepository exerciseRepository;
     private final ExerciseSetRepository exerciseSetRepository;
     private final SessionExerciseRepository sessionExerciseRepository;
+    private final WorkoutExerciseRepository workoutExerciseRepository;
 
     public SessionController(SessionRepository sessionRepository, WorkoutRepository workoutRepository,
         ExerciseRepository exerciseRepository, ExerciseSetRepository exerciseSetRepository,
-        SessionExerciseRepository sessionExerciseRepository){
+        SessionExerciseRepository sessionExerciseRepository,
+        WorkoutExerciseRepository workoutExerciseRepository){
         this.sessionRepository =  sessionRepository;
         this.workoutRepository = workoutRepository;
         this.exerciseRepository = exerciseRepository;
         this.exerciseSetRepository = exerciseSetRepository;
         this.sessionExerciseRepository = sessionExerciseRepository;
+        this.workoutExerciseRepository = workoutExerciseRepository;
     }
 
     @GetMapping("/workouts/{workoutId}/sessions")
@@ -65,11 +68,12 @@ public class SessionController {
         }
 
         Long workoutId = session.getWorkoutId();
-        List<Exercise> currentExercises = exerciseRepository.findByWorkout_IdAndDeletedFalse(workoutId);
+        List<WorkoutExercise> currentJoins = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
         List<ExerciseSet> sessionSets = exerciseSetRepository.findBySession_Id(sessionId);
 
         Map<Long, Exercise> exercisesById = new LinkedHashMap<>();
-        for (Exercise ex : currentExercises) {
+        for (WorkoutExercise we : currentJoins) {
+            Exercise ex = we.getExercise();
             exercisesById.put(ex.getId(), ex);
         }
         for (ExerciseSet set : sessionSets) {

@@ -13,8 +13,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
 @Entity
@@ -41,10 +39,6 @@ public class Exercise {
     private boolean deleted = false;
 
     @JsonIgnore
-    @ManyToOne
-    @JoinColumn(name = "workout_id")
-    private Workout workout;
-
     @OneToMany(mappedBy="exercise", cascade = CascadeType.ALL)
     private List<ExerciseSet> sets = new ArrayList<ExerciseSet>();
 
@@ -124,13 +118,5 @@ public class Exercise {
 
     public void setDeleted(boolean deleted) {
         this.deleted = deleted;
-    }
-
-    public Workout getWorkout() {
-        return workout;
-    }
-
-    public void setWorkout(Workout workout) {
-        this.workout = workout;
     }
 }

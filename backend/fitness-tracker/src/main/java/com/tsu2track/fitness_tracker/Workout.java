@@ -20,13 +20,13 @@ public class Workout {
     private String name;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL)
-    private List<Exercise> exercises = new ArrayList<>();
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<WorkoutExercise> workoutExercises = new ArrayList<>();
 
     @JsonIgnore
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL)
     private List<Session> sessions = new ArrayList<>();
-    
+
     public Workout() {}
 
     public Workout(String name) {

@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker;
 
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,15 +19,21 @@ import org.springframework.web.server.ResponseStatusException;
 public class ExerciseController {
     private final ExerciseRepository exerciseRepository;
     private final WorkoutRepository workoutRepository;
+    private final WorkoutExerciseRepository workoutExerciseRepository;
 
-    public ExerciseController(ExerciseRepository exerciseRepository, WorkoutRepository workoutRepository){
+    public ExerciseController(ExerciseRepository exerciseRepository,
+        WorkoutRepository workoutRepository,
+        WorkoutExerciseRepository workoutExerciseRepository) {
         this.exerciseRepository = exerciseRepository;
         this.workoutRepository = workoutRepository;
+        this.workoutExerciseRepository = workoutExerciseRepository;
     }
 
-    @GetMapping("/workouts/{workoutId}/exercises")
-    public List<Exercise> getExercises(@PathVariable Long workoutId){
-        return exerciseRepository.findByWorkout_IdAndDeletedFalse(workoutId);
+    // ----- Library endpoints -----
+
+    @GetMapping("/exercises")
+    public List<Exercise> getAllExercises() {
+        return exerciseRepository.findByDeletedFalseOrderByNameAsc();
     }
 
     @GetMapping("/exercises/{id}")
@@ -35,36 +42,20 @@ public class ExerciseController {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
     }
 
-    @PostMapping("/workouts/{workoutId}/exercises")
-    public Exercise createExercise(@RequestBody Exercise exercise, @PathVariable Long workoutId){
-        if (exercise.getName() == null || exercise.getName().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
-        }
-        if (exercise.getCategory() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is required");
-        }
-        Optional<Workout> workout = workoutRepository.findById(workoutId);
-        boolean present = workout.isPresent();
-        if (present){
-            exercise.setWorkout(workout.get());
-            return exerciseRepository.save(exercise);
-        }
-        return null;
+    @PostMapping("/exercises")
+    public Exercise createLibraryExercise(@RequestBody Exercise exercise) {
+        validateExercisePayload(exercise);
+        return exerciseRepository.save(exercise);
     }
 
-    @PutMapping("/workouts/{workoutId}/exercises/{id}")
-    public Exercise updateExercise(@PathVariable Long workoutId, @PathVariable Long id, @RequestBody Exercise body){
+    @PutMapping("/exercises/{id}")
+    public Exercise updateLibraryExercise(@PathVariable Long id, @RequestBody Exercise body) {
         Exercise existing = exerciseRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
         if (existing.isDeleted()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
-        if (body.getName() == null || body.getName().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
-        }
-        if (body.getCategory() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is required");
-        }
+        validateExercisePayload(body);
         existing.setName(body.getName());
         existing.setCategory(body.getCategory());
         existing.setPrimaryMuscleGroups(body.getPrimaryMuscleGroups());
@@ -74,8 +65,8 @@ public class ExerciseController {
         return exerciseRepository.save(existing);
     }
 
-    @DeleteMapping("/workouts/{workoutId}/exercises/{id}")
-    public void deleteExercise(@PathVariable Long id){
+    @DeleteMapping("/exercises/{id}")
+    public void deleteLibraryExercise(@PathVariable Long id) {
         Optional<Exercise> existing = exerciseRepository.findById(id);
         if (existing.isPresent()) {
             Exercise exercise = existing.get();
@@ -83,6 +74,60 @@ public class ExerciseController {
             exerciseRepository.save(exercise);
         }
     }
+
+    // ----- Workout-scoped endpoints -----
+
+    @GetMapping("/workouts/{workoutId}/exercises")
+    public List<Exercise> getWorkoutExercises(@PathVariable Long workoutId){
+        List<WorkoutExercise> joins = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
+        List<Exercise> result = new ArrayList<>(joins.size());
+        for (WorkoutExercise we : joins) {
+            result.add(we.getExercise());
+        }
+        return result;
+    }
+
+    @PostMapping("/workouts/{workoutId}/exercises")
+    public Exercise createAndLinkExercise(@RequestBody Exercise exercise, @PathVariable Long workoutId){
+        validateExercisePayload(exercise);
+        Workout workout = workoutRepository.findById(workoutId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+        Exercise saved = exerciseRepository.save(exercise);
+        int nextPosition = workoutExerciseRepository.findMaxPositionForWorkout(workoutId) + 1;
+        workoutExerciseRepository.save(new WorkoutExercise(workout, saved, nextPosition));
+        return saved;
+    }
+
+    @PostMapping("/workouts/{workoutId}/exercises/{exerciseId}/link")
+    public Exercise linkExerciseToWorkout(@PathVariable Long workoutId, @PathVariable Long exerciseId) {
+        Workout workout = workoutRepository.findById(workoutId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+        Exercise exercise = exerciseRepository.findById(exerciseId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        if (exercise.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
+        }
+        Optional<WorkoutExercise> existing = workoutExerciseRepository.findByWorkout_IdAndExercise_Id(workoutId, exerciseId);
+        if (existing.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Exercise already in workout");
+        }
+        int nextPosition = workoutExerciseRepository.findMaxPositionForWorkout(workoutId) + 1;
+        workoutExerciseRepository.save(new WorkoutExercise(workout, exercise, nextPosition));
+        return exercise;
+    }
+
+    @PutMapping("/workouts/{workoutId}/exercises/{id}")
+    public Exercise updateExerciseFromWorkout(@PathVariable Long workoutId, @PathVariable Long id, @RequestBody Exercise body){
+        return updateLibraryExercise(id, body);
+    }
+
+    @DeleteMapping("/workouts/{workoutId}/exercises/{id}")
+    public void unlinkExerciseFromWorkout(@PathVariable Long workoutId, @PathVariable Long id){
+        Optional<WorkoutExercise> link = workoutExerciseRepository.findByWorkout_IdAndExercise_Id(workoutId, id);
+        link.ifPresent(workoutExerciseRepository::delete);
+    }
+
+    // ----- Notes -----
 
     public static class NoteBody {
         private String content;
@@ -99,4 +144,12 @@ public class ExerciseController {
         return exerciseRepository.save(exercise);
     }
 
+    private void validateExercisePayload(Exercise exercise) {
+        if (exercise.getName() == null || exercise.getName().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
+        }
+        if (exercise.getCategory() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is required");
+        }
+    }
 }

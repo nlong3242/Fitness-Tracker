@@ -6,65 +6,112 @@ A summary of what was built and discussed during the most recent working session
 
 ## Features Added Today
 
-### Immutable Past Sessions (Snapshot at Finish)
+### Exercise Library — First-Class, Multi-Workout Exercises
 
-Past session summaries are now driven by a snapshot taken at finish time, not by querying live workout state. Solves a bug where exercises added to a workout *after* a session was completed were showing up in that session's summary with "0 sets".
+Exercises are now library-owned and reusable across multiple workouts. A new `WorkoutExercise` join entity sits between `Workout` and `Exercise` and carries the per-workout `position` field. `Exercise.workout` is gone.
 
-- New entity `SessionExercise` — one row per (session, exercise) pair, capturing name, category, primaryMuscleGroups, exerciseType, cues, unilateral, and position. Rows are created when the session is marked finished.
-- `Session.finished` boolean flag, default false. Set to `true` by `POST /sessions/{id}/finish`.
-- `POST /sessions/{id}/finish` — marks finished AND writes the snapshot rows. Snapshot list = (current non-deleted workout exercises) ∪ (any exercise that has sets in this session, even if since-deleted).
-- `GET /sessions/{id}/exercises` — returns snapshot rows ordered by position. Replaces the old frontend logic of "fetch current exercises + merge with soft-deleted ones that have sets".
-- Immutability guards:
-  - `POST /sessions/{id}/sets`, `PUT /sets/{id}`, `DELETE /sets/{id}` return **409 Conflict** if the owning session is finished.
-  - `DELETE /sessions/{id}` returns 409 if the session is finished. Orphan-session cleanup still works because it only fires before finish.
-- `SessionSnapshotMigration` `CommandLineRunner` runs once on startup: for any pre-existing session without snapshot rows, marks it finished and snapshots from exercises that have sets in it. Legacy sessions become immutable.
-- Frontend: `finishWorkout` calls `/finish` before showing the summary. `viewSessionSummary` reads from the snapshot endpoint instead of merging current+deleted exercises.
+- **`WorkoutExercise`** — `(id, workout, exercise, position)` with a unique constraint on `(workout_id, exercise_id)` so the same exercise can't be linked to the same workout twice.
+- **`Workout.exercises`** is now `List<WorkoutExercise>` with `cascade=ALL, orphanRemoval=true` — deleting a workout cleans up its join rows but never touches the underlying exercises.
+- **`WorkoutExerciseRepository.findLiveByWorkoutId(workoutId)`** — JPQL that filters `exercise.deleted = false` and orders by position. This single query replaces the old `findByWorkout_IdAndDeletedFalse` on `ExerciseRepository`.
+- **No DB migration needed** — H2 is in-memory, schema is rebuilt on every startup. The redesign is destructive to existing in-memory data but matters nothing in practice.
 
-### Per-Exercise Notes
+### Library Endpoints
 
-A notes field per exercise, editable from Live Workout and from any past session's Workout Summary. Hidden in the View Workout page.
+- `GET /exercises` → `findByDeletedFalseOrderByNameAsc()`. The library list.
+- `POST /exercises` → create library-only (no workout link).
+- `PUT /exercises/{id}` → workout-agnostic update.
+- `DELETE /exercises/{id}` → soft-delete (`deleted=true`). Cascades to every workout via the join filter.
+- `POST /workouts/{wId}/exercises` — now does **two things atomically**: creates the Exercise and the `WorkoutExercise` join row. Used by the picker's "Create Exercise" button when the user is creating exercises while also adding to a specific workout (this path was later replaced — see below).
+- `POST /workouts/{wId}/exercises/{eId}/link` — adds an existing library exercise to a workout (409 on duplicate). The picker uses this for "Add N to {workout}".
+- `DELETE /workouts/{wId}/exercises/{eId}` — **changed semantics**: now removes the join row only. Exercise stays in the library and in any other workouts.
 
-- Single text field `Exercise.notes` (`@Column(length = 5000)`). One global note per exercise — same exercise reused across multiple workouts shares one note. Designed this way to be future-proof for the planned exercise-library architecture.
-- `PUT /exercises/{id}/note` with `{ content }`. Empty content clears the note.
-- `SessionExercise.getNotes()` delegates to the linked Exercise so past-session summaries serialise the **current** notes alongside the snapshot fields.
-- Frontend `createNotesPanel(exercise)` — three UI states:
-  - **No note** → "Add Notes" button under the exercise card.
-  - **Has note** → clickable box (`.notes-box`) showing the note content with a green hover border.
-  - **Editing** → textarea + Save + Cancel. Cancel confirms via `showConfirmModal` if the textarea was edited.
-- Wired into `startWorkout` (Live Workout) and `renderWorkoutSummary` (just-finished and past-session summaries). `viewWorkout` deliberately does not show the notes UI.
-- Notes are **explicitly mutable on finished sessions** — they bypass the 409 immutability rule because notes are commentary, not performance data.
-- Notes do not trigger session creation. Sessions remain set-driven (a Live Workout that logs zero sets still creates no session, even if notes are edited).
+### Two Distinct "Delete" Operations
 
-### Stat-Box Deltas in Workout Summary
+| Action | What it does | Where it lives |
+|---|---|---|
+| **Remove from workout** | Delete the `WorkoutExercise` join row. Exercise stays in library and other workouts. | viewWorkout exercise row → details modal → `Remove` button |
+| **Delete from library** | Soft-delete the `Exercise` (`deleted=true`). Disappears from every workout via the join filter. Past sessions still see it via `SessionExercise` snapshots. | Exercise Library exercise row → details modal → `Delete` button |
 
-Each of the four summary stat boxes (Exercises / Sets / Reps / Volume) now shows a delta versus the previous session's totals.
+Confirm messages are deliberately short: `Remove "Bench Press" from "Push Day"?` and `Delete "Bench Press" permanently?`. "Permanently" matches the user's mental model even though we soft-delete under the hood — there is no undelete UI, and past-session retention is a behind-the-scenes guarantee, not part of the user's intent when clicking delete.
 
-- `SessionRepository.findPreviousSession(workoutId, date, sessionId)` — JPQL anchored by `(date < anchor) OR (date == anchor AND id < anchor.id)`, ordered desc, limit 1. Same anchor pattern as the existing `last-sets` query.
-- `GET /workouts/{wId}/sessions/{sId}/previous-totals` returns `{ exercises, sets, reps, volume }` for the previous session, or 404 if there is no predecessor (first-ever session of this workout).
-- Frontend `renderWorkoutSummary` fetches that endpoint and appends the existing `deltaSpan(current - prev)` helper to each stat box. `deltaSpan(0)` returns empty, so unchanged stats render cleanly. First-ever sessions render no deltas.
+### Session Snapshot Compatibility
+
+`SessionController.finishSession` now reads from `workoutExerciseRepository.findLiveByWorkoutId(workoutId)` to enumerate "current exercises in this workout." Snapshot rows still go through `SessionExercise` with their fields cached at finish time. The `SessionSnapshotMigration` `CommandLineRunner` is untouched — it operates on `set → exercise`, not on the workout-exercise relationship.
+
+### Frontend — Library Page
+
+- **"Exercise Library" button** on the home page next to "Create Workout."
+- **`renderExerciseLibrary`** fetches all exercises once, groups by category, and renders.
+- **Category pill row** at the top: `All | Chest | Arms | Back | Legs | Shoulders | Core`. Default `All` (category-grouped view). Selecting a specific pill shows a flat list of just that category. Filtering is **client-side** off the single fetch — instant, no spinners, no race conditions.
+- Click an exercise row → reuses `showExerciseDetailsModal` (editable, with the library-context Delete button).
+
+### Frontend — Multi-Select Picker (Used by Both Add Flows)
+
+A new full-page picker replaces the old single-pick library modal:
+
+- Same pill row as the library page (All + 6 categories).
+- Each exercise row is a checkbox + name (already-linked exercises are hidden).
+- Bottom-right action: `Add N to "Push Day"`, disabled at 0, shows live count.
+- Top: `Create Exercise` and `Cancel`.
+
+**Create Exercise from inside the picker** — important UX detail driven by user feedback. POSTs to `/exercises` (library only, **not** the create-and-link endpoint), adds the new exercise to `available`, ticks its checkbox, and **jumps the pill row to the new exercise's category**. This preserves the user's other selections — they can keep picking without losing their work, and the new exercise gets linked along with everything else when they tap `Add N to ...`.
+
+The picker is extracted into `renderMultiSelectExercisePicker(opts)` and used from:
+
+1. **`viewWorkout` Add Exercise** — onCancel returns to viewWorkout; onConfirm POSTs `/link` for each selected exercise and returns to viewWorkout.
+2. **`renderCreateWorkoutPage` Add Exercise** — onCancel/onConfirm return to the create-workout page with state preserved (workout name + pending exercises). The pending list now holds plain exercise objects (all are library entries); save POSTs the workout, then POSTs `/link` for each pending exercise.
+
+The create-workout pending-list row button is labelled **`Remove`**, not `Delete` — unstaging from a local in-memory list is not destructive.
 
 ---
 
-## Design Discussion — Per-Session vs Per-Exercise Notes
+## Design Discussion — Many-to-Many vs Alternatives
 
-Notes started out as a per-`(session, exercise)` table with carry-forward semantics (auto-copy the most recent prior note when a new session was created). The model worked but had three frictions:
+Three storage models were considered before committing to many-to-many:
 
-- **Note saves triggered session creation.** A user editing notes in Live Workout before logging any set would lazily create a session — which then needed orphan-cleanup logic that understood "session has notes but no sets".
-- **Auto-copy added implicit data duplication.** Every session ended up with a redundant copy of the same note unless the user explicitly changed it.
-- **Doesn't compose with the planned exercise library.** Future plan: exercises become first-class entities, pickable across multiple workouts. With per-session notes, the same exercise reused in workouts A and B would have unrelated note streams per workout — not what the user wanted.
+- **A. Single `Exercise` table with nullable `workout_id`** — minimal change. The library is `SELECT * FROM exercise WHERE deleted=false`. Each exercise still belongs to at most one workout. Rejected because the user explicitly wants the same exercise reusable across multiple workouts.
+- **B. Many-to-many via an explicit join entity** — `WorkoutExercise` carries `(workout, exercise, position)`. Soft-delete on `Exercise` cascades to all workouts via the join filter. "Remove from workout" deletes the join row. **Chosen.**
+- **C. Two tables — `LibraryExercise` template + per-workout `Exercise` instance** — cleanest separation conceptually but adds a sync question (do library edits propagate to existing workouts?) and doubles the entity surface. Overkill for now.
 
-We refactored to a single `Exercise.notes` field (global per exercise). Implications agreed on:
+The "remove from workout" vs "delete from library" split fell naturally out of option B and matches what the user wanted: deleting from the library should cascade to all workouts, removing from one workout should leave the exercise alone everywhere else.
 
-- A summary view's note **is** the live note. Editing a past session's note edits the one and only note. This is acceptable because notes are commentary, not performance data — performance data (sets) is already immutable.
-- Carry-forward is automatic: there's only one note, so it's "carried forward" by definition.
-- Session creation is purely set-driven again. The orphan-cleanup logic reverted to "any sets?" — no need to think about notes.
-- The `SessionExercise` snapshot does **not** snapshot notes. It delegates `getNotes()` to the linked Exercise so the response includes the live value.
+## Design Discussion — Picker UX
+
+The first cut was a choice modal (`Create New` vs `Pick from Library`) plus a single-pick library modal. User feedback was that picking exercises one at a time is annoying when building a workout, so it was redesigned as a full-page multi-select picker.
+
+We considered three options for what happens when you tap an exercise row in the picker:
+
+- **Add immediately, return to workout.** Fastest but no way to add several in one trip.
+- **Open details modal (same as front-page library).** Most flexible but more clicks and mixes intents.
+- **Multi-select with bottom action button.** **Chosen.** Matches "queue up several exercises in one go."
+
+We deliberately stripped details access from the picker — if you want to inspect/edit an exercise, the front-page library is one tap away, and mixing select-mode with edit-mode in the same view creates clutter and mode confusion. Per-row subtitles (muscle groups · type) were discussed and deferred to keep this iteration focused on the function.
+
+For the fetch strategy: chose "fetch all upfront, filter client-side." At ~250 bytes per exercise, even 300 exercises is ~75 KB — smaller than a single image. Pill switching is a `.filter()` call, no network round-trip, no loading states. The breaking point isn't until multiple thousands.
+
+---
+
+## Future Plans (Discussed, Not Built)
+
+- **Built-in exercise library shipped with the app.** A curated, immutable preset list users can browse and pick from. When this lands, the right split is:
+  - Built-in = static JSON shipped with the app (they never change per user, can be cached aggressively).
+  - User-created = fetched from the API (small, mutable).
+  - Merge client-side. Keeps both tiny.
+- **Per-row subtitles in the picker** — small grey line under each name with `primaryMuscleGroups · exerciseType` so users can identify exercises at a glance without a details modal. Deferred until the picker function is stable.
+- **Cross-workout "last sets" history** — currently `findLastSetsForExercise` is scoped to the same workout. With shared exercises, you might want "last time I benched in *any* workout" instead. Worth a separate design pass.
 
 ---
 
 ## Repo State Note
 
-This PC's local `master` had diverged from `origin/master` by 1 ahead / 75 behind, with an in-progress merge from earlier in the day that had three unresolved conflicts in old console-prototype files (`App.java`, `console-based app/Main.java`, `console-based app/workouts.txt`). All three local edits in commit `3644c3e "Merge request"` were either trivial whitespace or half-finished experiments that origin had already implemented properly. Resolution: took origin's version for all three (effectively `git checkout --theirs` for the two surviving files, `git rm` for the deleted one), completed the merge, then committed the session's work on top. After the merge commit, three feature commits landed cleanly as fast-forwards on origin.
+Two commits landed this session on `master`:
+
+- `bdc0d94` — Add exercise library with many-to-many workout linking (backend + frontend, ~700 LOC net).
+- `935197e` — Reuse multi-select exercise picker on the create-workout page (refactor; net **−150 LOC** after stripping duplicate modal code).
+
+Stray `.class` files at the repo root (`Exercise.class`, `ExerciseSet.class`, `Main.class`, `Workout.class`) are untracked leftovers from old console-prototype builds. They were present at session start and are unrelated to this work. Worth `.gitignore`ing in a future cleanup but not pulled into the feature commits.
+
+The unrelated `.vscode/settings.json` modification was also present at session start and was deliberately excluded from the feature commits.
 
 ---
 

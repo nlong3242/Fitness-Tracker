@@ -19,6 +19,10 @@ public class FileHandler {
                 for (Exercise exercise: workout.exercises){
                     writer.write("Exercise:" + exercise.name);
                     writer.newLine();
+                    for (ExerciseSet set: exercise.sets){
+                        writer.write("Set:" + set.weight + ":" + set.reps);
+                        writer.newLine();
+                    }
                 }
             }
 
@@ -41,6 +45,15 @@ public class FileHandler {
                 else if (parts[0].equals("Exercise")){
                     Exercise exercise = new Exercise(parts[1]);
                     workouts.get(workouts.size() - 1).exercises.add(exercise);
+                }
+                else if (parts[0].equals("Set")){
+                    String[] set_data = parts[1].split(":");
+                    double weight = Double.parseDouble(set_data[0]);
+                    int reps = Integer.parseInt(set_data[1]);
+                    ExerciseSet set = new ExerciseSet(weight, reps);
+                    Workout lastWorkout = workouts.get(workouts.size() - 1);
+                    Exercise lastExercise = lastWorkout.exercises.get(lastWorkout.exercises.size() - 1);
+                    lastExercise.sets.add(set);
                 }
             }
 

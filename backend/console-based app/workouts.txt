@@ -1,0 +1,14 @@
+Workout:A
+Exercise:Bench
+Set:20.0:10
+Set:20.0:6
+Exercise:Shoulder Press
+Set:20.0:10
+Set:20.0:5
+Workout:B
+Exercise:Leg Press
+Set:20.0:1
+Set:20.0:2
+Exercise:Squat
+Set:20.0:12
+Set:20.0:10

@@ -1,5 +1,0 @@
-Workout:A
-Exercise:Shoulder Press
-Workout:B
-Exercise:Leg Press
-Exercise:Squat

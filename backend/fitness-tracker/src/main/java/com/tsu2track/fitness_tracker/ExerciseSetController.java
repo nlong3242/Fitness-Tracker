@@ -57,6 +57,9 @@ public class ExerciseSetController {
         boolean sessionPresent = session.isPresent();
         boolean exercisePresent = exercise.isPresent();
         if (sessionPresent && exercisePresent){
+            if (session.get().isFinished()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
+            }
             boolean isUnilateral = Boolean.TRUE.equals(exercise.get().getUnilateral());
             if (isUnilateral && set.getSide() == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side is required for unilateral exercises");
@@ -76,6 +79,9 @@ public class ExerciseSetController {
         Optional<ExerciseSet> existing = exerciseSetRepository.findById(setId);
         if (existing.isPresent()) {
             ExerciseSet set = existing.get();
+            if (set.getSession() != null && set.getSession().isFinished()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
+            }
             set.setWeight(body.getWeight());
             set.setReps(body.getReps());
             return exerciseSetRepository.save(set);
@@ -85,6 +91,10 @@ public class ExerciseSetController {
 
     @DeleteMapping("/sets/{setId}")
     public void deleteSet (@PathVariable Long setId) {
+        Optional<ExerciseSet> existing = exerciseSetRepository.findById(setId);
+        if (existing.isPresent() && existing.get().getSession() != null && existing.get().getSession().isFinished()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
+        }
         exerciseSetRepository.deleteById(setId);
     }
 

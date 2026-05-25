@@ -1,25 +1,38 @@
 package com.tsu2track.fitness_tracker;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 public class SessionController {
     private final SessionRepository sessionRepository;
     private final WorkoutRepository workoutRepository;
+    private final ExerciseRepository exerciseRepository;
+    private final ExerciseSetRepository exerciseSetRepository;
+    private final SessionExerciseRepository sessionExerciseRepository;
 
-    public SessionController(SessionRepository sessionRepository, WorkoutRepository workoutRepository){
+    public SessionController(SessionRepository sessionRepository, WorkoutRepository workoutRepository,
+        ExerciseRepository exerciseRepository, ExerciseSetRepository exerciseSetRepository,
+        SessionExerciseRepository sessionExerciseRepository){
         this.sessionRepository =  sessionRepository;
         this.workoutRepository = workoutRepository;
+        this.exerciseRepository = exerciseRepository;
+        this.exerciseSetRepository = exerciseSetRepository;
+        this.sessionExerciseRepository = sessionExerciseRepository;
     }
 
     @GetMapping("/workouts/{workoutId}/sessions")
@@ -44,8 +57,65 @@ public class SessionController {
         return null;
     }
 
+    @PostMapping("/sessions/{sessionId}/finish")
+    public Session finishSession(@PathVariable Long sessionId) {
+        Session session = sessionRepository.findById(sessionId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        if (session.isFinished()) {
+            return session;
+        }
+
+        Long workoutId = session.getWorkoutId();
+        List<Exercise> currentExercises = exerciseRepository.findByWorkout_IdAndDeletedFalse(workoutId);
+        List<ExerciseSet> sessionSets = exerciseSetRepository.findBySession_Id(sessionId);
+
+        Map<Long, Exercise> exercisesById = new LinkedHashMap<>();
+        for (Exercise ex : currentExercises) {
+            exercisesById.put(ex.getId(), ex);
+        }
+        for (ExerciseSet set : sessionSets) {
+            Long exId = set.getExerciseId();
+            if (exId != null && !exercisesById.containsKey(exId)) {
+                Optional<Exercise> ex = exerciseRepository.findById(exId);
+                if (ex.isPresent()) {
+                    exercisesById.put(exId, ex.get());
+                }
+            }
+        }
+
+        int position = 0;
+        for (Exercise ex : exercisesById.values()) {
+            SessionExercise snapshot = new SessionExercise();
+            snapshot.setSession(session);
+            snapshot.setExercise(ex);
+            snapshot.setPosition(position++);
+            snapshot.setName(ex.getName());
+            snapshot.setCategory(ex.getCategory());
+            snapshot.setPrimaryMuscleGroups(ex.getPrimaryMuscleGroups());
+            snapshot.setExerciseType(ex.getExerciseType());
+            snapshot.setCues(ex.getCues());
+            snapshot.setUnilateral(ex.getUnilateral());
+            sessionExerciseRepository.save(snapshot);
+        }
+
+        session.setFinished(true);
+        return sessionRepository.save(session);
+    }
+
+    @GetMapping("/sessions/{sessionId}/exercises")
+    public List<SessionExercise> getSessionExercises(@PathVariable Long sessionId) {
+        if (!sessionRepository.existsById(sessionId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found");
+        }
+        return sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+    }
+
     @DeleteMapping("/sessions/{sessionId}")
     public void deleteSession (@PathVariable Long sessionId){
+        Optional<Session> session = sessionRepository.findById(sessionId);
+        if (session.isPresent() && session.get().isFinished()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot delete a finished session");
+        }
         sessionRepository.deleteById(sessionId);
     }
 

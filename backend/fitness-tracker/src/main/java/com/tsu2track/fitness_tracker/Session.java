@@ -19,6 +19,8 @@ public class Session {
     private Long id;
     private LocalDate date;
 
+    private boolean finished = false;
+
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name="workout_id")
@@ -52,5 +54,13 @@ public class Session {
 
     public Long getWorkoutId() {
         return workout != null ? workout.getId() : null;
+    }
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public void setFinished(boolean finished) {
+        this.finished = finished;
     }
 }

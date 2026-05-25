@@ -912,14 +912,15 @@ async function finishWorkout(workoutIndex) {
     const sessionDate = currentSessionDate;
     currentSessionId = null;
     currentSessionDate = null;
+    await fetch(`http://localhost:8080/sessions/${sessionId}/finish`, { method: "POST" });
     await renderWorkoutSummary(workout, sessionId, sessionDate, "renderWorkouts()");
 }
 
 async function viewSessionSummary(workoutIndex, sessionId, sessionDate) {
     const workout = workouts[workoutIndex];
 
-    const exerciseResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
-    const currentExercises = await exerciseResponse.json();
+    const snapshotResponse = await fetch(`http://localhost:8080/sessions/${sessionId}/exercises`);
+    const snapshotExercises = await snapshotResponse.json();
 
     const setsResponse = await fetch(`http://localhost:8080/sessions/${sessionId}/sets`);
     const sets = await setsResponse.json();
@@ -931,22 +932,11 @@ async function viewSessionSummary(workoutIndex, sessionId, sessionDate) {
         setsByExerciseId.get(set.exerciseId).push(set);
     }
 
-    const currentIds = new Set(currentExercises.map(e => e.id));
-    const deletedIdsWithSets = [];
-    for (const exerciseId of setsByExerciseId.keys()) {
-        if (!currentIds.has(exerciseId)) deletedIdsWithSets.push(exerciseId);
+    for (const snapshot of snapshotExercises) {
+        snapshot.id = snapshot.exerciseId;
+        snapshot.sets = setsByExerciseId.get(snapshot.exerciseId) || [];
     }
-    const deletedExercises = [];
-    for (const id of deletedIdsWithSets) {
-        const response = await fetch(`http://localhost:8080/exercises/${id}`);
-        if (response.ok) deletedExercises.push(await response.json());
-    }
-
-    const combined = currentExercises.concat(deletedExercises);
-    for (const exercise of combined) {
-        exercise.sets = setsByExerciseId.get(exercise.id) || [];
-    }
-    workout.exercises = combined;
+    workout.exercises = snapshotExercises;
 
     await renderWorkoutSummary(workout, sessionId, sessionDate, `viewWorkout(${workoutIndex})`);
 }

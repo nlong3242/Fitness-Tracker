@@ -118,4 +118,51 @@ public class SessionController {
         sessionRepository.deleteById(sessionId);
     }
 
+    public static class SessionTotals {
+        private int exercises;
+        private int sets;
+        private int reps;
+        private double volume;
+
+        public int getExercises() { return exercises; }
+        public int getSets() { return sets; }
+        public int getReps() { return reps; }
+        public double getVolume() { return volume; }
+
+        public void setExercises(int exercises) { this.exercises = exercises; }
+        public void setSets(int sets) { this.sets = sets; }
+        public void setReps(int reps) { this.reps = reps; }
+        public void setVolume(double volume) { this.volume = volume; }
+    }
+
+    @GetMapping("/workouts/{workoutId}/sessions/{sessionId}/previous-totals")
+    public org.springframework.http.ResponseEntity<SessionTotals> getPreviousTotals(
+        @PathVariable Long workoutId,
+        @PathVariable Long sessionId
+    ) {
+        Session current = sessionRepository.findById(sessionId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        Optional<Session> previous = sessionRepository.findPreviousSession(workoutId, current.getDate(), sessionId);
+        if (!previous.isPresent()) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+
+        List<ExerciseSet> sets = exerciseSetRepository.findBySession_Id(previous.get().getId());
+        java.util.Set<Long> uniqueExercises = new java.util.HashSet<>();
+        int repsTotal = 0;
+        double volumeTotal = 0;
+        for (ExerciseSet set : sets) {
+            uniqueExercises.add(set.getExerciseId());
+            repsTotal += set.getReps();
+            volumeTotal += set.getWeight() * set.getReps();
+        }
+
+        SessionTotals totals = new SessionTotals();
+        totals.setExercises(uniqueExercises.size());
+        totals.setSets(sets.size());
+        totals.setReps(repsTotal);
+        totals.setVolume(volumeTotal);
+        return org.springframework.http.ResponseEntity.ok(totals);
+    }
+
 }

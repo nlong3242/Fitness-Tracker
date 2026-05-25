@@ -1060,6 +1060,16 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
         year: "numeric"
     });
 
+    const prevTotalsResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions/${sessionId}/previous-totals`);
+    let exercisesDelta = "", setsDelta = "", repsDelta = "", volumeDelta = "";
+    if (prevTotalsResponse.ok) {
+        const prev = await prevTotalsResponse.json();
+        exercisesDelta = deltaSpan(exercisesCount - prev.exercises);
+        setsDelta = deltaSpan(setsCount - prev.sets);
+        repsDelta = deltaSpan(repsTotal - prev.reps);
+        volumeDelta = deltaSpan(volumeTotal - prev.volume);
+    }
+
     let container = document.getElementById("container");
     container.innerHTML = `
         <h2>Workout Summary - ${workout.name}</h2>
@@ -1067,19 +1077,19 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
         <div class="summary-stats">
             <div class="stat-box">
                 <div class="stat-label">Exercises</div>
-                <div class="stat-value">${exercisesCount}</div>
+                <div class="stat-value">${exercisesCount}${exercisesDelta}</div>
             </div>
             <div class="stat-box">
                 <div class="stat-label">Sets</div>
-                <div class="stat-value">${setsCount}</div>
+                <div class="stat-value">${setsCount}${setsDelta}</div>
             </div>
             <div class="stat-box">
                 <div class="stat-label">Reps</div>
-                <div class="stat-value">${repsTotal}</div>
+                <div class="stat-value">${repsTotal}${repsDelta}</div>
             </div>
             <div class="stat-box">
                 <div class="stat-label">Volume<span class="stat-unit">(kg)</span></div>
-                <div class="stat-value">${volumeTotal}</div>
+                <div class="stat-value">${volumeTotal}${volumeDelta}</div>
             </div>
         </div>
         <div id="summary-exercises"></div>

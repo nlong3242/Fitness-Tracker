@@ -6,63 +6,65 @@ A summary of what was built and discussed during the most recent working session
 
 ## Features Added Today
 
-### Dedicated Create Workout Page
+### Immutable Past Sessions (Snapshot at Finish)
 
-- The home page's **Create Workout** button no longer opens a `prompt()`. It navigates to a new in-app page rendered by `renderCreateWorkoutPage()` containing:
-  - A text input for the workout name.
-  - An **Add Exercise** button that opens the new exercise-details modal (see below). Each pending exercise appears in a numbered list with a per-row Delete.
-  - A **Save Workout** button that is disabled until the workout-name field has non-empty trimmed input. Nothing is sent to the backend until Save is pressed; then the workout is POSTed first and each pending exercise is POSTed in order, preserving entry order.
-  - A **Back** button that opens an in-app confirmation modal if the name has been typed or any exercise has been added, and returns silently otherwise. Back-during-creation never leaves orphan rows in the DB because nothing was persisted yet.
+Past session summaries are now driven by a snapshot taken at finish time, not by querying live workout state. Solves a bug where exercises added to a workout *after* a session was completed were showing up in that session's summary with "0 sets".
 
-### In-App Confirmation Modal
+- New entity `SessionExercise` — one row per (session, exercise) pair, capturing name, category, primaryMuscleGroups, exerciseType, cues, unilateral, and position. Rows are created when the session is marked finished.
+- `Session.finished` boolean flag, default false. Set to `true` by `POST /sessions/{id}/finish`.
+- `POST /sessions/{id}/finish` — marks finished AND writes the snapshot rows. Snapshot list = (current non-deleted workout exercises) ∪ (any exercise that has sets in this session, even if since-deleted).
+- `GET /sessions/{id}/exercises` — returns snapshot rows ordered by position. Replaces the old frontend logic of "fetch current exercises + merge with soft-deleted ones that have sets".
+- Immutability guards:
+  - `POST /sessions/{id}/sets`, `PUT /sets/{id}`, `DELETE /sets/{id}` return **409 Conflict** if the owning session is finished.
+  - `DELETE /sessions/{id}` returns 409 if the session is finished. Orphan-session cleanup still works because it only fires before finish.
+- `SessionSnapshotMigration` `CommandLineRunner` runs once on startup: for any pre-existing session without snapshot rows, marks it finished and snapshots from exercises that have sets in it. Legacy sessions become immutable.
+- Frontend: `finishWorkout` calls `/finish` before showing the summary. `viewSessionSummary` reads from the snapshot endpoint instead of merging current+deleted exercises.
 
-- The browser-native `confirm()` dialog is replaced with a `showConfirmModal(message, confirmLabel)` helper. It overlays a dark-navy box with a grey Cancel button and a destructive (red) confirm button, and returns a Promise that resolves to `true` / `false`.
-- Used by the Back button on the Create Workout page ("Discard this workout?") and by the per-workout Delete button on the home page ("Delete workout \"{name}\"?").
+### Per-Exercise Notes
 
-### Exercise Details Form Modal
+A notes field per exercise, editable from Live Workout and from any past session's Workout Summary. Hidden in the View Workout page.
 
-- `showExerciseFormModal()` returns a Promise that resolves to an exercise object (or `null` on Cancel) and is used in **both** places exercises can be created: the in-workout **Add Exercise** button (`viewWorkout`) and the **Create Workout** page (`renderCreateWorkoutPage`). Fields:
-  - **Name** — text, required.
-  - **Category** — required, six fixed pill buttons (Chest, Arms, Back, Legs, Shoulders, Core) acting as a single-select radio group. Free text intentionally not allowed.
-  - **Primary Muscle Groups**, **Exercise Type**, **Cues** — optional free text. Cues is a `<textarea>`; the others are single-line inputs.
-  - **Unilateral** — two Yes/No pills with **No preselected by default**, so an "unset" state is no longer reachable from the UI.
-- The Add Exercise button stays disabled until both Name and Category are filled.
-- Backend support:
-  - New enum `ExerciseCategory { CHEST, ARMS, BACK, LEGS, SHOULDERS, CORE }`.
-  - New fields on `Exercise`: `category` (enum, STRING), `primaryMuscleGroups` (string), `exerciseType` (string), `cues` (`@Column(length = 1000)`), `unilateral` (Boolean).
-  - `POST /workouts/{id}/exercises` returns 400 if `name` is blank or `category` is null.
+- Single text field `Exercise.notes` (`@Column(length = 5000)`). One global note per exercise — same exercise reused across multiple workouts shares one note. Designed this way to be future-proof for the planned exercise-library architecture.
+- `PUT /exercises/{id}/note` with `{ content }`. Empty content clears the note.
+- `SessionExercise.getNotes()` delegates to the linked Exercise so past-session summaries serialise the **current** notes alongside the snapshot fields.
+- Frontend `createNotesPanel(exercise)` — three UI states:
+  - **No note** → "Add Notes" button under the exercise card.
+  - **Has note** → clickable box (`.notes-box`) showing the note content with a green hover border.
+  - **Editing** → textarea + Save + Cancel. Cancel confirms via `showConfirmModal` if the textarea was edited.
+- Wired into `startWorkout` (Live Workout) and `renderWorkoutSummary` (just-finished and past-session summaries). `viewWorkout` deliberately does not show the notes UI.
+- Notes are **explicitly mutable on finished sessions** — they bypass the 409 immutability rule because notes are commentary, not performance data.
+- Notes do not trigger session creation. Sessions remain set-driven (a Live Workout that logs zero sets still creates no session, even if notes are edited).
 
-### Unilateral L/R Set Logging (Locked Pairs)
+### Stat-Box Deltas in Workout Summary
 
-- When an exercise is marked unilateral, set logging now records each logical set as a **pair** of LEFT and RIGHT entries that share an index. Labels become `Set L1, Set R1, Set L2, Set R2, ...` instead of `Set 01, Set 02, ...`.
-- Backend support:
-  - New enum `Side { LEFT, RIGHT }` and a nullable `side` column on `ExerciseSet`.
-  - `POST /sessions/{id}/sets` returns 400 if `side` is missing for a unilateral exercise's set, or present for a bilateral exercise's set. `PUT /sets/{id}` leaves `side` immutable so editing weight/reps in place can never change which side a set belongs to.
-- Frontend semantics:
-  - The **Add Set** button on a unilateral exercise appends **both** a LEFT and a RIGHT row at once, so the set counter always goes up by one logical set whether the exercise is bilateral or unilateral.
-  - Clicking the cancel × on either side of pair `n` deletes **both** rows of that pair (and both saved sets on the server, if any). The user is never left with an orphan side and no per-side Add affordance is needed.
-  - Pre-population from the previous session preserves each previous set's side, so `Set L2` lines up with last session's `Set L2`.
-  - The live progress delta in the input corner compares against the **same-side same-position** set from the previous session (`Set L2` vs previous `Set L2`).
-  - The Workout Summary table follows the same L/R labelling and per-side delta scheme. Totals (Exercises / Sets / Reps / Volume) still sum every row.
+Each of the four summary stat boxes (Exercises / Sets / Reps / Volume) now shows a delta versus the previous session's totals.
 
-### Past-Session Delta Anchor Bug Fix
-
-- The `last-sets` endpoint previously took an `excludeSessionId` parameter and returned the **latest** session that wasn't the given one. That was fine for "just finished a fresh workout" (the just-finished session is the latest, so excluding it gives the previous one), but wrong for viewing an older session — the latest session that isn't the one being viewed is often **newer** than it, so deltas were inverted and confusing.
-- The parameter is renamed `beforeSessionId` and its meaning becomes **anchor: return sets from the most recent session strictly older than this one** (by date, then by id as a tiebreaker). The controller looks up the anchor session's date via the existing `SessionRepository` injection and returns an empty list if the anchor session is missing.
-- When the parameter is omitted (live workout pre-population), behavior is unchanged: return the absolute latest session's sets.
-- The README API blurb is rewritten to match.
+- `SessionRepository.findPreviousSession(workoutId, date, sessionId)` — JPQL anchored by `(date < anchor) OR (date == anchor AND id < anchor.id)`, ordered desc, limit 1. Same anchor pattern as the existing `last-sets` query.
+- `GET /workouts/{wId}/sessions/{sId}/previous-totals` returns `{ exercises, sets, reps, volume }` for the previous session, or 404 if there is no predecessor (first-ever session of this workout).
+- Frontend `renderWorkoutSummary` fetches that endpoint and appends the existing `deltaSpan(current - prev)` helper to each stat box. `deltaSpan(0)` returns empty, so unchanged stats render cleanly. First-ever sessions render no deltas.
 
 ---
 
-## Design Discussion — Pair Semantics for Unilateral
+## Design Discussion — Per-Session vs Per-Exercise Notes
 
-The original sketch for unilateral logging let the user cancel a single side and leave an asymmetric layout (e.g., `L1, R1, L2`). The follow-on question was: *if the user removes just one side, how do they add only that side back?* — answer was a per-side Add button, which conflicted with the goal that **Add Set always increments the visible set count by one** regardless of bilaterality.
+Notes started out as a per-`(session, exercise)` table with carry-forward semantics (auto-copy the most recent prior note when a new session was created). The model worked but had three frictions:
 
-The locked-pair design (cancel either side → both go) resolves this:
-- "Add Set" stays a single, intuitive action.
-- There is never asymmetric state to recover from, so no per-side Add is needed.
-- Editing values is still handled by retyping into the inputs (the existing `PUT /sets/{id}` path).
-- Pre-population can still display asymmetric history if it actually exists in the DB (e.g., a prior session that pre-dates this rule); the pair-cancel logic finds the partner by same-side position and gracefully no-ops if there is no partner row.
+- **Note saves triggered session creation.** A user editing notes in Live Workout before logging any set would lazily create a session — which then needed orphan-cleanup logic that understood "session has notes but no sets".
+- **Auto-copy added implicit data duplication.** Every session ended up with a redundant copy of the same note unless the user explicitly changed it.
+- **Doesn't compose with the planned exercise library.** Future plan: exercises become first-class entities, pickable across multiple workouts. With per-session notes, the same exercise reused in workouts A and B would have unrelated note streams per workout — not what the user wanted.
+
+We refactored to a single `Exercise.notes` field (global per exercise). Implications agreed on:
+
+- A summary view's note **is** the live note. Editing a past session's note edits the one and only note. This is acceptable because notes are commentary, not performance data — performance data (sets) is already immutable.
+- Carry-forward is automatic: there's only one note, so it's "carried forward" by definition.
+- Session creation is purely set-driven again. The orphan-cleanup logic reverted to "any sets?" — no need to think about notes.
+- The `SessionExercise` snapshot does **not** snapshot notes. It delegates `getNotes()` to the linked Exercise so the response includes the live value.
+
+---
+
+## Repo State Note
+
+This PC's local `master` had diverged from `origin/master` by 1 ahead / 75 behind, with an in-progress merge from earlier in the day that had three unresolved conflicts in old console-prototype files (`App.java`, `console-based app/Main.java`, `console-based app/workouts.txt`). All three local edits in commit `3644c3e "Merge request"` were either trivial whitespace or half-finished experiments that origin had already implemented properly. Resolution: took origin's version for all three (effectively `git checkout --theirs` for the two surviving files, `git rm` for the deleted one), completed the merge, then committed the session's work on top. After the merge commit, three feature commits landed cleanly as fast-forwards on origin.
 
 ---
 

@@ -186,24 +186,26 @@ public class App {
         System.out.println("-----");
         System.out.print("Choose a workout to start: ");
 
-        int workoutIndex = scanner.nextInt();
-        Workout workout = workouts.get(workoutIndex);
+        String input = scanner.nextLine();
+        try {
+            int choice = Integer.parseInt(input);
+        }
 
         for (Exercise exercise: workout.exercises){
             System.out.println(exercise.name);
             System.out.println("1. Add Set");
             System.out.println("2. Delete Set");
-            System.out.println("Choose an option or Enter for the next exericse: ");
+            System.out.print("Choose an option or Enter for the next exericse: ");
             String input = scanner.nextLine();
             if (input == "")
-                continue;
+                ;
             else{
                 try {
                     int choice = Integer.parseInt(input);
                     if (choice == 1){
-                        System.out.println("Enter weight: ");
+                        System.out.print("Enter weight: ");
                         double weight = scanner.nextDouble();
-                        System.out.println("Enter reps: ");
+                        System.out.print("Enter reps: ");
                         byte reps = scanner.nextByte();
                         ExerciseSet set = new ExerciseSet(weight, reps);
                         exercise.addSet(set);
@@ -231,6 +233,7 @@ public class App {
             System.out.println("-------");
             System.out.println("1. Create Workout");
             System.out.println("2. View Workouts");
+            System.out.println("3. Start Workout");
             System.out.print("Choose an option or Enter to quit: ");
 
             // Handling inputs

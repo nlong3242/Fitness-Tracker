@@ -39,8 +39,8 @@ function renderWorkouts() {
     }
 }
 
-function renderCreateWorkoutPage() {
-    const pendingExercises = [];
+function renderCreateWorkoutPage(initialState) {
+    const state = initialState || { name: "", pendingExercises: [] };
     const container = document.getElementById("container");
     container.innerHTML = `
         <h2>Create Workout</h2>
@@ -63,45 +63,40 @@ function renderCreateWorkoutPage() {
     const backBtn = document.getElementById("back-btn");
     const list = document.getElementById("pending-exercises-list");
 
-    function pendingName(entry) {
-        return entry.kind === "link" ? entry.exercise.name : entry.data.name;
-    }
+    nameInput.value = state.name;
+    saveBtn.disabled = state.name.trim() === "";
 
     function renderPendingList() {
         list.innerHTML = "";
-        for (let i = 0; i < pendingExercises.length; i++) {
-            const entry = pendingExercises[i];
+        for (let i = 0; i < state.pendingExercises.length; i++) {
+            const exercise = state.pendingExercises[i];
             const item = document.createElement("li");
-            const tag = entry.kind === "link" ? " (from library)" : "";
-            item.appendChild(document.createTextNode(`${i + 1}. ${pendingName(entry)}${tag}`));
+            item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
             const deleteBtn = document.createElement("button");
-            deleteBtn.textContent = "Delete";
+            deleteBtn.textContent = "Remove";
             deleteBtn.onclick = function() {
-                pendingExercises.splice(i, 1);
+                state.pendingExercises.splice(i, 1);
                 renderPendingList();
             };
             item.appendChild(deleteBtn);
             list.appendChild(item);
         }
     }
+    renderPendingList();
 
     addExerciseBtn.onclick = async function() {
-        const choice = await showAddExerciseChoiceModal();
-        if (!choice) return;
-        if (choice.kind === "create") {
-            const data = await showExerciseFormModal();
-            if (!data) return;
-            pendingExercises.push({ kind: "create", data: data });
-            renderPendingList();
-        } else if (choice.kind === "pick") {
-            const alreadyPickedIds = pendingExercises
-                .filter(e => e.kind === "link")
-                .map(e => e.exercise.id);
-            const picked = await showLibraryPickerModal(alreadyPickedIds);
-            if (!picked) return;
-            pendingExercises.push({ kind: "link", exercise: picked.exercise });
-            renderPendingList();
-        }
+        state.name = nameInput.value;
+        const workoutLabel = state.name.trim() || "new workout";
+        await renderMultiSelectExercisePicker({
+            title: `Add to ${workoutLabel}`,
+            workoutLabel: workoutLabel,
+            excludedIds: state.pendingExercises.map(e => e.id),
+            onCancel: function() { renderCreateWorkoutPage(state); },
+            onConfirm: function(selected) {
+                state.pendingExercises.push(...selected);
+                renderCreateWorkoutPage(state);
+            }
+        });
     };
 
     nameInput.oninput = function() {
@@ -118,25 +113,17 @@ function renderCreateWorkoutPage() {
             body: JSON.stringify({ name: name })
         });
         const newWorkout = await response.json();
-        for (const entry of pendingExercises) {
-            if (entry.kind === "create") {
-                await fetch(`http://localhost:8080/workouts/${newWorkout.id}/exercises`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(entry.data)
-                });
-            } else {
-                await fetch(`http://localhost:8080/workouts/${newWorkout.id}/exercises/${entry.exercise.id}/link`, {
-                    method: "POST"
-                });
-            }
+        for (const exercise of state.pendingExercises) {
+            await fetch(`http://localhost:8080/workouts/${newWorkout.id}/exercises/${exercise.id}/link`, {
+                method: "POST"
+            });
         }
         workouts.push(newWorkout);
         renderWorkouts();
     };
 
     backBtn.onclick = async function() {
-        const hasChanges = nameInput.value.trim() !== "" || pendingExercises.length > 0;
+        const hasChanges = nameInput.value.trim() !== "" || state.pendingExercises.length > 0;
         if (hasChanges) {
             const confirmed = await showConfirmModal("Discard this workout?", "Discard");
             if (!confirmed) return;
@@ -616,117 +603,6 @@ async function renderExerciseLibrary() {
     rerender();
 }
 
-function showAddExerciseChoiceModal() {
-    return new Promise(function(resolve) {
-        const overlay = document.createElement("div");
-        overlay.className = "modal-overlay";
-        overlay.innerHTML = `
-            <div class="modal-form-box">
-                <div class="modal-form-title">Add Exercise</div>
-                <div class="add-choice-row">
-                    <button class="add-choice-btn" id="choice-pick">Pick from Library</button>
-                    <button class="add-choice-btn" id="choice-create">Create New</button>
-                </div>
-                <div class="modal-actions">
-                    <button class="modal-cancel">Cancel</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        function close(result) {
-            document.body.removeChild(overlay);
-            resolve(result);
-        }
-        overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
-        overlay.querySelector("#choice-create").onclick = function() { close({ kind: "create" }); };
-        overlay.querySelector("#choice-pick").onclick = function() { close({ kind: "pick" }); };
-    });
-}
-
-async function showLibraryPickerModal(excludeIds) {
-    const response = await fetch("http://localhost:8080/exercises");
-    const allExercises = await response.json();
-    const excluded = new Set(excludeIds || []);
-    const available = allExercises.filter(e => !excluded.has(e.id));
-
-    return new Promise(function(resolve) {
-        const overlay = document.createElement("div");
-        overlay.className = "modal-overlay";
-        overlay.innerHTML = `
-            <div class="modal-form-box">
-                <div class="modal-form-title">Pick from Library</div>
-                <div id="picker-pill-row" class="library-pill-row"></div>
-                <div id="picker-body"></div>
-                <div class="modal-actions">
-                    <button class="modal-cancel">Cancel</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        const body = overlay.querySelector("#picker-body");
-        const pillContainer = overlay.querySelector("#picker-pill-row");
-
-        function close(result) {
-            document.body.removeChild(overlay);
-            resolve(result);
-        }
-        overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
-
-        if (available.length === 0) {
-            pillContainer.style.display = "none";
-            body.innerHTML = `<div class="empty-sessions">No library exercises available. ${allExercises.length === 0 ? 'Create one first.' : 'All library exercises are already in this workout.'}</div>`;
-            return;
-        }
-
-        let selectedCategory = "ALL";
-
-        function renderPickerList() {
-            body.innerHTML = "";
-            if (selectedCategory === "ALL") {
-                const grouped = groupExercisesByCategory(available);
-                for (const [category, list] of grouped) {
-                    if (list.length === 0) continue;
-                    const heading = document.createElement("div");
-                    heading.className = "picker-group-heading";
-                    heading.textContent = formatCategoryLabel(category);
-                    body.appendChild(heading);
-                    for (const exercise of list) {
-                        body.appendChild(buildPickerRow(exercise));
-                    }
-                }
-            } else {
-                const filtered = available.filter(e => (e.category || "CHEST") === selectedCategory);
-                if (filtered.length === 0) {
-                    body.innerHTML = `<div class="empty-sessions">No exercises in ${formatCategoryLabel(selectedCategory)}.</div>`;
-                    return;
-                }
-                for (const exercise of filtered) {
-                    body.appendChild(buildPickerRow(exercise));
-                }
-            }
-        }
-
-        function buildPickerRow(exercise) {
-            const row = document.createElement("div");
-            row.className = "picker-row";
-            row.textContent = exercise.name;
-            row.onclick = function() { close({ exercise: exercise }); };
-            return row;
-        }
-
-        function rerender() {
-            renderCategoryPillRow(pillContainer, selectedCategory, function(cat) {
-                selectedCategory = cat;
-                rerender();
-            });
-            renderPickerList();
-        }
-        rerender();
-    });
-}
-
 async function ensureCurrentSession(workout) {
     if (currentSessionId === null) {
         const response = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, { method: "POST" });
@@ -947,14 +823,30 @@ function showConfirmModal(message, confirmLabel) {
 }
 
 async function addExercise(workoutIndex) {
-    await renderWorkoutAddExerciseLibrary(workoutIndex);
+    const workout = workouts[workoutIndex];
+    const wxResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises`);
+    const workoutExercises = await wxResponse.json();
+    const excludedIds = workoutExercises.map(e => e.id);
+    await renderMultiSelectExercisePicker({
+        title: `Add to ${workout.name}`,
+        workoutLabel: workout.name,
+        excludedIds: excludedIds,
+        onCancel: function() { viewWorkout(workoutIndex); },
+        onConfirm: async function(selected) {
+            for (const ex of selected) {
+                await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${ex.id}/link`, {
+                    method: "POST"
+                });
+            }
+            viewWorkout(workoutIndex);
+        }
+    });
 }
 
-async function renderWorkoutAddExerciseLibrary(workoutIndex) {
-    const workout = workouts[workoutIndex];
+async function renderMultiSelectExercisePicker(opts) {
     const container = document.getElementById("container");
     container.innerHTML = `
-        <h2>Add to ${escapeHtml(workout.name)}</h2>
+        <h2>${escapeHtml(opts.title)}</h2>
         <div class="library-actions">
             <button id="picker-create-btn">Create Exercise</button>
             <button id="picker-cancel-btn">Cancel</button>
@@ -962,17 +854,13 @@ async function renderWorkoutAddExerciseLibrary(workoutIndex) {
         <div id="picker-pill-row" class="library-pill-row"></div>
         <div id="picker-list"></div>
         <div class="picker-action-bar">
-            <button id="picker-add-btn" disabled>Add 0 to "${escapeHtml(workout.name)}"</button>
+            <button id="picker-add-btn" disabled>Add 0 to "${escapeHtml(opts.workoutLabel)}"</button>
         </div>
     `;
 
-    const [libResponse, wxResponse] = await Promise.all([
-        fetch("http://localhost:8080/exercises"),
-        fetch(`http://localhost:8080/workouts/${workout.id}/exercises`)
-    ]);
+    const libResponse = await fetch("http://localhost:8080/exercises");
     const allExercises = await libResponse.json();
-    const workoutExercises = await wxResponse.json();
-    const excludedIds = new Set(workoutExercises.map(e => e.id));
+    const excludedIds = new Set(opts.excludedIds || []);
     const available = allExercises.filter(e => !excludedIds.has(e.id));
 
     const pillContainer = document.getElementById("picker-pill-row");
@@ -984,7 +872,7 @@ async function renderWorkoutAddExerciseLibrary(workoutIndex) {
 
     function updateAddBtn() {
         addBtn.disabled = selectedIds.size === 0;
-        addBtn.textContent = `Add ${selectedIds.size} to "${workout.name}"`;
+        addBtn.textContent = `Add ${selectedIds.size} to "${opts.workoutLabel}"`;
     }
 
     function buildSelectableRow(exercise) {
@@ -1064,18 +952,14 @@ async function renderWorkoutAddExerciseLibrary(workoutIndex) {
     };
 
     document.getElementById("picker-cancel-btn").onclick = function() {
-        viewWorkout(workoutIndex);
+        opts.onCancel();
     };
 
     addBtn.onclick = async function() {
         if (selectedIds.size === 0) return;
         addBtn.disabled = true;
-        for (const id of selectedIds) {
-            await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${id}/link`, {
-                method: "POST"
-            });
-        }
-        viewWorkout(workoutIndex);
+        const selected = available.filter(e => selectedIds.has(e.id));
+        await opts.onConfirm(selected);
     };
 }
 

@@ -84,4 +84,19 @@ public class ExerciseController {
         }
     }
 
+    public static class NoteBody {
+        private String content;
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+    }
+
+    @PutMapping("/exercises/{id}/note")
+    public Exercise updateNote(@PathVariable Long id, @RequestBody NoteBody body){
+        Exercise exercise = exerciseRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        String content = body.getContent();
+        exercise.setNotes(content == null || content.isEmpty() ? null : content);
+        return exerciseRepository.save(exercise);
+    }
+
 }

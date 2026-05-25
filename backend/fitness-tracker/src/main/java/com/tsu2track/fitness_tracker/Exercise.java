@@ -33,6 +33,9 @@ public class Exercise {
     @Column(length = 1000)
     private String cues;
 
+    @Column(length = 5000)
+    private String notes;
+
     private Boolean unilateral;
 
     private boolean deleted = false;
@@ -97,6 +100,14 @@ public class Exercise {
 
     public void setCues(String cues) {
         this.cues = cues;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 
     public Boolean getUnilateral() {

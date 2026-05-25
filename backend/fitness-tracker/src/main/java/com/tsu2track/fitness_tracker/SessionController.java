@@ -47,14 +47,13 @@ public class SessionController {
     @PostMapping("/workouts/{workoutId}/sessions")
     public Session createSession(@PathVariable Long workoutId) {
         Optional<Workout> workout = workoutRepository.findById(workoutId);
-        boolean present = workout.isPresent();
-        if (present){
-            Session session = new Session();
-            session.setDate(LocalDate.now());
-            session.setWorkout(workout.get());
-            return sessionRepository.save(session);
+        if (!workout.isPresent()) {
+            return null;
         }
-        return null;
+        Session session = new Session();
+        session.setDate(LocalDate.now());
+        session.setWorkout(workout.get());
+        return sessionRepository.save(session);
     }
 
     @PostMapping("/sessions/{sessionId}/finish")

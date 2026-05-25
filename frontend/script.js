@@ -456,6 +456,113 @@ function escapeHtml(s) {
     });
 }
 
+async function ensureCurrentSession(workout) {
+    if (currentSessionId === null) {
+        const response = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, { method: "POST" });
+        const session = await response.json();
+        currentSessionId = session.id;
+        currentSessionDate = session.date;
+    }
+    return currentSessionId;
+}
+
+async function maybeCleanupOrphanSession(workout) {
+    let hasAnySets = false;
+    for (const ex of workout.exercises) {
+        if (ex.sets && ex.sets.length > 0) {
+            hasAnySets = true;
+            break;
+        }
+    }
+    if (!hasAnySets && currentSessionId !== null) {
+        await fetch(`http://localhost:8080/sessions/${currentSessionId}`, { method: "DELETE" });
+        currentSessionId = null;
+        currentSessionDate = null;
+    }
+}
+
+function createNotesPanel(exercise) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "notes-wrapper";
+
+    const addBtn = document.createElement("button");
+    addBtn.className = "notes-toggle-btn";
+    addBtn.textContent = "Add Notes";
+
+    const box = document.createElement("div");
+    box.className = "notes-box";
+
+    const panel = document.createElement("div");
+    panel.className = "notes-panel";
+    panel.innerHTML = `
+        <textarea class="notes-textarea" placeholder="Type notes here..."></textarea>
+        <div class="notes-actions">
+            <button class="notes-cancel">Cancel</button>
+            <button class="notes-save">Save</button>
+        </div>
+    `;
+    const textarea = panel.querySelector(".notes-textarea");
+    const saveBtn = panel.querySelector(".notes-save");
+    const cancelBtn = panel.querySelector(".notes-cancel");
+
+    let originalContent = "";
+
+    function hasNote() {
+        return exercise.notes != null && exercise.notes !== "";
+    }
+
+    function refreshDisplay() {
+        if (hasNote()) {
+            addBtn.style.display = "none";
+            box.style.display = "block";
+            box.textContent = exercise.notes;
+        } else {
+            addBtn.style.display = "";
+            box.style.display = "none";
+        }
+        panel.style.display = "none";
+    }
+
+    function openEdit() {
+        const content = exercise.notes || "";
+        textarea.value = content;
+        originalContent = content;
+        addBtn.style.display = "none";
+        box.style.display = "none";
+        panel.style.display = "block";
+        textarea.focus();
+    }
+
+    addBtn.onclick = openEdit;
+    box.onclick = openEdit;
+
+    cancelBtn.onclick = async function() {
+        if (textarea.value !== originalContent) {
+            const confirmed = await showConfirmModal("Discard unsaved notes?", "Discard");
+            if (!confirmed) return;
+        }
+        refreshDisplay();
+    };
+
+    saveBtn.onclick = async function() {
+        const content = textarea.value;
+        const response = await fetch(`http://localhost:8080/exercises/${exercise.id}/note`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: content })
+        });
+        const updated = await response.json();
+        exercise.notes = updated.notes || "";
+        refreshDisplay();
+    };
+
+    wrapper.appendChild(addBtn);
+    wrapper.appendChild(box);
+    wrapper.appendChild(panel);
+    refreshDisplay();
+    return wrapper;
+}
+
 function showConfirmModal(message, confirmLabel) {
     return new Promise(function(resolve) {
         const overlay = document.createElement("div");
@@ -635,6 +742,8 @@ async function startWorkout(workoutIndex) {
         };
 
         card.appendChild(addSetBtn);
+        card.appendChild(createNotesPanel(exercise));
+
         cards.appendChild(card);
 
         const container = document.getElementById("sets-" + i);
@@ -751,14 +860,7 @@ function createInputRow(workout, exercise, exerciseIndex, side) {
                 row._savedSet.weight = updated.weight;
                 row._savedSet.reps = updated.reps;
             } else {
-                if (currentSessionId === null) {
-                    const sessionResponse = await fetch(`http://localhost:8080/workouts/${workout.id}/sessions`, {
-                        method: "POST"
-                    });
-                    const session = await sessionResponse.json();
-                    currentSessionId = session.id;
-                    currentSessionDate = session.date;
-                }
+                await ensureCurrentSession(workout);
                 const body = { weight: w, reps: r };
                 if (side) body.side = side;
                 const response = await fetch(`http://localhost:8080/sessions/${currentSessionId}/sets?exerciseId=${exercise.id}`, {
@@ -787,21 +889,6 @@ function createInputRow(workout, exercise, exerciseIndex, side) {
         r.remove();
     }
 
-    async function maybeCleanupOrphanSession() {
-        let hasAnySets = false;
-        for (const ex of workout.exercises) {
-            if (ex.sets.length > 0) {
-                hasAnySets = true;
-                break;
-            }
-        }
-        if (!hasAnySets && currentSessionId !== null) {
-            await fetch(`http://localhost:8080/sessions/${currentSessionId}`, { method: "DELETE" });
-            currentSessionId = null;
-            currentSessionDate = null;
-        }
-    }
-
     cancelBtn.onclick = async function() {
         if (isUnilateral) {
             const container = document.getElementById("sets-" + exerciseIndex);
@@ -816,7 +903,7 @@ function createInputRow(workout, exercise, exerciseIndex, side) {
         } else {
             await deleteRowSet(row);
         }
-        await maybeCleanupOrphanSession();
+        await maybeCleanupOrphanSession(workout);
         updateHeaderVisibility(exerciseIndex);
         renumberSetRows(exerciseIndex, exercise);
     };
@@ -1082,6 +1169,8 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
         exerciseCard.querySelector(".summary-exercise-name").onclick = function() {
             showExerciseReadOnlyModal(exercise);
         };
+        exerciseCard.appendChild(createNotesPanel(exercise));
+
         exercisesContainer.appendChild(exerciseCard);
     }
 }

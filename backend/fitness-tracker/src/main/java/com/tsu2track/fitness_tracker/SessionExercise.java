@@ -132,4 +132,8 @@ public class SessionExercise {
     public void setUnilateral(Boolean unilateral) {
         this.unilateral = unilateral;
     }
+
+    public String getNotes() {
+        return exercise != null ? exercise.getNotes() : null;
+    }
 }

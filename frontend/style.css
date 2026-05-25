@@ -399,6 +399,69 @@ body {
         margin: 0;
     }
 
+    .notes-wrapper {
+        margin-top: 10px;
+    }
+
+    .notes-toggle-btn {
+        background-color: #2a3a5e;
+        font-size: 0.9em;
+        padding: 6px 12px;
+    }
+
+    .notes-box {
+        margin-top: 8px;
+        background-color: #0f1a2e;
+        padding: 10px 12px;
+        border-radius: 5px;
+        border: 1px solid #2a3a5e;
+        cursor: pointer;
+        white-space: pre-wrap;
+        font-size: 0.95em;
+        color: #d0d8e8;
+    }
+
+    .notes-box:hover {
+        border-color: #4CAF50;
+    }
+
+    .notes-panel {
+        margin-top: 8px;
+        background-color: #0f1a2e;
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    .notes-textarea {
+        width: 100%;
+        min-height: 80px;
+        background-color: #1a1a2e;
+        color: white;
+        border: 1px solid #4a5568;
+        border-radius: 4px;
+        padding: 8px;
+        font-family: inherit;
+        font-size: 0.95em;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+
+    .notes-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .notes-actions button {
+        font-size: 0.9em;
+        padding: 6px 14px;
+    }
+
+    .notes-cancel {
+        background-color: #4a5568;
+    }
+
     .set-input::placeholder {
         color: #8a96ad;
         font-weight: normal;

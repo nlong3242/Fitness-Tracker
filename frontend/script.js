@@ -2,12 +2,36 @@ let workouts = [];
 let currentSessionId = null;
 let currentSessionDate = null;
 
+function renderLandingPage() {
+    const container = document.getElementById("container");
+    container.innerHTML = `
+        <div class="landing-hero">
+            <h2 class="landing-title">Welcome to Tsu2Track</h2>
+            <p class="landing-tagline">Your personal fitness companion</p>
+        </div>
+        <div class="landing-card-grid">
+            <div class="landing-card" id="landing-workouts-card">
+                <div class="landing-card-title">Workouts</div>
+                <div class="landing-card-desc">View and start your routines</div>
+            </div>
+            <div class="landing-card" id="landing-library-card">
+                <div class="landing-card-title">Exercise Library</div>
+                <div class="landing-card-desc">Browse and manage exercises</div>
+            </div>
+        </div>
+    `;
+    document.getElementById("landing-workouts-card").onclick = renderWorkouts;
+    document.getElementById("landing-library-card").onclick = renderExerciseLibrary;
+}
+
 function renderWorkouts() {
     let container = document.getElementById("container");
     container.innerHTML = `
         <h2>My Workouts</h2>
-        <button onclick="renderCreateWorkoutPage()">Create Workout</button>
-        <button onclick="renderExerciseLibrary()">Exercise Library</button>
+        <div class="page-actions">
+            <button onclick="renderCreateWorkoutPage()">Create Workout</button>
+            <button class="btn-secondary" onclick="renderLandingPage()">Back</button>
+        </div>
         <ul id="workout-list">
         </ul>
     `;
@@ -51,9 +75,9 @@ function renderCreateWorkoutPage(initialState) {
         <h3>Exercises</h3>
         <button id="add-exercise-btn">Add Exercise</button>
         <ul id="pending-exercises-list"></ul>
-        <div class="create-workout-actions">
+        <div class="page-actions">
             <button id="save-workout-btn" disabled>Save Workout</button>
-            <button id="back-btn">Back</button>
+            <button class="btn-secondary" id="back-btn">Back</button>
         </div>
     `;
 
@@ -488,7 +512,7 @@ function renderCategoryPillRow(container, selectedCategory, onSelect) {
     for (const cat of pills) {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "modal-pill";
+        btn.className = "filter-pill";
         if (cat === selectedCategory) btn.classList.add("selected");
         btn.textContent = cat === "ALL" ? "All" : formatCategoryLabel(cat);
         btn.onclick = function() { onSelect(cat); };
@@ -547,15 +571,15 @@ async function renderExerciseLibrary() {
     const container = document.getElementById("container");
     container.innerHTML = `
         <h2>Exercise Library</h2>
-        <div class="library-actions">
+        <div class="page-actions">
             <button id="library-create-btn">Create Exercise</button>
-            <button id="library-back-btn">Back</button>
+            <button class="btn-secondary" id="library-back-btn">Back</button>
         </div>
         <div id="library-pill-row" class="library-pill-row"></div>
         <div id="library-groups"></div>
     `;
 
-    document.getElementById("library-back-btn").onclick = renderWorkouts;
+    document.getElementById("library-back-btn").onclick = renderLandingPage;
     document.getElementById("library-create-btn").onclick = async function() {
         const data = await showExerciseFormModal();
         if (!data) return;
@@ -744,15 +768,18 @@ function showConfirmModal(message, confirmLabel) {
     let container = document.getElementById("container");
     container.innerHTML = `
     <h2>${workout.name}</h2>
-    <button onclick="addExercise(${workoutIndex})">Add Exercise</button>
-    <button onclick="startWorkout(${workoutIndex})">Start Workout</button>
+    <div class="page-actions">
+        <button onclick="addExercise(${workoutIndex})">Add Exercise</button>
+        <button onclick="startWorkout(${workoutIndex})">Start Workout</button>
+    </div>
     <ul id="exercise-list">
     </ul>
-    <h3>Previous Sessions</h3>
+    <h3 class="library-group-heading">Previous Sessions</h3>
     <div id="session-list"></div>
     <button id="load-more-sessions" style="display:none">Load More</button>
-    <br><br>
-    <button onclick="renderWorkouts()">Back</button>
+    <div class="page-actions">
+        <button class="btn-secondary" onclick="renderWorkouts()">Back</button>
+    </div>
 `;
 
     let list = document.getElementById("exercise-list");
@@ -847,9 +874,9 @@ async function renderMultiSelectExercisePicker(opts) {
     const container = document.getElementById("container");
     container.innerHTML = `
         <h2>${escapeHtml(opts.title)}</h2>
-        <div class="library-actions">
+        <div class="page-actions">
             <button id="picker-create-btn">Create Exercise</button>
-            <button id="picker-cancel-btn">Cancel</button>
+            <button class="btn-secondary" id="picker-cancel-btn">Cancel</button>
         </div>
         <div id="picker-pill-row" class="library-pill-row"></div>
         <div id="picker-list"></div>
@@ -979,7 +1006,9 @@ async function startWorkout(workoutIndex) {
     container.innerHTML = `
         <h2>${workout.name} - Workout</h2>
         <div id="exercise-cards"></div>
-        <button onclick="finishWorkout(${workoutIndex})">Finish Workout</button>
+        <div class="page-actions">
+            <button onclick="finishWorkout(${workoutIndex})">Finish Workout</button>
+        </div>
     `;
 
     let cards = document.getElementById("exercise-cards");
@@ -1263,7 +1292,7 @@ async function loadWorkouts() {
     const response = await fetch("http://localhost:8080/workouts");
     const data = await response.json();
     workouts = data;
-    renderWorkouts()
+    renderLandingPage();
 }
 
 async function finishWorkout(workoutIndex) {
@@ -1370,7 +1399,9 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
             </div>
         </div>
         <div id="summary-exercises"></div>
-        <button onclick="${backOnClick}">Back</button>
+        <div class="page-actions">
+            <button class="btn-secondary" onclick="${backOnClick}">Back</button>
+        </div>
     `;
 
     const exercisesContainer = document.getElementById("summary-exercises");

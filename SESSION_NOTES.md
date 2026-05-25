@@ -4,6 +4,82 @@ A summary of what was built and discussed during the most recent working session
 
 ---
 
+## Cozy Sakura Visual Redesign
+
+The whole UI was reskinned in this session to move away from the default dark-navy "yet another tracker" look toward a warm, cozy game-UI feel inspired by sakura pink + cream cafe pixel art. Function is unchanged — every existing screen kept its layout and behavior; only the visual language was rewritten.
+
+### Landing Page Introduced
+
+The app no longer boots straight into the workouts list. A new `renderLandingPage()` is the entry point: a hero with welcome title + tagline, and two large clickable cards (Workouts, Exercise Library). The workouts list is reachable via the Workouts card; "Create Workout" moved off the landing page onto the workouts list where it sits contextually with the list it adds to.
+
+### Palette (CSS Custom Properties)
+
+Defined once at the top of `style.css` and used everywhere via `var(--token)`:
+
+| Token | Value | Use |
+|---|---|---|
+| `--bg` | `#2A1F1E` | Cozy coffee-brown body background |
+| `--surface` | `#E0CAC5` | All cream cards (workout rows, exercise cards, modals, stat boxes) |
+| `--surface-hover` | `#E7D1CC` | Card hover variant |
+| `--accent-pink` | `#F7B7C3` | Sakura pink — highlights, focus borders, pill outlines, selected pills |
+| `--accent-pink-hover` | `#E89AA8` | Deeper pink for hover states |
+| `--text-primary` | `#4A2C2A` | Warm dark brown — text on cream surfaces |
+| `--text-muted` | `#8B6B6B` | Warm gray — muted text on cream |
+| `--text-on-dark` | `#F0DDD4` | Cream tint — text on the dark body bg |
+| `--text-on-dark-muted` | `#C9B5AC` | Muted cream — secondary text on dark |
+| `--border` | `#E8D0CC` | Soft pink-tan — card borders, dividers |
+| `--action` | `#6FBF8E` | Sage green — primary action buttons |
+| `--action-hover` | `#57A675` | Deeper sage on hover |
+| `--danger` | `#DC5947` | Warm rust — destructive actions |
+| `--danger-hover` | `#BF4232` | Deeper rust |
+
+Semantic colors (green = positive, red = negative) were preserved but shifted into the warm palette — sage instead of bright green, rust instead of bright red — so intuition is unchanged.
+
+### Reusable Building Blocks
+
+- **`button` (default)** — sage green fill, near-black warm brown text (`#1F0E0C`), weight 700. The brown-on-sage was chosen specifically for legibility — vibrant enough to pop without going to harsh black.
+- **`.btn-secondary`** — filled muted warm brown (`#5C4642`) for Back/neutral actions on dark page backgrounds. Solid fill (no outline) so the button doesn't read as floating text.
+- **`.modal-cancel`** — filled muted tan (`#C9B0A8`) for Cancel inside modals (cream surfaces). Same hierarchy as `.btn-secondary` but in the cream-surface context.
+- **`.btn-danger`** — explicit rust + white text for ad-hoc destructive buttons.
+- **`.page-actions`** — flex wrapper used at the top of every page to host primary + secondary action buttons consistently.
+- **`.filter-pill`** — outlined pink pill (3px border) for category filters on dark pages; filled pink + dark-brown text when selected.
+- **`.modal-pill`** — same shape as filter pill but tuned for use inside cream modals (brown text on transparent vs cream text on dark for filter-pill).
+
+### Input Treatment
+
+All text inputs share the same focus behavior — a 4px pink border with compensating padding so nothing reflows when focus arrives or leaves. Applies to:
+
+- Set inputs (weight/reps on workout-in-progress)
+- Workout-name input (Create Workout)
+- Modal form inputs (Create Exercise / Exercise Details)
+- Notes textarea
+
+Set inputs use a soft pale cream (`#F0D9D3`) bg instead of pure white so they sit gently inside the cream exercise cards instead of feeling clinical. The "saved" state on a set row uses a thick 4px sage border as a strong "this is logged" signal — same width as focus, different color.
+
+### Page-by-Page Rollout Order
+
+Reskin was done in this order so the user could evaluate at each step:
+
+1. **Landing page** — palette established here.
+2. **Workouts list** — global `<li>` and `button` styles cascaded to other pages as a base.
+3. **Exercise Library** + **multi-select picker** — share components, done together.
+4. **Modals** (confirm, form, read-only details).
+5. **Create Workout** page.
+6. **View Workout** (single workout page), including the Previous Sessions block.
+7. **Workout in Progress** — the dense set-logging screen.
+8. **Workout Summary** — stat boxes + per-exercise breakdown.
+
+### Notable UX Touches
+
+- **Pill outlines are 3px** (not the soft 2px from earlier iterations) because subtle borders were reading as "floating text."
+- **Cancel/Back buttons are filled muted** (not transparent outlined) for the same reason — clearly button-shaped while still hierarchically below primary actions.
+- **Positive-delta text uses deeper sage** (`#4D9967`) instead of `--action` so it reads cleanly as text on cream surfaces; negative delta uses `--danger` as-is.
+- **Card hovers** lift slightly (`translateY(-1px)`) with a soft pink glow shadow so the interaction feels tactile.
+- The **"Previous Sessions" heading** on the View Workout page reuses `library-group-heading` (muted cream with pink-tinged underline) so section dividers feel consistent.
+- **Add Notes button** has a 3px solid brown border (not soft pink) because the soft pink blended into the surrounding cream card.
+
+---
+
 ## Features Added Today
 
 ### Exercise Library — First-Class, Multi-Workout Exercises

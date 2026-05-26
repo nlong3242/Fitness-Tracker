@@ -193,7 +193,7 @@ function renderLandingPage() {
         </div>
     `;
     document.getElementById("landing-workouts-card").onclick = renderWorkouts;
-    document.getElementById("landing-library-card").onclick = renderExerciseLibrary;
+    document.getElementById("landing-library-card").onclick = function() { renderExerciseLibrary(); };
 }
 
 function renderWorkouts() {

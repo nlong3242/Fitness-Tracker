@@ -1301,11 +1301,11 @@ function createInputRow(workout, exercise, exerciseIndex, side) {
     row.innerHTML = `
         <div class="set-input-num"></div>
         <div class="set-input-cell">
-            <input type="number" step="0.5" class="set-input weight-input">
+            <input type="number" min="0" step="0.5" inputmode="decimal" class="set-input weight-input">
             <span class="set-input-delta weight-delta"></span>
         </div>
         <div class="set-input-cell">
-            <input type="number" class="set-input reps-input">
+            <input type="number" min="1" step="1" inputmode="numeric" class="set-input reps-input">
             <span class="set-input-delta reps-delta"></span>
         </div>
         <button class="set-input-cancel">&#10005;</button>
@@ -1316,6 +1316,12 @@ function createInputRow(workout, exercise, exerciseIndex, side) {
     const repsDelta = row.querySelector(".reps-delta");
     const cancelBtn = row.querySelector(".set-input-cancel");
     let persisting = false;
+
+    function disableWheelScroll(input) {
+        input.addEventListener("wheel", function() { this.blur(); });
+    }
+    disableWheelScroll(weightInput);
+    disableWheelScroll(repsInput);
 
     function renderDeltaSpan(el, delta) {
         if (delta === 0) {
@@ -1370,14 +1376,28 @@ function createInputRow(workout, exercise, exerciseIndex, side) {
 
     row._updateDeltas = updateDeltas;
 
-    weightInput.oninput = updateDeltas;
-    repsInput.oninput = updateDeltas;
+    function refreshSavedClass() {
+        if (!row._savedSet) return;
+        const w = parseFloat(weightInput.value);
+        const r = Number(repsInput.value);
+        const matches = w === row._savedSet.weight && r === row._savedSet.reps;
+        row.classList.toggle("saved", matches);
+    }
+
+    function onInputChange() {
+        updateDeltas();
+        refreshSavedClass();
+    }
+
+    weightInput.oninput = onInputChange;
+    repsInput.oninput = onInputChange;
 
     async function persist() {
         if (persisting) return;
         const w = parseFloat(weightInput.value);
-        const r = parseInt(repsInput.value);
-        if (isNaN(w) || isNaN(r)) return;
+        const r = Number(repsInput.value);
+        if (isNaN(w) || w < 0) return;
+        if (!Number.isInteger(r) || r <= 0) return;
         if (row._savedSet && w === row._savedSet.weight && r === row._savedSet.reps) return;
         persisting = true;
         try {
@@ -1390,6 +1410,7 @@ function createInputRow(workout, exercise, exerciseIndex, side) {
                 const updated = await response.json();
                 row._savedSet.weight = updated.weight;
                 row._savedSet.reps = updated.reps;
+                row.classList.add("saved");
             } else {
                 await ensureCurrentSession(workout);
                 const body = { weight: w, reps: r };

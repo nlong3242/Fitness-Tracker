@@ -1,0 +1,146 @@
+import { state } from "../state.js";
+import {
+    createWorkout,
+    deleteWorkout,
+    linkExerciseToWorkout
+} from "../api.js";
+import { attachLongPressDrag } from "../utils/dragDrop.js";
+import { showConfirmModal } from "../components/modals.js";
+import { renderLandingPage } from "./landing.js";
+import { viewWorkout } from "./workoutDetail.js";
+import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
+
+export function renderWorkouts() {
+    const container = document.getElementById("container");
+    container.innerHTML = `
+        <h2>My Workouts</h2>
+        <div class="page-actions">
+            <button id="workouts-create-btn">Create Workout</button>
+            <button class="btn-secondary" id="workouts-back-btn">Back</button>
+        </div>
+        <ul id="workout-list"></ul>
+    `;
+
+    document.getElementById("workouts-create-btn").onclick = function() { renderCreateWorkoutPage(); };
+    document.getElementById("workouts-back-btn").onclick = renderLandingPage;
+
+    const list = document.getElementById("workout-list");
+    for (let i = 0; i < state.workouts.length; i++) {
+        const workout = state.workouts[i];
+        const item = document.createElement("li");
+        const nameText = document.createTextNode(workout.name);
+        item.style.cursor = "pointer";
+        item.onclick = function() { viewWorkout(i); };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Delete";
+        deleteBtn.onclick = async function(event) {
+            event.stopPropagation();
+            const confirmed = await showConfirmModal(`Delete workout "${workout.name}"?`, "Delete");
+            if (!confirmed) return;
+            await deleteWorkout(workout.id);
+            state.workouts.splice(i, 1);
+            renderWorkouts();
+        };
+
+        item.appendChild(nameText);
+        item.appendChild(deleteBtn);
+        list.appendChild(item);
+    }
+}
+
+export function renderCreateWorkoutPage(initialState) {
+    const draft = initialState || { name: "", pendingExercises: [] };
+    const container = document.getElementById("container");
+    container.innerHTML = `
+        <h2>Create Workout</h2>
+        <div class="create-workout-form">
+            <label for="new-workout-name">Workout Name</label>
+            <input type="text" id="new-workout-name" placeholder="Enter workout name">
+        </div>
+        <h3>Exercises</h3>
+        <button id="add-exercise-btn">Add Exercise</button>
+        <ul id="pending-exercises-list"></ul>
+        <div class="page-actions">
+            <button id="save-workout-btn" disabled>Save Workout</button>
+            <button class="btn-secondary" id="back-btn">Back</button>
+        </div>
+    `;
+
+    const nameInput = document.getElementById("new-workout-name");
+    const addExerciseBtn = document.getElementById("add-exercise-btn");
+    const saveBtn = document.getElementById("save-workout-btn");
+    const backBtn = document.getElementById("back-btn");
+    const list = document.getElementById("pending-exercises-list");
+
+    nameInput.value = draft.name;
+    saveBtn.disabled = draft.name.trim() === "";
+
+    function renderPendingList() {
+        list.innerHTML = "";
+        for (let i = 0; i < draft.pendingExercises.length; i++) {
+            const exercise = draft.pendingExercises[i];
+            const item = document.createElement("li");
+            item.className = "draggable-row";
+            item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
+            const deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "Remove";
+            deleteBtn.onclick = function() {
+                draft.pendingExercises.splice(i, 1);
+                renderPendingList();
+            };
+            item.appendChild(deleteBtn);
+            list.appendChild(item);
+            if (draft.pendingExercises.length > 1) {
+                attachLongPressDrag(item, {
+                    onReorder: function(from, to) {
+                        const [moved] = draft.pendingExercises.splice(from, 1);
+                        draft.pendingExercises.splice(to, 0, moved);
+                        renderPendingList();
+                    }
+                });
+            }
+        }
+    }
+    renderPendingList();
+
+    addExerciseBtn.onclick = async function() {
+        draft.name = nameInput.value;
+        const workoutLabel = draft.name.trim() || "new workout";
+        await renderMultiSelectExercisePicker({
+            title: `Add to ${workoutLabel}`,
+            workoutLabel: workoutLabel,
+            excludedIds: draft.pendingExercises.map(e => e.id),
+            onCancel: function() { renderCreateWorkoutPage(draft); },
+            onConfirm: function(selected) {
+                draft.pendingExercises.push(...selected);
+                renderCreateWorkoutPage(draft);
+            }
+        });
+    };
+
+    nameInput.oninput = function() {
+        saveBtn.disabled = nameInput.value.trim() === "";
+    };
+
+    saveBtn.onclick = async function() {
+        const name = nameInput.value.trim();
+        if (!name) return;
+        saveBtn.disabled = true;
+        const newWorkout = await createWorkout({ name: name });
+        for (const exercise of draft.pendingExercises) {
+            await linkExerciseToWorkout(newWorkout.id, exercise.id);
+        }
+        state.workouts.push(newWorkout);
+        viewWorkout(state.workouts.length - 1);
+    };
+
+    backBtn.onclick = async function() {
+        const hasChanges = nameInput.value.trim() !== "" || draft.pendingExercises.length > 0;
+        if (hasChanges) {
+            const confirmed = await showConfirmModal("Discard this workout?", "Discard");
+            if (!confirmed) return;
+        }
+        renderWorkouts();
+    };
+}

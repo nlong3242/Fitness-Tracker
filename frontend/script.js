@@ -751,7 +751,7 @@ function buildLibraryRow(exercise, onRowClick) {
     return li;
 }
 
-async function renderExerciseLibrary() {
+async function renderExerciseLibrary(initialCategory) {
     const container = document.getElementById("container");
     container.innerHTML = `
         <h2>Exercise Library</h2>
@@ -772,7 +772,7 @@ async function renderExerciseLibrary() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)
         });
-        renderExerciseLibrary();
+        renderExerciseLibrary(data.category);
     };
 
     const response = await fetch("http://localhost:8080/exercises");
@@ -780,7 +780,7 @@ async function renderExerciseLibrary() {
     const groupsContainer = document.getElementById("library-groups");
     const pillContainer = document.getElementById("library-pill-row");
 
-    let selectedCategory = "ALL";
+    let selectedCategory = initialCategory || "ALL";
 
     async function onRowClick(exercise) {
         const result = await showExerciseDetailsModal(exercise, {
@@ -794,10 +794,10 @@ async function renderExerciseLibrary() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(result.data)
             });
-            renderExerciseLibrary();
+            renderExerciseLibrary(result.data.category);
         } else if (result.action === "delete") {
             await fetch(`http://localhost:8080/exercises/${exercise.id}`, { method: "DELETE" });
-            renderExerciseLibrary();
+            renderExerciseLibrary(selectedCategory);
         }
     }
 

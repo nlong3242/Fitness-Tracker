@@ -1,10 +1,11 @@
 import { state } from "./state.js";
 import { fetchWorkouts } from "./api.js";
-import { renderLandingPage } from "./views/landing.js";
+import { renderBottomNav, setActiveTab } from "./components/bottomNav.js";
 
 async function bootstrap() {
     state.workouts = await fetchWorkouts();
-    renderLandingPage();
+    renderBottomNav();
+    setActiveTab("home");
 }
 
 bootstrap();

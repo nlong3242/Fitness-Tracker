@@ -5,13 +5,15 @@ import {
     finishSession
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
-import { showExerciseReadOnlyModal } from "../components/modals.js";
+import { showExerciseReadOnlyModal, showConfirmModal } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
 import {
     createInputRow,
     updateHeaderVisibility,
     renumberSetRows
 } from "../components/setInputRow.js";
+import { setNavGuard, clearNavGuard } from "../components/bottomNav.js";
+import { abandonSession } from "../session.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary } from "./summary.js";
 
@@ -26,7 +28,7 @@ export async function startWorkout(workoutIndex) {
     state.currentSessionId = null;
     state.currentSessionDate = null;
 
-    const pageContainer = document.getElementById("container");
+    const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
         <h2>${workout.name} - Workout</h2>
         <div id="exercise-cards"></div>
@@ -36,6 +38,14 @@ export async function startWorkout(workoutIndex) {
     `;
 
     document.getElementById("active-workout-finish-btn").onclick = function() { finishWorkout(workoutIndex); };
+
+    setNavGuard(async function() {
+        if (state.currentSessionId === null) return true;
+        const confirmed = await showConfirmModal("Abandon current workout?", "Abandon");
+        if (!confirmed) return false;
+        await abandonSession();
+        return true;
+    });
 
     const cards = document.getElementById("exercise-cards");
     for (let i = 0; i < workout.exercises.length; i++) {
@@ -109,6 +119,7 @@ export async function startWorkout(workoutIndex) {
 export async function finishWorkout(workoutIndex) {
     const workout = state.workouts[workoutIndex];
     if (state.currentSessionId === null) {
+        clearNavGuard();
         renderWorkouts();
         return;
     }
@@ -116,6 +127,7 @@ export async function finishWorkout(workoutIndex) {
     const sessionDate = state.currentSessionDate;
     state.currentSessionId = null;
     state.currentSessionDate = null;
+    clearNavGuard();
     await finishSession(sessionId, workout.exercises.map(e => e.id));
     await renderWorkoutSummary(workout, sessionId, sessionDate, renderWorkouts);
 }

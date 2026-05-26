@@ -14,7 +14,7 @@ import {
 import { viewWorkout } from "./workoutDetail.js";
 
 export async function renderMultiSelectExercisePicker(opts) {
-    const container = document.getElementById("container");
+    const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>${escapeHtml(opts.title)}</h2>
         <div class="page-actions">

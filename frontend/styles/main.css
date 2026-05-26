@@ -19,9 +19,10 @@
 @import url("./components/category-pills.css");
 @import url("./components/library-list.css");
 @import url("./components/set-input-row.css");
+@import url("./components/bottom-nav.css");
 
 /* 5. Pages — view-specific styling owned by frontend/src/views/. */
-@import url("./pages/landing.css");
+@import url("./pages/home.css");
 @import url("./pages/workouts.css");
 @import url("./pages/workout-detail.css");
 @import url("./pages/past-sessions.css");

@@ -6,12 +6,13 @@ import {
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { showConfirmModal } from "../components/modals.js";
-import { renderLandingPage } from "./landing.js";
+import { setActiveTab, setNavGuard, clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
 
 export function renderWorkouts() {
-    const container = document.getElementById("container");
+    clearNavGuard();
+    const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>My Workouts</h2>
         <div class="page-actions">
@@ -22,7 +23,7 @@ export function renderWorkouts() {
     `;
 
     document.getElementById("workouts-create-btn").onclick = function() { renderCreateWorkoutPage(); };
-    document.getElementById("workouts-back-btn").onclick = renderLandingPage;
+    document.getElementById("workouts-back-btn").onclick = function() { setActiveTab("home"); };
 
     const list = document.getElementById("workout-list");
     for (let i = 0; i < state.workouts.length; i++) {
@@ -51,7 +52,7 @@ export function renderWorkouts() {
 
 export function renderCreateWorkoutPage(initialState) {
     const draft = initialState || { name: "", pendingExercises: [] };
-    const container = document.getElementById("container");
+    const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>Create Workout</h2>
         <div class="create-workout-form">
@@ -75,6 +76,15 @@ export function renderCreateWorkoutPage(initialState) {
 
     nameInput.value = draft.name;
     saveBtn.disabled = draft.name.trim() === "";
+
+    function hasUnsavedChanges() {
+        return draft.name.trim() !== "" || draft.pendingExercises.length > 0;
+    }
+
+    setNavGuard(async function() {
+        if (!hasUnsavedChanges()) return true;
+        return await showConfirmModal("Discard this workout?", "Discard");
+    });
 
     function renderPendingList() {
         list.innerHTML = "";
@@ -120,6 +130,7 @@ export function renderCreateWorkoutPage(initialState) {
     };
 
     nameInput.oninput = function() {
+        draft.name = nameInput.value;
         saveBtn.disabled = nameInput.value.trim() === "";
     };
 
@@ -132,15 +143,16 @@ export function renderCreateWorkoutPage(initialState) {
             await linkExerciseToWorkout(newWorkout.id, exercise.id);
         }
         state.workouts.push(newWorkout);
+        clearNavGuard();
         viewWorkout(state.workouts.length - 1);
     };
 
     backBtn.onclick = async function() {
-        const hasChanges = nameInput.value.trim() !== "" || draft.pendingExercises.length > 0;
-        if (hasChanges) {
+        if (hasUnsavedChanges()) {
             const confirmed = await showConfirmModal("Discard this workout?", "Discard");
             if (!confirmed) return;
         }
+        clearNavGuard();
         renderWorkouts();
     };
 }

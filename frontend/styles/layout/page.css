@@ -1,14 +1,16 @@
 /* Page-level layout primitives.
-   - #container: the single root mount point declared in index.html.
+   - #app-content: the swappable view mount point declared in index.html
+     (sibling of #bottom-nav).
    - .page-actions: flex wrapper used at the top of every view to host
      primary + secondary action buttons (see SESSION_NOTES "page-actions").
    - .empty-sessions: shared empty-state message used by workoutDetail
      ("No previous sessions yet"), libraryList ("No exercises yet"),
      and exercisePicker ("No exercises in <category>"). */
 
-#container {
+#app-content {
     max-width: 500px;
     margin: 0 auto;
+    padding-bottom: 80px;
 }
 
 .page-actions {

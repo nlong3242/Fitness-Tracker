@@ -1,13 +1,15 @@
 import { state } from "../state.js";
 import { fetchSessionsPage } from "../api.js";
 import { formatSessionDate } from "../utils/format.js";
+import { clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { viewSessionSummary } from "./summary.js";
 
 export async function viewPastSessions(workoutIndex) {
+    clearNavGuard();
     const workout = state.workouts[workoutIndex];
 
-    const container = document.getElementById("container");
+    const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>${workout.name} History</h2>
         <div id="session-list"></div>

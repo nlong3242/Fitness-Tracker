@@ -18,3 +18,16 @@ export async function maybeCleanupOrphanSession(workout) {
         state.currentSessionDate = null;
     }
 }
+
+/* Unconditional delete of the in-progress session — used when the user
+   confirms "Abandon current workout?" from the nav guard. Unlike
+   maybeCleanupOrphanSession, this destroys logged sets too. When the
+   future resume feature lands, the nav-away path should preserve the
+   session instead of calling this. */
+export async function abandonSession() {
+    if (state.currentSessionId !== null) {
+        await deleteSession(state.currentSessionId);
+        state.currentSessionId = null;
+        state.currentSessionDate = null;
+    }
+}

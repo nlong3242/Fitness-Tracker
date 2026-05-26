@@ -10,10 +10,11 @@ import {
 } from "../components/modals.js";
 import { renderCategoryPillRow } from "../components/categoryPills.js";
 import { renderLibraryList } from "../components/libraryList.js";
-import { renderLandingPage } from "./landing.js";
+import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
 
 export async function renderExerciseLibrary(initialCategory) {
-    const container = document.getElementById("container");
+    clearNavGuard();
+    const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>Exercise Library</h2>
         <div class="page-actions">
@@ -26,7 +27,7 @@ export async function renderExerciseLibrary(initialCategory) {
 
     let selectedCategory = initialCategory || "ALL";
 
-    document.getElementById("library-back-btn").onclick = renderLandingPage;
+    document.getElementById("library-back-btn").onclick = function() { setActiveTab("home"); };
     document.getElementById("library-create-btn").onclick = async function() {
         const data = await showExerciseFormModal(selectedCategory);
         if (!data) return;

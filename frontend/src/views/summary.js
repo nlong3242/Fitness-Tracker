@@ -8,9 +8,11 @@ import {
 import { deltaSpan, formatSessionDate } from "../utils/format.js";
 import { showExerciseReadOnlyModal } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
+import { clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
 
 export async function viewSessionSummary(workoutIndex, sessionId, sessionDate, onBack) {
+    clearNavGuard();
     const workout = state.workouts[workoutIndex];
 
     const snapshotExercises = await fetchSessionExercises(sessionId);
@@ -35,6 +37,7 @@ export async function viewSessionSummary(workoutIndex, sessionId, sessionDate, o
 }
 
 export async function renderWorkoutSummary(workout, sessionId, sessionDate, onBack) {
+    clearNavGuard();
     let exercisesCount = 0;
     let setsCount = 0;
     let repsTotal = 0;
@@ -62,7 +65,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, onBa
         volumeDelta = deltaSpan(volumeTotal - prev.volume);
     }
 
-    const container = document.getElementById("container");
+    const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>Workout Summary - ${workout.name}</h2>
         <div class="summary-date">${formattedDate}</div>

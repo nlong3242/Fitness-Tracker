@@ -10,16 +10,18 @@ import {
     showExerciseDetailsModal,
     showConfirmModal
 } from "../components/modals.js";
+import { clearNavGuard } from "../components/bottomNav.js";
 import { renderWorkouts } from "./workouts.js";
 import { addExercise } from "./exercisePicker.js";
 import { startWorkout } from "./activeWorkout.js";
 import { viewPastSessions } from "./pastSessions.js";
 
 export async function viewWorkout(workoutIndex) {
+    clearNavGuard();
     const workout = state.workouts[workoutIndex];
     workout.exercises = await fetchWorkoutExercises(workout.id);
 
-    const container = document.getElementById("container");
+    const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>${workout.name}</h2>
         <div class="page-actions">

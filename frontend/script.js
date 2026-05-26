@@ -338,9 +338,10 @@ function renderCreateWorkoutPage(initialState) {
     };
 }
 
-function showExerciseFormModal() {
+function showExerciseFormModal(prefilledCategory) {
     return new Promise(function(resolve) {
         const categories = ["CHEST", "ARMS", "BACK", "LEGS", "SHOULDERS", "CORE"];
+        const initialCategory = categories.includes(prefilledCategory) ? prefilledCategory : null;
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
@@ -384,7 +385,7 @@ function showExerciseFormModal() {
         const catRow = overlay.querySelector("#ex-form-categories");
         const nameInput = overlay.querySelector("#ex-form-name");
         const addBtn = overlay.querySelector("#ex-form-add");
-        let selectedCategory = null;
+        let selectedCategory = initialCategory;
         let unilateral = false;
 
         function updateAddState() {
@@ -400,6 +401,7 @@ function showExerciseFormModal() {
             btn.type = "button";
             btn.className = "modal-pill";
             btn.textContent = formatLabel(cat);
+            if (cat === initialCategory) btn.classList.add("selected");
             btn.onclick = function() {
                 selectedCategory = cat;
                 catRow.querySelectorAll(".modal-pill").forEach(function(b) { b.classList.remove("selected"); });
@@ -763,7 +765,7 @@ async function renderExerciseLibrary() {
 
     document.getElementById("library-back-btn").onclick = renderLandingPage;
     document.getElementById("library-create-btn").onclick = async function() {
-        const data = await showExerciseFormModal();
+        const data = await showExerciseFormModal(selectedCategory);
         if (!data) return;
         await fetch("http://localhost:8080/exercises", {
             method: "POST",
@@ -1171,7 +1173,7 @@ async function renderMultiSelectExercisePicker(opts) {
     updateAddBtn();
 
     document.getElementById("picker-create-btn").onclick = async function() {
-        const data = await showExerciseFormModal();
+        const data = await showExerciseFormModal(selectedCategory);
         if (!data) return;
         const response = await fetch("http://localhost:8080/exercises", {
             method: "POST",

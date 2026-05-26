@@ -228,6 +228,34 @@ Smoke-tested by clicking through every flow. No visual regressions observed. Dra
 
 ---
 
+## This Session — Past Sessions Page
+
+The "Previous Sessions" list — previously rendered inline at the bottom of the View Workout page — was promoted to its own dedicated view, reachable from a new **Past Sessions** button on the workout detail page. The detail page now stays focused on managing the workout's exercises; browsing history is one click away on its own surface.
+
+### New view: `views/pastSessions.js`
+
+Mirrors the paginated `loadSessionPage` pattern that previously lived inside `viewWorkout` — same `fetchSessionsPage(workoutId, page, 5)` call, same `session-row` markup, same `Load More` button. The function `viewPastSessions(workoutIndex)` is exported and wired to the new button on the detail page. Heading is `${workout.name} History` — chosen over the original "Past Sessions for {name}" phrasing because it's shorter, fits a narrower viewport, and uses the standard UX label "History" for past activity.
+
+Empty state reuses the shared `.empty-sessions` primitive from `layout/page.css`; no new component was needed.
+
+### `viewSessionSummary` gained an optional `onBack`
+
+Clicking a session from the History page should land Back on the History page, not back on the workout detail page. `viewSessionSummary(workoutIndex, sessionId, sessionDate)` now accepts an optional 4th `onBack` argument. When the History page calls in, it passes `function() { viewPastSessions(workoutIndex); }`; when the argument is omitted, the function defaults to going back to `viewWorkout(workoutIndex)` — so any caller that doesn't know about the new signature keeps its prior behaviour exactly.
+
+### `views/workoutDetail.js` got smaller
+
+The `Previous Sessions` heading, the `#session-list` container, the `#load-more-sessions` button, and the `loadSessionPage` closure (~27 lines) were all removed. The imports `fetchSessionsPage`, `formatSessionDate`, and `viewSessionSummary` went with them — no longer used here. The new button sits in its own `.page-actions` row directly below the existing Add Exercise / Start Workout row, deliberately separated so the visual hierarchy keeps "modify the workout" actions together and "navigate to history" on its own line.
+
+### CSS moved, not duplicated
+
+`.session-row`, `.session-row:hover`, and `.session-index` were the only rules in `pages/workout-detail.css` — they belong to session rows, which now live on the new page. Moved verbatim into a new `pages/past-sessions.css`. `workout-detail.css` is kept (with just a header comment) so the 1:1 view-to-css mapping rule from the CSS refactor session still holds; if any detail-page-specific styling shows up later it has a home ready. `main.css` got the new `@import url("./pages/past-sessions.css");` line in the Pages group, ordered next to `workout-detail.css` because the two pages are conceptually paired.
+
+### Verification
+
+Walked through: open a workout with multiple sessions → click Past Sessions → list paginates correctly → click a session → Summary loads → Back returns to History (not detail) → Back from History returns to detail. Empty-workout case shows the "No previous sessions yet." message on the new page. No visual regressions on the slimmed-down detail page.
+
+---
+
 ## Future Plans (Discussed, Not Built)
 
 - **Built-in exercise library shipped with the app.** A curated, immutable preset list users can browse and pick from. When this lands, the right split is:
@@ -245,12 +273,14 @@ Smoke-tested by clicking through every flow. No visual regressions observed. Dra
 
 This session's commit on `master`:
 
-- `8d739bd` — Refactor frontend style.css into modular CSS architecture.
+- Frontend Past Sessions page — extracted from the View Workout view into a dedicated `views/pastSessions.js` + `pages/past-sessions.css`, reachable from a new button on the detail page.
 
 Plus a follow-up SESSION_NOTES commit capturing this section.
 
 Earlier sessions on `master`:
 
+- `c696db1` — Update SESSION_NOTES for the CSS architecture refactor.
+- `8d739bd` — Refactor frontend style.css into modular CSS architecture.
 - `57aa2f6` — Refactor frontend script.js into ES modules.
 
-The unrelated `.vscode/settings.json` modification is still left out of the feature commit (same pattern as the JS refactor session).
+The unrelated `.vscode/settings.json` modification is still left out of the feature commit (same pattern as the previous refactor sessions).

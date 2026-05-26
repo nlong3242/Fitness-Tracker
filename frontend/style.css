@@ -855,3 +855,30 @@ body {
         }
     }
 
+    .draggable-row {
+        touch-action: pan-y;
+    }
+
+    li.dragging {
+        cursor: grabbing !important;
+        transform: scale(1.02) !important;
+        box-shadow: 0 10px 26px rgba(111, 191, 142, 0.45) !important;
+        border-color: var(--action) !important;
+        background-color: var(--surface-hover) !important;
+    }
+
+    li.drag-placeholder {
+        box-sizing: border-box;
+        background: transparent !important;
+        border: 2px dashed var(--accent-pink) !important;
+        box-shadow: none !important;
+        pointer-events: none;
+    }
+
+    li.drag-placeholder:hover {
+        transform: none !important;
+        background: transparent !important;
+        border-color: var(--accent-pink) !important;
+        box-shadow: none !important;
+    }
+

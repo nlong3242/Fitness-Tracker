@@ -1,6 +1,6 @@
 # Session Notes — Fitness Tracker
 
-A summary of what was built and discussed during the most recent working session. Read top-to-bottom for context on the current state of the app.
+A summary of what was built and discussed during the most recent working sessions. Read top-to-bottom for context on the current state of the app.
 
 ---
 
@@ -63,38 +63,9 @@ Rows get `touch-action: pan-y` so vertical page scroll still works on mobile. Dr
 
 ---
 
-## Cozy Sakura Visual Redesign
+## Reusable Building Blocks (Visual Components)
 
-The whole UI was reskinned in this session to move away from the default dark-navy "yet another tracker" look toward a warm, cozy game-UI feel inspired by sakura pink + cream cafe pixel art. Function is unchanged — every existing screen kept its layout and behavior; only the visual language was rewritten.
-
-### Landing Page Introduced
-
-The app no longer boots straight into the workouts list. A new `renderLandingPage()` is the entry point: a hero with welcome title + tagline, and two large clickable cards (Workouts, Exercise Library). The workouts list is reachable via the Workouts card; "Create Workout" moved off the landing page onto the workouts list where it sits contextually with the list it adds to.
-
-### Palette (CSS Custom Properties)
-
-Defined once at the top of `style.css` and used everywhere via `var(--token)`:
-
-| Token | Value | Use |
-|---|---|---|
-| `--bg` | `#2A1F1E` | Cozy coffee-brown body background |
-| `--surface` | `#E0CAC5` | All cream cards (workout rows, exercise cards, modals, stat boxes) |
-| `--surface-hover` | `#E7D1CC` | Card hover variant |
-| `--accent-pink` | `#F7B7C3` | Sakura pink — highlights, focus borders, pill outlines, selected pills |
-| `--accent-pink-hover` | `#E89AA8` | Deeper pink for hover states |
-| `--text-primary` | `#4A2C2A` | Warm dark brown — text on cream surfaces |
-| `--text-muted` | `#8B6B6B` | Warm gray — muted text on cream |
-| `--text-on-dark` | `#F0DDD4` | Cream tint — text on the dark body bg |
-| `--text-on-dark-muted` | `#C9B5AC` | Muted cream — secondary text on dark |
-| `--border` | `#E8D0CC` | Soft pink-tan — card borders, dividers |
-| `--action` | `#6FBF8E` | Sage green — primary action buttons |
-| `--action-hover` | `#57A675` | Deeper sage on hover |
-| `--danger` | `#DC5947` | Warm rust — destructive actions |
-| `--danger-hover` | `#BF4232` | Deeper rust |
-
-Semantic colors (green = positive, red = negative) were preserved but shifted into the warm palette — sage instead of bright green, rust instead of bright red — so intuition is unchanged.
-
-### Reusable Building Blocks
+Shared component conventions from the cozy sakura visual pass. All defined in `style.css` and used everywhere via class + CSS custom properties.
 
 - **`button` (default)** — sage green fill, near-black warm brown text (`#1F0E0C`), weight 700. The brown-on-sage was chosen specifically for legibility — vibrant enough to pop without going to harsh black.
 - **`.btn-secondary`** — filled muted warm brown (`#5C4642`) for Back/neutral actions on dark page backgrounds. Solid fill (no outline) so the button doesn't read as floating text.
@@ -104,125 +75,123 @@ Semantic colors (green = positive, red = negative) were preserved but shifted in
 - **`.filter-pill`** — outlined pink pill (3px border) for category filters on dark pages; filled pink + dark-brown text when selected.
 - **`.modal-pill`** — same shape as filter pill but tuned for use inside cream modals (brown text on transparent vs cream text on dark for filter-pill).
 
-### Input Treatment
+### Input treatment
 
-All text inputs share the same focus behavior — a 4px pink border with compensating padding so nothing reflows when focus arrives or leaves. Applies to:
-
-- Set inputs (weight/reps on workout-in-progress)
-- Workout-name input (Create Workout)
-- Modal form inputs (Create Exercise / Exercise Details)
-- Notes textarea
+All text inputs share the same focus behavior — a 4px pink border with compensating padding so nothing reflows when focus arrives or leaves. Applies to set inputs (weight/reps on workout-in-progress), the workout-name input on Create Workout, modal form inputs (Create/Edit Exercise), and the notes textarea.
 
 Set inputs use a soft pale cream (`#F0D9D3`) bg instead of pure white so they sit gently inside the cream exercise cards instead of feeling clinical. The "saved" state on a set row uses a thick 4px sage border as a strong "this is logged" signal — same width as focus, different color.
 
-### Page-by-Page Rollout Order
+### Palette tokens worth remembering
 
-Reskin was done in this order so the user could evaluate at each step:
+| Token | Use |
+|---|---|
+| `--bg` | Cozy coffee-brown body bg |
+| `--surface` / `--surface-hover` | Cream cards (workout rows, exercise cards, modals, stat boxes) |
+| `--accent-pink` / `--accent-pink-hover` | Sakura highlights, focus borders, pill outlines, selected pills |
+| `--text-primary` / `--text-muted` | Warm brown text on cream / muted warm gray |
+| `--text-on-dark` / `--text-on-dark-muted` | Cream tint text on dark page bg / secondary |
+| `--border` | Soft pink-tan card borders, dividers |
+| `--action` / `--action-hover` | Sage green primary action |
+| `--danger` / `--danger-hover` | Warm rust destructive action |
 
-1. **Landing page** — palette established here.
-2. **Workouts list** — global `<li>` and `button` styles cascaded to other pages as a base.
-3. **Exercise Library** + **multi-select picker** — share components, done together.
-4. **Modals** (confirm, form, read-only details).
-5. **Create Workout** page.
-6. **View Workout** (single workout page), including the Previous Sessions block.
-7. **Workout in Progress** — the dense set-logging screen.
-8. **Workout Summary** — stat boxes + per-exercise breakdown.
-
-### Notable UX Touches
-
-- **Pill outlines are 3px** (not the soft 2px from earlier iterations) because subtle borders were reading as "floating text."
-- **Cancel/Back buttons are filled muted** (not transparent outlined) for the same reason — clearly button-shaped while still hierarchically below primary actions.
-- **Positive-delta text uses deeper sage** (`#4D9967`) instead of `--action` so it reads cleanly as text on cream surfaces; negative delta uses `--danger` as-is.
-- **Card hovers** lift slightly (`translateY(-1px)`) with a soft pink glow shadow so the interaction feels tactile.
-- The **"Previous Sessions" heading** on the View Workout page reuses `library-group-heading` (muted cream with pink-tinged underline) so section dividers feel consistent.
-- **Add Notes button** has a 3px solid brown border (not soft pink) because the soft pink blended into the surrounding cream card.
+Positive-delta text uses deeper sage (`#4D9967`) instead of `--action` so it reads cleanly as text on cream surfaces; negative delta uses `--danger` as-is.
 
 ---
 
-## Features Added Today
+## This Session — Bug Fixes, Polish, Input Validation
 
-### Exercise Library — First-Class, Multi-Workout Exercises
+A small grab-bag session. Three real bugs, a couple of UX consistency wins, and a first pass at input validation for the live workout set-logging screen.
 
-Exercises are now library-owned and reusable across multiple workouts. A new `WorkoutExercise` join entity sits between `Workout` and `Exercise` and carries the per-workout `position` field. `Exercise.workout` is gone.
+### Bug — Unilateral set rendering after partial logging
 
-- **`WorkoutExercise`** — `(id, workout, exercise, position)` with a unique constraint on `(workout_id, exercise_id)` so the same exercise can't be linked to the same workout twice.
-- **`Workout.exercises`** is now `List<WorkoutExercise>` with `cascade=ALL, orphanRemoval=true` — deleting a workout cleans up its join rows but never touches the underlying exercises.
-- **`WorkoutExerciseRepository.findLiveByWorkoutId(workoutId)`** — JPQL that filters `exercise.deleted = false` and orders by position. This single query replaces the old `findByWorkout_IdAndDeletedFalse` on `ExerciseRepository`.
-- **No DB migration needed** — H2 is in-memory, schema is rebuilt on every startup. The redesign is destructive to existing in-memory data but matters nothing in practice.
+**Symptom.** Log only the L side of Set 1 for a unilateral exercise (e.g., SA triceps extensions), finish the workout, then start the same workout again. The live view rendered only one LEFT row instead of an L1+R1 placeholder pair. Clicking Add Set then produced an asymmetric `L1, L2, R1` layout because the count-of-rows logic added one of each side regardless of starting state.
 
-### Library Endpoints
+**Root cause.** `startWorkout` iterated `exercise.previousSets` (flat array of all logged sets across sides) and created one row per logged set with `prev.side`. If only L was logged previously, only one LEFT row was created.
 
-- `GET /exercises` → `findByDeletedFalseOrderByNameAsc()`. The library list.
-- `POST /exercises` → create library-only (no workout link).
-- `PUT /exercises/{id}` → workout-agnostic update.
-- `DELETE /exercises/{id}` → soft-delete (`deleted=true`). Cascades to every workout via the join filter.
-- `POST /workouts/{wId}/exercises` — now does **two things atomically**: creates the Exercise and the `WorkoutExercise` join row. Used by the picker's "Create Exercise" button when the user is creating exercises while also adding to a specific workout (this path was later replaced — see below).
-- `POST /workouts/{wId}/exercises/{eId}/link` — adds an existing library exercise to a workout (409 on duplicate). The picker uses this for "Add N to {workout}".
-- `DELETE /workouts/{wId}/exercises/{eId}` — **changed semantics**: now removes the join row only. Exercise stays in the library and in any other workouts.
+**Fix.** Mirror the summary view's logic — calculate `pairCount = Math.max(previousLSets.length, previousRSets.length)` and render that many LEFT/RIGHT pairs. The existing `renumberSetRows` already pulls placeholder values from `previousLSets[i]` / `previousRSets[i]` independently, so the per-side placeholders line up correctly.
 
-### Two Distinct "Delete" Operations
+### Summary view — Show both sides of a unilateral pair, dash for the unlogged side
 
-| Action | What it does | Where it lives |
-|---|---|---|
-| **Remove from workout** | Delete the `WorkoutExercise` join row. Exercise stays in library and other workouts. | viewWorkout exercise row → details modal → `Remove` button |
-| **Delete from library** | Soft-delete the `Exercise` (`deleted=true`). Disappears from every workout via the join filter. Past sessions still see it via `SessionExercise` snapshots. | Exercise Library exercise row → details modal → `Delete` button |
+Once the live-view bug above was fixed, the post-workout summary was inconsistent: it only rendered rows for sides that had logged sets, so an L-only Set 1 showed as just `Set L1` and `Set R1` was missing entirely. Made the summary always render both `Set L{n}` and `Set R{n}` per pair, with a muted dash (`-` in `--text-muted`) in the weight/reps cells of whichever side wasn't logged. New CSS class `.summary-set-empty` carries the muted styling. Both `viewSessionSummary` (re-opening a past session) and the post-finish summary share the same `renderWorkoutSummary` codepath, so the fix lands on both.
 
-Confirm messages are deliberately short: `Remove "Bench Press" from "Push Day"?` and `Delete "Bench Press" permanently?`. "Permanently" matches the user's mental model even though we soft-delete under the hood — there is no undelete UI, and past-session retention is a behind-the-scenes guarantee, not part of the user's intent when clicking delete.
+A direction discussion was had here — `-` vs explicit "Skipped" label vs blank cells with a subtle bg tint. The em-dash + muted color won for being the lightest treatment that still reads as "intentionally empty" rather than "broken."
 
-### Session Snapshot Compatibility
+### Bug — Delete workout returned 500 and rolled back
 
-`SessionController.finishSession` now reads from `workoutExerciseRepository.findLiveByWorkoutId(workoutId)` to enumerate "current exercises in this workout." Snapshot rows still go through `SessionExercise` with their fields cached at finish time. The `SessionSnapshotMigration` `CommandLineRunner` is untouched — it operates on `set → exercise`, not on the workout-exercise relationship.
+**Symptom.** Clicking delete on a workout returned 500; the frontend optimistically removed the row, but reloading the app brought the workout back from the DB.
 
-### Frontend — Library Page
+**Root cause.** `Workout → Sessions` has `cascade = CascadeType.ALL`, so JPA tried to cascade the delete. But `Session` had no `@OneToMany` inverse mappings to its child entities (`ExerciseSet`, `SessionExercise`) — so the cascade chain stopped at `Session`, and the foreign-key constraint on the children blocked the DB-level delete. The transaction rolled back.
 
-- **"Exercise Library" button** on the home page next to "Create Workout."
-- **`renderExerciseLibrary`** fetches all exercises once, groups by category, and renders.
-- **Category pill row** at the top: `All | Chest | Arms | Back | Legs | Shoulders | Core`. Default `All` (category-grouped view). Selecting a specific pill shows a flat list of just that category. Filtering is **client-side** off the single fetch — instant, no spinners, no race conditions.
-- Click an exercise row → reuses `showExerciseDetailsModal` (editable, with the library-context Delete button).
+**Fix.** Added bidirectional `@OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)` collections on `Session` for both `sets` and `sessionExercises`. The cascade chain is now `Workout → Sessions → (ExerciseSets + SessionExercises)` end-to-end. No DB schema change — the columns and FK constraints already existed; only Hibernate's cascade behavior at delete time changes. Restarting Spring Boot is enough.
 
-### Frontend — Multi-Select Picker (Used by Both Add Flows)
+### Save Workout — Navigate to the new workout's detail page
 
-A new full-page picker replaces the old single-pick library modal:
+After saving a newly-created workout, the app used to land on `renderWorkouts()` (the list). The user observed this didn't match intent — they just created a *specific* workout, so the natural next thing is to see or start *it*, not browse the list of all workouts.
 
-- Same pill row as the library page (All + 6 categories).
-- Each exercise row is a checkbox + name (already-linked exercises are hidden).
-- Bottom-right action: `Add N to "Push Day"`, disabled at 0, shows live count.
-- Top: `Create Exercise` and `Cancel`.
+Considered two options: (A) add a second "Save & Start Workout" button alongside Save, or (B) make the existing Save Workout button navigate to `viewWorkout(newIndex)`. Picked B — cleaner, single button, and from `viewWorkout` the Start Workout button is already one click away, which covers the "save and start now" intent anyway.
 
-**Create Exercise from inside the picker** — important UX detail driven by user feedback. POSTs to `/exercises` (library only, **not** the create-and-link endpoint), adds the new exercise to `available`, ticks its checkbox, and **jumps the pill row to the new exercise's category**. This preserves the user's other selections — they can keep picking without losing their work, and the new exercise gets linked along with everything else when they tap `Add N to ...`.
+Implementation was a one-line swap in the save handler: `renderWorkouts()` → `viewWorkout(workouts.length - 1)`. The newly-pushed workout is at the end of the in-memory `workouts` array; `viewWorkout` indexes by array position, not id.
 
-The picker is extracted into `renderMultiSelectExercisePicker(opts)` and used from:
+### New Exercise modal — Pre-select current category pill
 
-1. **`viewWorkout` Add Exercise** — onCancel returns to viewWorkout; onConfirm POSTs `/link` for each selected exercise and returns to viewWorkout.
-2. **`renderCreateWorkoutPage` Add Exercise** — onCancel/onConfirm return to the create-workout page with state preserved (workout name + pending exercises). The pending list now holds plain exercise objects (all are library entries); save POSTs the workout, then POSTs `/link` for each pending exercise.
+When the user has filtered the library (or the picker) to a specific category and then hits Create Exercise, the modal now pre-selects that category pill. Filtering by Arms is a strong signal that the next exercise being created is an Arms exercise.
 
-The create-workout pending-list row button is labelled **`Remove`**, not `Delete` — unstaging from a local in-memory list is not destructive.
+`showExerciseFormModal()` now takes an optional `prefilledCategory` arg. If it matches one of the six real categories, that pill starts `.selected` and `selectedCategory` is initialized accordingly. `"ALL"` and any unknown value fall through to the existing default (nothing selected) — so the "ALL" filter naturally maps to "no preselect."
 
----
+Both call sites pass through: `showExerciseFormModal(selectedCategory)` on the Library Create button and the picker's Create button.
 
-## Design Discussion — Many-to-Many vs Alternatives
+### Library navigation — Preserve category filter across create/edit/delete
 
-Three storage models were considered before committing to many-to-many:
+The picker already navigated to the new exercise's category after creating one (`selectedCategory = created.category`). The library page didn't — it called `renderExerciseLibrary()` with no arg after every action, which always reset to `"ALL"`. Made the library match the picker:
 
-- **A. Single `Exercise` table with nullable `workout_id`** — minimal change. The library is `SELECT * FROM exercise WHERE deleted=false`. Each exercise still belongs to at most one workout. Rejected because the user explicitly wants the same exercise reusable across multiple workouts.
-- **B. Many-to-many via an explicit join entity** — `WorkoutExercise` carries `(workout, exercise, position)`. Soft-delete on `Exercise` cascades to all workouts via the join filter. "Remove from workout" deletes the join row. **Chosen.**
-- **C. Two tables — `LibraryExercise` template + per-workout `Exercise` instance** — cleanest separation conceptually but adds a sync question (do library edits propagate to existing workouts?) and doubles the entity surface. Overkill for now.
+- `renderExerciseLibrary(initialCategory)` — optional arg, defaults to `"ALL"` if omitted.
+- **Create** → `renderExerciseLibrary(data.category)` (the new exercise's category).
+- **Edit save** → `renderExerciseLibrary(result.data.category)` (in case the user re-categorized the exercise during edit).
+- **Delete** → `renderExerciseLibrary(selectedCategory)` (just preserve the current filter).
 
-The "remove from workout" vs "delete from library" split fell naturally out of option B and matches what the user wanted: deleting from the library should cascade to all workouts, removing from one workout should leave the exercise alone everywhere else.
+### Bug — Library opened to "Nothing" instead of "ALL" from landing card
 
-## Design Discussion — Picker UX
+Right after the `initialCategory` arg was added, opening the library from the landing card stopped pre-selecting the ALL pill. Cause: the landing card's click handler was wired as `onclick = renderExerciseLibrary` (function reference), so the browser invoked it with the `MouseEvent` as the first argument. `initialCategory = MouseEvent`, which is truthy, so `selectedCategory = initialCategory || "ALL"` short-circuited to the MouseEvent — no pill matched.
 
-The first cut was a choice modal (`Create New` vs `Pick from Library`) plus a single-pick library modal. User feedback was that picking exercises one at a time is annoying when building a workout, so it was redesigned as a full-page multi-select picker.
+Fix: wrap in a thunk — `onclick = function() { renderExerciseLibrary(); }`. The other internal callers were already passing strings, so this was the only entry point affected.
 
-We considered three options for what happens when you tap an exercise row in the picker:
+### Input validation — Live workout set inputs
 
-- **Add immediately, return to workout.** Fastest but no way to add several in one trip.
-- **Open details modal (same as front-page library).** Most flexible but more clicks and mixes intents.
-- **Multi-select with bottom action button.** **Chosen.** Matches "queue up several exercises in one go."
+The set-logging inputs accepted negatives, zero reps, and scroll-wheel changes. First real validation pass on the app.
 
-We deliberately stripped details access from the picker — if you want to inspect/edit an exercise, the front-page library is one tap away, and mixing select-mode with edit-mode in the same view creates clutter and mode confusion. Per-row subtitles (muscle groups · type) were discussed and deferred to keep this iteration focused on the function.
+- **Weight** — `min="0"`, `step="0.5"`. JS rule: `w >= 0`. Zero allowed (intentional — covers bodyweight exercises like pushups, pullups, dips — though there's no dedicated "bodyweight" feature yet). Negatives rejected.
+- **Reps** — `min="1"`, `step="1"`. JS rule: `Number.isInteger(r) && r > 0`. Zero, negatives, and decimals all rejected. Used `Number(value)` instead of `parseInt` so that `5.5` doesn't get silently truncated to `5`.
+- **Wheel scroll** — both inputs blur on wheel: `input.addEventListener("wheel", function() { this.blur(); })`. As soon as the user wheels while focused, the input loses focus, the wheel event then scrolls the page normally, and subsequent wheels also scroll. Doesn't `preventDefault`, so page-scroll-while-input-was-focused works naturally on the next wheel tick.
 
-For the fetch strategy: chose "fetch all upfront, filter client-side." At ~250 bytes per exercise, even 300 exercises is ~75 KB — smaller than a single image. Pill switching is a `.filter()` call, no network round-trip, no loading states. The breaking point isn't until multiple thousands.
+Validation is silent (no error toast / red border) — invalid inputs simply fail the `persist()` early-return check, so no save happens and the row stays unsaved. Matches the existing pattern for incomplete inputs (e.g., weight typed but reps blank).
+
+### Saved-state class — Honest dirty/saved signal (Option B)
+
+Bug noticed by the user: once a set saved (green `.saved` border), changing one of the inputs to an invalid value left the green border in place. The change silently didn't persist, but the visual still said "saved." Misleading.
+
+Considered two fixes:
+- **A. Auto-revert invalid input back to last saved value.** Honest about state but destructive — clearing a field as part of editing would snap it back unprompted.
+- **B. Drop the `.saved` class the moment any input value diverges from the persisted value, restore it on PUT success.** Honest about state, non-destructive.
+
+Picked B.
+
+Implementation:
+
+- New helper `refreshSavedClass()` reads both inputs, compares to `row._savedSet.weight` / `.reps`, and `toggle("saved", matches)`.
+- `oninput` on both inputs now wraps `updateDeltas()` + `refreshSavedClass()`. Pure DOM-class work, no network calls — fine to run per-keystroke.
+- `persist()` now adds `.saved` on both the POST path (already did) **and** the PUT path (newly added), so an invalid → valid → save cycle correctly re-greens the row.
+
+State flow:
+
+| Action | `.saved` |
+|---|---|
+| Empty row + typing | off (already correct) |
+| Saved row at rest | on |
+| Saved row, user starts typing | off immediately |
+| Saved row, typed invalid value, blurred | off (persist rejects) |
+| Saved row, typed valid value, blurred | on (PUT succeeds) |
+
+A red-flash enhancement on individual invalid fields was discussed and planned but deferred — the user wanted Option B alone for now. The flash plan, if revisited later: per-field `.invalid` class with a brief `flash-invalid` keyframe animation, added when a non-empty field fails its rule on `change` (blur), removed after ~600 ms. Triggered from inside `persist()` or a new `validate()` step.
 
 ---
 
@@ -234,45 +203,20 @@ For the fetch strategy: chose "fetch all upfront, filter client-side." At ~250 b
   - Merge client-side. Keeps both tiny.
 - **Per-row subtitles in the picker** — small grey line under each name with `primaryMuscleGroups · exerciseType` so users can identify exercises at a glance without a details modal. Deferred until the picker function is stable.
 - **Cross-workout "last sets" history** — currently `findLastSetsForExercise` is scoped to the same workout. With shared exercises, you might want "last time I benched in *any* workout" instead. Worth a separate design pass.
+- **Red-flash on rejected input** — per-field visual indication when a value is rejected by validation. Planned but explicitly deferred this session in favor of just the silent-reject + dropped-tick approach. See "Saved-state class" above for the planned mechanic.
+- **Bodyweight exercises as a first-class concept** — currently bodyweight is implicit via `weight = 0`. A dedicated flag (or exercise-level "bodyweight" type) would be cleaner and could drive UI changes like hiding the weight input entirely.
 
 ---
 
 ## Repo State Note
 
-Two commits landed this session on `master`:
+This session's commits on `master`:
 
-- `bdc0d94` — Add exercise library with many-to-many workout linking (backend + frontend, ~700 LOC net).
-- `935197e` — Reuse multi-select exercise picker on the create-workout page (refactor; net **−150 LOC** after stripping duplicate modal code).
+- `ee7e877` — Fix unilateral set rendering and workout delete cascade (frontend + backend).
+- `3a74279` — Navigate to new workout's detail page after save.
+- `7a9abf7` — Pre-select category pill in New Exercise modal.
+- `38520ce` — Preserve category filter across library create/edit/delete.
+- `78d05bf` — Default library to ALL when opened from landing page.
+- `4fe09ab` — Tighten set-input validation and dirty state.
 
-Stray `.class` files at the repo root (`Exercise.class`, `ExerciseSet.class`, `Main.class`, `Workout.class`) are untracked leftovers from old console-prototype builds. They were present at session start and are unrelated to this work. Worth `.gitignore`ing in a future cleanup but not pulled into the feature commits.
-
-The unrelated `.vscode/settings.json` modification was also present at session start and was deliberately excluded from the feature commits.
-
----
-
-## Optional Reading — Deployment & Security
-
-> Not necessary for next-chat context. Skip unless you specifically ask the model to look at this section.
-
-The app currently exposes every endpoint with no authentication. That is **fine for local/personal use** because it runs on `localhost`, the H2 database is in-memory, and there is no PII. If/when the app is deployed publicly, the following matters:
-
-**Real concerns:**
-- **No authentication** — anyone hitting the URL can read/modify/delete every workout, session, and set.
-- **No user isolation** — there is no `User` entity. Everyone shares the same data.
-- **CORS wide open** — other websites could call the API from a user's browser. Without auth, this means data exfiltration.
-- **No rate limiting** — a bot could spam `POST /workouts` and fill the DB.
-
-**Not a concern (Spring covers these):**
-- SQL injection — JPA uses parameterized queries.
-- Mass assignment of IDs — controllers set relationships explicitly, not from request body.
-
-**Roughly ordered fix-list if going to production:**
-
-1. **Authentication + Authorization** — Spring Security with JWT or session cookies. Add a `User` entity, attach `Workout` to a user, enforce ownership in controllers. This is ~90% of real protection.
-2. **Lock down CORS** to the actual frontend origin only.
-3. **HTTPS everywhere** — mandatory. Free via Let's Encrypt or Cloudflare.
-4. **Rate limiting** — Bucket4j on Spring, or at the proxy layer (Cloudflare / nginx).
-5. **Don't expose internals** — disable Swagger/OpenAPI in production, lock down `/actuator/**`, return generic error pages instead of stack traces.
-6. **(Advanced) Backend-for-Frontend pattern** — the public-facing server (BFF) holds the session and calls the Spring API internally on a private network. The Spring API never has a public IP. This is how serious apps (banking, SaaS) typically work. Overkill for a fitness tracker but worth knowing about.
-
-**You cannot truly "hide" endpoints from a browser** — they show up in DevTools' Network tab the moment the frontend calls them. What "hiding" really means in practice is making unauthorized calls fail. Items 1 + 2 + 3 are the mandatory baseline for any public deployment.
+The stray `.class` files at the repo root (`Exercise.class`, `ExerciseSet.class`, `Main.class`, `Workout.class`) and `bash.exe.stackdump` are still untracked leftovers from old console-prototype builds. Still worth a `.gitignore` cleanup at some point but not pulled into the feature commits. The unrelated `.vscode/settings.json` modification was likewise left out of feature commits.

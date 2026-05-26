@@ -10,7 +10,7 @@ import { showExerciseReadOnlyModal } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
 import { viewWorkout } from "./workoutDetail.js";
 
-export async function viewSessionSummary(workoutIndex, sessionId, sessionDate) {
+export async function viewSessionSummary(workoutIndex, sessionId, sessionDate, onBack) {
     const workout = state.workouts[workoutIndex];
 
     const snapshotExercises = await fetchSessionExercises(sessionId);
@@ -30,7 +30,8 @@ export async function viewSessionSummary(workoutIndex, sessionId, sessionDate) {
     }
     workout.exercises = snapshotExercises;
 
-    await renderWorkoutSummary(workout, sessionId, sessionDate, function() { viewWorkout(workoutIndex); });
+    const back = onBack || function() { viewWorkout(workoutIndex); };
+    await renderWorkoutSummary(workout, sessionId, sessionDate, back);
 }
 
 export async function renderWorkoutSummary(workout, sessionId, sessionDate, onBack) {

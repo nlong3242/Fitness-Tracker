@@ -3,11 +3,9 @@ import {
     fetchWorkoutExercises,
     updateWorkoutExercise,
     removeWorkoutExercise,
-    reorderWorkoutExercises,
-    fetchSessionsPage
+    reorderWorkoutExercises
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
-import { formatSessionDate } from "../utils/format.js";
 import {
     showExerciseDetailsModal,
     showConfirmModal
@@ -15,7 +13,7 @@ import {
 import { renderWorkouts } from "./workouts.js";
 import { addExercise } from "./exercisePicker.js";
 import { startWorkout } from "./activeWorkout.js";
-import { viewSessionSummary } from "./summary.js";
+import { viewPastSessions } from "./pastSessions.js";
 
 export async function viewWorkout(workoutIndex) {
     const workout = state.workouts[workoutIndex];
@@ -28,10 +26,10 @@ export async function viewWorkout(workoutIndex) {
             <button id="workout-add-exercise-btn">Add Exercise</button>
             <button id="workout-start-btn">Start Workout</button>
         </div>
+        <div class="page-actions">
+            <button id="workout-past-sessions-btn">Past Sessions</button>
+        </div>
         <ul id="exercise-list"></ul>
-        <h3 class="library-group-heading">Previous Sessions</h3>
-        <div id="session-list"></div>
-        <button id="load-more-sessions" style="display:none">Load More</button>
         <div class="page-actions">
             <button class="btn-secondary" id="workout-back-btn">Back</button>
         </div>
@@ -39,6 +37,7 @@ export async function viewWorkout(workoutIndex) {
 
     document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutIndex); };
     document.getElementById("workout-start-btn").onclick = function() { startWorkout(workoutIndex); };
+    document.getElementById("workout-past-sessions-btn").onclick = function() { viewPastSessions(workoutIndex); };
     document.getElementById("workout-back-btn").onclick = renderWorkouts;
 
     const list = document.getElementById("exercise-list");
@@ -86,32 +85,4 @@ export async function viewWorkout(workoutIndex) {
         }
     }
     rebuildExerciseList();
-
-    let nextPage = 0;
-    let sessionIndex = 1;
-    const loadMoreBtn = document.getElementById("load-more-sessions");
-    const sessionList = document.getElementById("session-list");
-
-    async function loadSessionPage() {
-        const pageData = await fetchSessionsPage(workout.id, nextPage, 5);
-        if (nextPage === 0 && pageData.content.length === 0) {
-            sessionList.innerHTML = `<div class="empty-sessions">No previous sessions yet.</div>`;
-            return;
-        }
-        for (const session of pageData.content) {
-            const row = document.createElement("div");
-            row.className = "session-row";
-            row.innerHTML = `<span class="session-index">${sessionIndex}.</span> ${formatSessionDate(session.date)}`;
-            row.onclick = function() {
-                viewSessionSummary(workoutIndex, session.id, session.date);
-            };
-            sessionList.appendChild(row);
-            sessionIndex++;
-        }
-        nextPage++;
-        loadMoreBtn.style.display = pageData.last ? "none" : "inline-block";
-    }
-
-    loadMoreBtn.onclick = loadSessionPage;
-    await loadSessionPage();
 }

@@ -4,6 +4,65 @@ A summary of what was built and discussed during the most recent working session
 
 ---
 
+## Drag-to-Reorder Exercises
+
+Long-press drag-and-drop reordering was added to three surfaces in three phases. A single helper, `attachLongPressDrag(rowEl, opts)`, powers all of them — vanilla JS, no third-party drop-in. Each surface differs only in what `onReorder(from, to)` does.
+
+### The helper
+
+State machine, four states: `idle → pressing → armed → dragging`.
+
+- `pointerdown` enters `pressing`. A 180 ms timer is started.
+- Moving > 8 px before the timer fires cancels (treats it as a page scroll).
+- If still pressing when the timer fires, state becomes `armed` — visually invisible to the user. Nothing lifts yet.
+- In `armed`, moving > 5 px begins the actual drag: the row is pulled out of flow (`position: fixed`), a dashed-pink `<div>` placeholder of identical height takes its slot, the row gets a sage glow, and the body cursor switches to `grabbing`.
+- Releasing in `pressing` or `armed` (no movement) is a plain tap — the click passes through to the row's own handler.
+- Releasing in `dragging` drops at the placeholder's position; the helper computes a `toIndex` and calls `opts.onReorder(originIndex, toIndex)`. The next synthetic `click` is swallowed in capture phase so tap handlers don't double-fire.
+- Escape during drag cancels with no reorder.
+- Pointerdown on a nested `button, input, textarea, select, a` is ignored, so the Remove button on Create Workout rows and the set inputs / Add Set / notes textarea on live workout cards all keep working.
+
+### Why a state machine (not a single timer)
+
+The first cut used one timer: if the timer fires, drag begins and the next click is suppressed. This made tap-to-open-details break — a user tap that happened to last ≥ 200 ms was being interpreted as a no-op drag and the suppressed click meant the modal never opened. The two-stage model fixes this: long-press only *arms* the drag, and drag only actually begins if the user *also* moves. Tap duration no longer competes with drag detection. `longPressMs` is now an arming delay, not a tap/drag decision threshold.
+
+### Phase 1 — Create Workout (no backend)
+
+Each `<li>` in the pending exercises list gets the drag handler. `onReorder` splices `state.pendingExercises` and re-renders the list (which already renumbers `1.`, `2.`, `3.` on every render). No API call is needed — saving the workout posts `/link` for each pending exercise in array order, and the backend's `findMaxPositionForWorkout + 1` already assigns sequential `position` values in POST order. The Remove button on each row keeps working because the helper's pointerdown filter skips nested buttons.
+
+### Phase 2 — View Workout (persists)
+
+New endpoint: `PATCH /workouts/{workoutId}/exercises/order` with body `{ orderedExerciseIds: [...] }`. The handler validates the list is a permutation of the workout's current live exercise ids (409 otherwise) and updates each `WorkoutExercise.position` inside a `@Transactional` method — JPA dirty-checking flushes the updates atomically on commit. Since `findLiveByWorkoutId` already orders by `position ASC`, the next GET reflects the new order with no extra work.
+
+Frontend: the per-exercise loop inside `viewWorkout` is extracted into a local `rebuildExerciseList()`. `onReorder` mutates `workout.exercises` and calls that, fires the PATCH, and on failure rolls back the in-memory order, rebuilds again, and shows a confirm modal as a generic error. CORS in `WebConfig` had to be expanded to allow `PATCH`.
+
+### Phase 3 — Live Workout (session-only)
+
+Each `.exercise-card` div in `startWorkout` becomes a drag target. `onReorder` reorders `workout.exercises` in memory **and moves the card DOM node** to its new position (`removeChild` + `insertBefore`) — no rebuild.
+
+The no-rebuild move is important: every per-card closure (the `Add Set` button, each set row's cancel handler, `updateHeaderVisibility(i)`, `renumberSetRows(i, exercise)`) captures the original loop index `i` and looks up its container by id (`sets-${i}`). Because we move the card *node* rather than rebuilding, those ids stay attached to the right cards, every closure keeps working, and **unsaved set inputs, the `.saved` state class, and the notes draft all survive a reorder for free**.
+
+Session-only by design — chosen over "save back to template" because one accidental drag mid-workout shouldn't permanently restructure the user's routine. The saved `WorkoutExercise.position` is untouched. Next time you start the same workout, it loads in the saved template order.
+
+CSS note: the `.dragging` and `.drag-placeholder` rules were originally scoped to `li.` for the first two phases. Phase 3 drops the prefix so the same visual treatment applies to `.exercise-card` divs.
+
+### Live order → session snapshot
+
+A bug appeared after Phase 3 went in: the freshly-finished workout summary showed the live-reordered order (because it was rendered from the in-memory `workout.exercises`), but re-opening that same session from "Previous Sessions" later showed the *template* order. The DB snapshot was wrong.
+
+Root cause: `SessionController.finishSession` was reading `findLiveByWorkoutId(workoutId)` to enumerate exercises and assigning `SessionExercise.position = 0, 1, 2, ...` in that order. The client's in-memory live order was never sent. Fix:
+
+- `finishSession` now accepts an optional `FinishBody { orderedExerciseIds }`. When present, snapshot positions are written in that order (filtered to currently-linked exercises, then any currently-linked-but-missing are appended, then orphan exercises that only exist via session sets are appended last).
+- `finishWorkout` on the frontend sends `workout.exercises.map(e => e.id)` in the body.
+- When no body is provided (older clients, hypothetically), behaviour falls back to template order — same as before.
+
+The template still doesn't change. Only the session's own snapshot reflects what the user actually did, which is exactly what historical-session view should show.
+
+### Touch behavior
+
+Rows get `touch-action: pan-y` so vertical page scroll still works on mobile. Drag only starts after the 180 ms arm + 5 px move, so a swipe-to-scroll cancels naturally (the > 8 px pre-arm threshold trips first). `contextmenu` is suppressed while armed/dragging so long-press doesn't pop the system context menu on touch devices.
+
+---
+
 ## Cozy Sakura Visual Redesign
 
 The whole UI was reskinned in this session to move away from the default dark-navy "yet another tracker" look toward a warm, cozy game-UI feel inspired by sakura pink + cream cafe pixel art. Function is unchanged — every existing screen kept its layout and behavior; only the visual language was rewritten.

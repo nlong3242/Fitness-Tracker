@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -59,8 +60,14 @@ public class SessionController {
         return sessionRepository.save(session);
     }
 
+    public static class FinishBody {
+        private List<Long> orderedExerciseIds;
+        public List<Long> getOrderedExerciseIds() { return orderedExerciseIds; }
+        public void setOrderedExerciseIds(List<Long> orderedExerciseIds) { this.orderedExerciseIds = orderedExerciseIds; }
+    }
+
     @PostMapping("/sessions/{sessionId}/finish")
-    public Session finishSession(@PathVariable Long sessionId) {
+    public Session finishSession(@PathVariable Long sessionId, @RequestBody(required = false) FinishBody body) {
         Session session = sessionRepository.findById(sessionId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
         if (session.isFinished()) {
@@ -71,11 +78,26 @@ public class SessionController {
         List<WorkoutExercise> currentJoins = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
         List<ExerciseSet> sessionSets = exerciseSetRepository.findBySession_Id(sessionId);
 
-        Map<Long, Exercise> exercisesById = new LinkedHashMap<>();
+        Map<Long, Exercise> currentById = new LinkedHashMap<>();
         for (WorkoutExercise we : currentJoins) {
-            Exercise ex = we.getExercise();
-            exercisesById.put(ex.getId(), ex);
+            currentById.put(we.getExercise().getId(), we.getExercise());
         }
+
+        Map<Long, Exercise> exercisesById = new LinkedHashMap<>();
+        if (body != null && body.getOrderedExerciseIds() != null) {
+            for (Long id : body.getOrderedExerciseIds()) {
+                Exercise ex = currentById.get(id);
+                if (ex != null) exercisesById.put(id, ex);
+            }
+            for (Map.Entry<Long, Exercise> e : currentById.entrySet()) {
+                if (!exercisesById.containsKey(e.getKey())) {
+                    exercisesById.put(e.getKey(), e.getValue());
+                }
+            }
+        } else {
+            exercisesById.putAll(currentById);
+        }
+
         for (ExerciseSet set : sessionSets) {
             Long exId = set.getExerciseId();
             if (exId != null && !exercisesById.containsKey(exId)) {

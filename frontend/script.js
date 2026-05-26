@@ -1232,7 +1232,7 @@ async function startWorkout(workoutIndex) {
         }
 
         let card = document.createElement("div");
-        card.className = "exercise-card";
+        card.className = "exercise-card draggable-row";
         card.innerHTML = `
             <h3 class="exercise-card-title">${exercise.name}</h3>
             <div id="sets-${i}"></div>
@@ -1272,6 +1272,19 @@ async function startWorkout(workoutIndex) {
         }
         updateHeaderVisibility(i);
         renumberSetRows(i, exercise);
+
+        if (workout.exercises.length > 1) {
+            attachLongPressDrag(card, {
+                onReorder: function(from, to) {
+                    const [moved] = workout.exercises.splice(from, 1);
+                    workout.exercises.splice(to, 0, moved);
+                    const cardEl = cards.children[from];
+                    cards.removeChild(cardEl);
+                    const refNode = cards.children[to] || null;
+                    cards.insertBefore(cardEl, refNode);
+                }
+            });
+        }
     }
 }
 
@@ -1513,7 +1526,11 @@ async function finishWorkout(workoutIndex) {
     const sessionDate = currentSessionDate;
     currentSessionId = null;
     currentSessionDate = null;
-    await fetch(`http://localhost:8080/sessions/${sessionId}/finish`, { method: "POST" });
+    await fetch(`http://localhost:8080/sessions/${sessionId}/finish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderedExerciseIds: workout.exercises.map(e => e.id) })
+    });
     await renderWorkoutSummary(workout, sessionId, sessionDate, "renderWorkouts()");
 }
 

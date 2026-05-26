@@ -170,6 +170,64 @@ Smoke-tested by clicking through every flow in the browser. No regressions obser
 
 ---
 
+## This Session — CSS Architecture Refactor
+
+The 888-line monolithic `frontend/style.css` was split into 15 cohesive CSS files under `frontend/styles/`, structured to mirror the JS architecture from the previous session. No visual behavior changes — purely structural.
+
+### Layout
+
+```
+frontend/styles/
+├── main.css                    — entry; @imports everything in cascade order
+├── base/
+│   ├── variables.css           — :root design tokens (palette, semantic colors)
+│   ├── elements.css            — body, h1, ul, li (cream card-row pattern)
+│   └── buttons.css             — button default + .btn-secondary + .btn-danger
+├── layout/
+│   └── page.css                — #container, .page-actions, .empty-sessions
+├── components/                 — mirrors frontend/src/components/
+│   ├── modals.css              — confirm + form + read-only modals
+│   ├── notes-panel.css         — three-state notes wrapper
+│   ├── category-pills.css      — .filter-pill + .library-pill-row container
+│   ├── library-list.css        — category-grouped list heading
+│   └── set-input-row.css       — live-workout set row + delta badges + .saved
+├── pages/                      — mirrors frontend/src/views/
+│   ├── landing.css             — landing hero + 2-card grid + only media query
+│   ├── workouts.css            — Create Workout form
+│   ├── workout-detail.css      — Previous Sessions row
+│   ├── exercise-picker.css     — multi-select picker rows + action bar
+│   ├── active-workout.css      — .exercise-card (live workout)
+│   └── summary.css             — stat grid, summary card, set table, .delta
+└── animations/
+    └── drag-drop.css           — .draggable-row, .dragging, .drag-placeholder
+```
+
+### Entry via `@import`, not many `<link>` tags
+
+`index.html` references one stylesheet (`styles/main.css`) which `@import`s the rest in cascade order: tokens → base → layout → components → pages → animations. Same reasoning as the JS side — one source of truth for what loads, dependency order in one place. Animations load last so `.dragging` / `.drag-placeholder` `!important` rules win against the underlying `li` / `.exercise-card` card styles they decorate.
+
+### Module-by-module mapping
+
+Every JS module that owns DOM has a 1:1 CSS file (or shares one with a tightly coupled sibling). The exceptions — `main.js`, `state.js`, `api.js`, `session.js`, `config.js`, `utils/format.js` — own no DOM and have no CSS. `utils/dragDrop.js` is the one util that *does* manipulate DOM (lifts a node out of flow, inserts a placeholder), so it gets `animations/drag-drop.css`.
+
+`.library-pill-row` lives in `components/category-pills.css` because the container only ever hosts `.filter-pill` children — separating them would split one cohesive widget across two files. Same instinct applied to `.empty-sessions`, which is used by three views (workoutDetail, libraryList, exercisePicker) and lives in `layout/page.css` as a shared empty-state primitive rather than being duplicated.
+
+### Dead code dropped
+
+Two CSS classes had no JS consumers — `.set-input-save` and `.set-row`. Both were leftovers from the pre-modular `script.js`. Removed.
+
+### Things deliberately not changed
+
+- No class names renamed (JS references them as string literals).
+- No selector restructure for the `li` / `.dragging` / `.drag-placeholder` globals — load order is what makes the cascade correct, see comment in `animations/drag-drop.css` plus the SESSION_NOTES Phase 3 "CSS note" callout.
+- No deduplication of the card-hover-lift pattern shared by `li` / `.session-row` / `.picker-select-row`, or the 4px-pink-focus pattern shared by all text inputs. Extracting these would mean adding a new utility class to JS-rendered elements — outside the scope of a CSS-only refactor. Visible duplication, contained, good candidate for a follow-up pass that touches both layers.
+
+### Verification
+
+Smoke-tested by clicking through every flow. No visual regressions observed. Drag-to-reorder still applies to both `<li>` rows (Create Workout, View Workout) and `.exercise-card` `<div>`s (Active Workout) because the `.dragging` selector stays unprefixed.
+
+---
+
 ## Future Plans (Discussed, Not Built)
 
 - **Built-in exercise library shipped with the app.** A curated, immutable preset list users can browse and pick from. When this lands, the right split is:
@@ -187,8 +245,12 @@ Smoke-tested by clicking through every flow in the browser. No regressions obser
 
 This session's commit on `master`:
 
-- `57aa2f6` — Refactor frontend script.js into ES modules.
+- `8d739bd` — Refactor frontend style.css into modular CSS architecture.
 
 Plus a follow-up SESSION_NOTES commit capturing this section.
 
-The stray `.class` files at the repo root (`Exercise.class`, `ExerciseSet.class`, `Main.class`, `Workout.class`) and `bash.exe.stackdump` are still untracked leftovers from old console-prototype builds. Still worth a `.gitignore` cleanup at some point but not pulled into the feature commit. The unrelated `.vscode/settings.json` modification was likewise left out.
+Earlier sessions on `master`:
+
+- `57aa2f6` — Refactor frontend script.js into ES modules.
+
+The unrelated `.vscode/settings.json` modification is still left out of the feature commit (same pattern as the JS refactor session).

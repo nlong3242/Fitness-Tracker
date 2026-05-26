@@ -2,12 +2,18 @@ package com.tsu2track.fitness_tracker;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -125,6 +131,36 @@ public class ExerciseController {
     public void unlinkExerciseFromWorkout(@PathVariable Long workoutId, @PathVariable Long id){
         Optional<WorkoutExercise> link = workoutExerciseRepository.findByWorkout_IdAndExercise_Id(workoutId, id);
         link.ifPresent(workoutExerciseRepository::delete);
+    }
+
+    public static class OrderBody {
+        private List<Long> orderedExerciseIds;
+        public List<Long> getOrderedExerciseIds() { return orderedExerciseIds; }
+        public void setOrderedExerciseIds(List<Long> orderedExerciseIds) { this.orderedExerciseIds = orderedExerciseIds; }
+    }
+
+    @PatchMapping("/workouts/{workoutId}/exercises/order")
+    @Transactional
+    public void reorderWorkoutExercises(@PathVariable Long workoutId, @RequestBody OrderBody body) {
+        List<Long> ordered = body.getOrderedExerciseIds();
+        if (ordered == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "orderedExerciseIds is required");
+        }
+        List<WorkoutExercise> current = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
+        if (current.size() != ordered.size()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order list does not match current exercises");
+        }
+        Map<Long, WorkoutExercise> byExerciseId = new HashMap<>();
+        for (WorkoutExercise we : current) {
+            byExerciseId.put(we.getExercise().getId(), we);
+        }
+        Set<Long> incoming = new HashSet<>(ordered);
+        if (incoming.size() != ordered.size() || !byExerciseId.keySet().equals(incoming)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order list does not match current exercises");
+        }
+        for (int i = 0; i < ordered.size(); i++) {
+            byExerciseId.get(ordered.get(i)).setPosition(i);
+        }
     }
 
     // ----- Notes -----

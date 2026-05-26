@@ -3,9 +3,11 @@ let currentSessionId = null;
 let currentSessionDate = null;
 
 function attachLongPressDrag(rowEl, opts) {
-    const longPressMs = (opts && opts.longPressMs) || 350;
-    const moveThreshold = (opts && opts.moveThreshold) || 8;
+    const longPressMs = (opts && opts.longPressMs) || 180;
+    const cancelThreshold = (opts && opts.cancelThreshold) || 8;
+    const armedMoveThreshold = (opts && opts.armedMoveThreshold) || 5;
 
+    let state = "idle"; // idle | pressing | armed | dragging
     let pressTimer = null;
     let pointerId = null;
     let startX = 0, startY = 0;
@@ -24,7 +26,7 @@ function attachLongPressDrag(rowEl, opts) {
         }
     }, true);
     rowEl.addEventListener("contextmenu", function(e) {
-        if (placeholder || pressTimer) e.preventDefault();
+        if (state === "armed" || state === "dragging") e.preventDefault();
     });
 
     function onPointerDown(e) {
@@ -33,35 +35,65 @@ function attachLongPressDrag(rowEl, opts) {
         pointerId = e.pointerId;
         startX = e.clientX;
         startY = e.clientY;
-        pressTimer = setTimeout(beginDrag, longPressMs);
-        rowEl.addEventListener("pointermove", onPointerMovePre);
-        rowEl.addEventListener("pointerup", cancelPress);
-        rowEl.addEventListener("pointercancel", cancelPress);
+        state = "pressing";
+        pressTimer = setTimeout(arm, longPressMs);
+        rowEl.addEventListener("pointermove", onPointerMove);
+        rowEl.addEventListener("pointerup", onPointerUp);
+        rowEl.addEventListener("pointercancel", onPointerCancel);
     }
 
-    function onPointerMovePre(e) {
-        if (Math.abs(e.clientX - startX) > moveThreshold ||
-            Math.abs(e.clientY - startY) > moveThreshold) {
-            cancelPress();
+    function onPointerMove(e) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (state === "pressing") {
+            if (Math.abs(dx) > cancelThreshold || Math.abs(dy) > cancelThreshold) {
+                resetListeners();
+            }
+        } else if (state === "armed") {
+            if (Math.abs(dx) > armedMoveThreshold || Math.abs(dy) > armedMoveThreshold) {
+                beginDrag();
+                onDragMove(e);
+            }
+        } else if (state === "dragging") {
+            onDragMove(e);
         }
     }
 
-    function cancelPress() {
+    function onPointerUp() {
+        if (state === "dragging") {
+            endDrag(true);
+        } else {
+            // pressing or armed without movement — let click pass through
+            resetListeners();
+        }
+    }
+
+    function onPointerCancel() {
+        if (state === "dragging") {
+            endDrag(false);
+        } else {
+            resetListeners();
+        }
+    }
+
+    function arm() {
+        pressTimer = null;
+        if (state === "pressing") state = "armed";
+    }
+
+    function resetListeners() {
         if (pressTimer) {
             clearTimeout(pressTimer);
             pressTimer = null;
         }
-        rowEl.removeEventListener("pointermove", onPointerMovePre);
-        rowEl.removeEventListener("pointerup", cancelPress);
-        rowEl.removeEventListener("pointercancel", cancelPress);
+        rowEl.removeEventListener("pointermove", onPointerMove);
+        rowEl.removeEventListener("pointerup", onPointerUp);
+        rowEl.removeEventListener("pointercancel", onPointerCancel);
+        state = "idle";
     }
 
     function beginDrag() {
-        pressTimer = null;
-        rowEl.removeEventListener("pointermove", onPointerMovePre);
-        rowEl.removeEventListener("pointerup", cancelPress);
-        rowEl.removeEventListener("pointercancel", cancelPress);
-
+        state = "dragging";
         listEl = rowEl.parentElement;
         originIndex = Array.from(listEl.children).indexOf(rowEl);
         originRect = rowEl.getBoundingClientRect();
@@ -83,9 +115,6 @@ function attachLongPressDrag(rowEl, opts) {
         suppressNextClick = true;
 
         try { rowEl.setPointerCapture(pointerId); } catch (_) {}
-        rowEl.addEventListener("pointermove", onDragMove);
-        rowEl.addEventListener("pointerup", onDragEnd);
-        rowEl.addEventListener("pointercancel", onDragCancel);
         document.addEventListener("keydown", onKeyDown);
         document.body.style.cursor = "grabbing";
         document.body.style.userSelect = "none";
@@ -110,9 +139,6 @@ function attachLongPressDrag(rowEl, opts) {
     }
 
     function endDrag(commit) {
-        rowEl.removeEventListener("pointermove", onDragMove);
-        rowEl.removeEventListener("pointerup", onDragEnd);
-        rowEl.removeEventListener("pointercancel", onDragCancel);
         document.removeEventListener("keydown", onKeyDown);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
@@ -140,12 +166,11 @@ function attachLongPressDrag(rowEl, opts) {
         }
 
         setTimeout(function() { suppressNextClick = false; }, 50);
+        resetListeners();
     }
 
-    function onDragEnd() { endDrag(true); }
-    function onDragCancel() { endDrag(false); }
     function onKeyDown(e) {
-        if (e.key === "Escape") endDrag(false);
+        if (e.key === "Escape" && state === "dragging") endDrag(false);
     }
 }
 
@@ -939,35 +964,61 @@ function showConfirmModal(message, confirmLabel) {
     </div>
 `;
 
-    let list = document.getElementById("exercise-list");
-    for (let i = 0 ; i < workout.exercises.length; i++) {
-        const exercise = workout.exercises[i];
-        let item = document.createElement("li");
-        item.className = "exercise-row";
-        item.style.cursor = "pointer";
-        item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
-        item.onclick = async function() {
-            const result = await showExerciseDetailsModal(exercise, {
-                deleteLabel: "Remove",
-                deleteConfirmMessage: `Remove "${exercise.name}" from "${workout.name}"?`
-            });
-            if (!result) return;
-            if (result.action === "save") {
-                await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(result.data)
+    const list = document.getElementById("exercise-list");
+
+    function rebuildExerciseList() {
+        list.innerHTML = "";
+        for (let i = 0; i < workout.exercises.length; i++) {
+            const exercise = workout.exercises[i];
+            const item = document.createElement("li");
+            item.className = "exercise-row draggable-row";
+            item.style.cursor = "pointer";
+            item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
+            item.onclick = async function() {
+                const result = await showExerciseDetailsModal(exercise, {
+                    deleteLabel: "Remove",
+                    deleteConfirmMessage: `Remove "${exercise.name}" from "${workout.name}"?`
                 });
-                viewWorkout(workoutIndex);
-            } else if (result.action === "delete") {
-                await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}`, {
-                    method: "DELETE"
+                if (!result) return;
+                if (result.action === "save") {
+                    await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(result.data)
+                    });
+                    viewWorkout(workoutIndex);
+                } else if (result.action === "delete") {
+                    await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/${exercise.id}`, {
+                        method: "DELETE"
+                    });
+                    viewWorkout(workoutIndex);
+                }
+            };
+            list.appendChild(item);
+            if (workout.exercises.length > 1) {
+                attachLongPressDrag(item, {
+                    onReorder: async function(from, to) {
+                        const [moved] = workout.exercises.splice(from, 1);
+                        workout.exercises.splice(to, 0, moved);
+                        rebuildExerciseList();
+                        const orderedExerciseIds = workout.exercises.map(e => e.id);
+                        const resp = await fetch(`http://localhost:8080/workouts/${workout.id}/exercises/order`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ orderedExerciseIds: orderedExerciseIds })
+                        });
+                        if (!resp.ok) {
+                            const [back] = workout.exercises.splice(to, 1);
+                            workout.exercises.splice(from, 0, back);
+                            rebuildExerciseList();
+                            await showConfirmModal("Couldn't save the new order.", "OK");
+                        }
+                    }
                 });
-                viewWorkout(workoutIndex);
             }
-        };
-        list.appendChild(item);
+        }
     }
+    rebuildExerciseList();
 
     let nextPage = 0;
     let sessionIndex = 1;

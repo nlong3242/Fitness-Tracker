@@ -98,100 +98,75 @@ Positive-delta text uses deeper sage (`#4D9967`) instead of `--action` so it rea
 
 ---
 
-## This Session — Bug Fixes, Polish, Input Validation
+## Frontend Module Architecture
 
-A small grab-bag session. Three real bugs, a couple of UX consistency wins, and a first pass at input validation for the live workout set-logging screen.
+After this session's modular refactor, the frontend lives under `frontend/src/` with one HTML script tag (`<script type="module" src="src/main.js">`) and a flat-by-responsibility ES module layout:
 
-### Bug — Unilateral set rendering after partial logging
+```
+src/
+├── main.js                      — entry; loads workouts, renders landing
+├── config.js                    — API_BASE, CATEGORY_ORDER
+├── state.js                     — { workouts, currentSessionId, currentSessionDate }
+├── api.js                       — every fetch() wrapper, grouped by resource
+├── session.js                   — ensureCurrentSession / maybeCleanupOrphanSession
+├── utils/
+│   ├── format.js                — escapeHtml, formatCategoryLabel, deltaSpan, formatSessionDate
+│   └── dragDrop.js              — attachLongPressDrag
+├── components/
+│   ├── modals.js                — confirm + 3 exercise modals
+│   ├── notesPanel.js
+│   ├── categoryPills.js         — groupExercisesByCategory + renderCategoryPillRow
+│   ├── libraryList.js
+│   └── setInputRow.js           — createInputRow + header + renumber (tightly coupled)
+└── views/
+    ├── landing.js
+    ├── workouts.js              — renderWorkouts + renderCreateWorkoutPage
+    ├── workoutDetail.js
+    ├── library.js
+    ├── exercisePicker.js        — renderMultiSelectExercisePicker + addExercise
+    ├── activeWorkout.js         — startWorkout + finishWorkout
+    └── summary.js               — renderWorkoutSummary + viewSessionSummary
+```
 
-**Symptom.** Log only the L side of Set 1 for a unilateral exercise (e.g., SA triceps extensions), finish the workout, then start the same workout again. The live view rendered only one LEFT row instead of an L1+R1 placeholder pair. Clicking Add Set then produced an asymmetric `L1, L2, R1` layout because the count-of-rows logic added one of each side regardless of starting state.
+### Shared state via a single mutable object
 
-**Root cause.** `startWorkout` iterated `exercise.previousSets` (flat array of all logged sets across sides) and created one row per logged set with `prev.side`. If only L was logged previously, only one LEFT row was created.
+`state.js` exports one constant `state` object — `{ workouts, currentSessionId, currentSessionDate }`. Consumers mutate fields directly (`state.workouts = ...`, `state.currentSessionId = null`). The reference is constant; the fields are free. Avoids the getter/setter ceremony of wrapping every field, and ES module live bindings keep the imported reference always-current across modules.
 
-**Fix.** Mirror the summary view's logic — calculate `pairCount = Math.max(previousLSets.length, previousRSets.length)` and render that many LEFT/RIGHT pairs. The existing `renumberSetRows` already pulls placeholder values from `previousLSets[i]` / `previousRSets[i]` independently, so the per-side placeholders line up correctly.
+### Cycles are safe
 
-### Summary view — Show both sides of a unilateral pair, dash for the unlogged side
+The view graph has cycles (e.g., `workouts → workoutDetail → exercisePicker → workouts`). They don't break because every imported function is used inside an event handler / async callback body, not at module evaluation time. By the time the handler fires, every module has finished loading and the live binding resolves.
 
-Once the live-view bug above was fixed, the post-workout summary was inconsistent: it only rendered rows for sides that had logged sets, so an L-only Set 1 showed as just `Set L1` and `Set R1` was missing entirely. Made the summary always render both `Set L{n}` and `Set R{n}` per pair, with a muted dash (`-` in `--text-muted`) in the weight/reps cells of whichever side wasn't logged. New CSS class `.summary-set-empty` carries the muted styling. Both `viewSessionSummary` (re-opening a past session) and the post-finish summary share the same `renderWorkoutSummary` codepath, so the fix lands on both.
+### Why one entry, not many script tags
 
-A direction discussion was had here — `-` vs explicit "Skipped" label vs blank cells with a subtle bg tint. The em-dash + muted color won for being the lightest treatment that still reads as "intentionally empty" rather than "broken."
+Per-file `<script>` tags would have meant explicit dependency ordering in `index.html` — fragile, easy to break by adding a file. With `type="module"` the import graph handles load order automatically. One tag = one source of truth for the frontend root.
 
-### Bug — Delete workout returned 500 and rolled back
+---
 
-**Symptom.** Clicking delete on a workout returned 500; the frontend optimistically removed the row, but reloading the app brought the workout back from the DB.
+## This Session — Frontend Modular Refactor
 
-**Root cause.** `Workout → Sessions` has `cascade = CascadeType.ALL`, so JPA tried to cascade the delete. But `Session` had no `@OneToMany` inverse mappings to its child entities (`ExerciseSet`, `SessionExercise`) — so the cascade chain stopped at `Session`, and the foreign-key constraint on the children blocked the DB-level delete. The transaction rolled back.
+The 1762-line monolithic `script.js` was split into 19 ES modules under `frontend/src/`. No behavior changes — the goal was structural maintainability only. The full file layout lives in "Frontend Module Architecture" above; this section captures the *why* and the gotchas that came up during the split.
 
-**Fix.** Added bidirectional `@OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)` collections on `Session` for both `sets` and `sessionExercises`. The cascade chain is now `Workout → Sessions → (ExerciseSets + SessionExercises)` end-to-end. No DB schema change — the columns and FK constraints already existed; only Hibernate's cascade behavior at delete time changes. Restarting Spring Boot is enough.
+### Inline `onclick=""` strings → programmatic handlers
 
-### Save Workout — Navigate to the new workout's detail page
+The original embedded HTML attribute handlers like `<button onclick="renderCreateWorkoutPage()">` and `<button class="btn-secondary" onclick="${backOnClick}">`. Inline attribute handlers only see the global scope, and ES module exports never reach `window` — so every one of these would silently break on first click.
 
-After saving a newly-created workout, the app used to land on `renderWorkouts()` (the list). The user observed this didn't match intent — they just created a *specific* workout, so the natural next thing is to see or start *it*, not browse the list of all workouts.
+All converted to `id="..."` + `document.getElementById(...).onclick = fn`, matching the pattern already used in many places (Library page, picker, modals). The only behavioral nuance: `renderWorkoutSummary` used to take a *code string* as its last argument (`"renderWorkouts()"` or `` `viewWorkout(${i})` ``) and interpolate it into HTML for the browser to eval. It now takes an `onBack` callback function instead — cleaner, and module-friendly.
 
-Considered two options: (A) add a second "Save & Start Workout" button alongside Save, or (B) make the existing Save Workout button navigate to `viewWorkout(newIndex)`. Picked B — cleaner, single button, and from `viewWorkout` the Start Workout button is already one click away, which covers the "save and start now" intent anyway.
+### Fetch dedup → api.js
 
-Implementation was a one-line swap in the save handler: `renderWorkouts()` → `viewWorkout(workouts.length - 1)`. The newly-pushed workout is at the end of the in-memory `workouts` array; `viewWorkout` indexes by array position, not id.
+The original had ~25 inline `fetch()` calls scattered through view functions, each repeating the URL, method, headers, and JSON body wrap. All collapsed into `api.js` wrappers grouped by resource (workouts, exercise-link, sessions, sets, exercises). Two internal helpers (`request` and `requestJson`) handle the boilerplate. `fetchPreviousTotals` is the one wrapper that returns the raw `Response` so callers can check `.ok` before parsing — preserves the original "no deltas if endpoint returns non-2xx" behavior.
 
-### New Exercise modal — Pre-select current category pill
+### Small dedup wins along the way
 
-When the user has filtered the library (or the picker) to a specific category and then hits Create Exercise, the modal now pre-selects that category pill. Filtering by Arms is a strong signal that the next exercise being created is an Arms exercise.
+`formatSessionDate` was inlined twice (in `viewWorkout` for the session list, and in `renderWorkoutSummary` for the header) — extracted to `utils/format.js`. `buildLibraryRow` and `createHeaderRow` had no external callers, so they became non-exported module-private functions inside their respective files.
 
-`showExerciseFormModal()` now takes an optional `prefilledCategory` arg. If it matches one of the six real categories, that pill starts `.selected` and `selectedCategory` is initialized accordingly. `"ALL"` and any unknown value fall through to the existing default (nothing selected) — so the "ALL" filter naturally maps to "no preselect."
+### Why `setInputRow` keeps three functions in one file
 
-Both call sites pass through: `showExerciseFormModal(selectedCategory)` on the Library Create button and the picker's Create button.
+Per the "tightly coupled functions stay together" rule. `createInputRow`, `updateHeaderVisibility`, and `renumberSetRows` share a DOM contract (`set-header-row` class, `data-side` attr, `sets-${i}` container id, the `_savedSet` / `_updateDeltas` properties stamped onto each row element). Splitting them would have meant a header-only "DOM contract" module no one would read. They're one file.
 
-### Library navigation — Preserve category filter across create/edit/delete
+### Verification
 
-The picker already navigated to the new exercise's category after creating one (`selectedCategory = created.category`). The library page didn't — it called `renderExerciseLibrary()` with no arg after every action, which always reset to `"ALL"`. Made the library match the picker:
-
-- `renderExerciseLibrary(initialCategory)` — optional arg, defaults to `"ALL"` if omitted.
-- **Create** → `renderExerciseLibrary(data.category)` (the new exercise's category).
-- **Edit save** → `renderExerciseLibrary(result.data.category)` (in case the user re-categorized the exercise during edit).
-- **Delete** → `renderExerciseLibrary(selectedCategory)` (just preserve the current filter).
-
-### Bug — Library opened to "Nothing" instead of "ALL" from landing card
-
-Right after the `initialCategory` arg was added, opening the library from the landing card stopped pre-selecting the ALL pill. Cause: the landing card's click handler was wired as `onclick = renderExerciseLibrary` (function reference), so the browser invoked it with the `MouseEvent` as the first argument. `initialCategory = MouseEvent`, which is truthy, so `selectedCategory = initialCategory || "ALL"` short-circuited to the MouseEvent — no pill matched.
-
-Fix: wrap in a thunk — `onclick = function() { renderExerciseLibrary(); }`. The other internal callers were already passing strings, so this was the only entry point affected.
-
-### Input validation — Live workout set inputs
-
-The set-logging inputs accepted negatives, zero reps, and scroll-wheel changes. First real validation pass on the app.
-
-- **Weight** — `min="0"`, `step="0.5"`. JS rule: `w >= 0`. Zero allowed (intentional — covers bodyweight exercises like pushups, pullups, dips — though there's no dedicated "bodyweight" feature yet). Negatives rejected.
-- **Reps** — `min="1"`, `step="1"`. JS rule: `Number.isInteger(r) && r > 0`. Zero, negatives, and decimals all rejected. Used `Number(value)` instead of `parseInt` so that `5.5` doesn't get silently truncated to `5`.
-- **Wheel scroll** — both inputs blur on wheel: `input.addEventListener("wheel", function() { this.blur(); })`. As soon as the user wheels while focused, the input loses focus, the wheel event then scrolls the page normally, and subsequent wheels also scroll. Doesn't `preventDefault`, so page-scroll-while-input-was-focused works naturally on the next wheel tick.
-
-Validation is silent (no error toast / red border) — invalid inputs simply fail the `persist()` early-return check, so no save happens and the row stays unsaved. Matches the existing pattern for incomplete inputs (e.g., weight typed but reps blank).
-
-### Saved-state class — Honest dirty/saved signal (Option B)
-
-Bug noticed by the user: once a set saved (green `.saved` border), changing one of the inputs to an invalid value left the green border in place. The change silently didn't persist, but the visual still said "saved." Misleading.
-
-Considered two fixes:
-- **A. Auto-revert invalid input back to last saved value.** Honest about state but destructive — clearing a field as part of editing would snap it back unprompted.
-- **B. Drop the `.saved` class the moment any input value diverges from the persisted value, restore it on PUT success.** Honest about state, non-destructive.
-
-Picked B.
-
-Implementation:
-
-- New helper `refreshSavedClass()` reads both inputs, compares to `row._savedSet.weight` / `.reps`, and `toggle("saved", matches)`.
-- `oninput` on both inputs now wraps `updateDeltas()` + `refreshSavedClass()`. Pure DOM-class work, no network calls — fine to run per-keystroke.
-- `persist()` now adds `.saved` on both the POST path (already did) **and** the PUT path (newly added), so an invalid → valid → save cycle correctly re-greens the row.
-
-State flow:
-
-| Action | `.saved` |
-|---|---|
-| Empty row + typing | off (already correct) |
-| Saved row at rest | on |
-| Saved row, user starts typing | off immediately |
-| Saved row, typed invalid value, blurred | off (persist rejects) |
-| Saved row, typed valid value, blurred | on (PUT succeeds) |
-
-A red-flash enhancement on individual invalid fields was discussed and planned but deferred — the user wanted Option B alone for now. The flash plan, if revisited later: per-field `.invalid` class with a brief `flash-invalid` keyframe animation, added when a non-empty field fails its rule on `change` (blur), removed after ~600 ms. Triggered from inside `persist()` or a new `validate()` step.
+Smoke-tested by clicking through every flow in the browser. No regressions observed. ES module cycles between view files were a concern (workouts ↔ workoutDetail, workoutDetail ↔ exercisePicker, workoutDetail ↔ summary) but all resolve correctly because every import is dereferenced inside function bodies, not at module evaluation.
 
 ---
 
@@ -210,13 +185,10 @@ A red-flash enhancement on individual invalid fields was discussed and planned b
 
 ## Repo State Note
 
-This session's commits on `master`:
+This session's commit on `master`:
 
-- `ee7e877` — Fix unilateral set rendering and workout delete cascade (frontend + backend).
-- `3a74279` — Navigate to new workout's detail page after save.
-- `7a9abf7` — Pre-select category pill in New Exercise modal.
-- `38520ce` — Preserve category filter across library create/edit/delete.
-- `78d05bf` — Default library to ALL when opened from landing page.
-- `4fe09ab` — Tighten set-input validation and dirty state.
+- `57aa2f6` — Refactor frontend script.js into ES modules.
 
-The stray `.class` files at the repo root (`Exercise.class`, `ExerciseSet.class`, `Main.class`, `Workout.class`) and `bash.exe.stackdump` are still untracked leftovers from old console-prototype builds. Still worth a `.gitignore` cleanup at some point but not pulled into the feature commits. The unrelated `.vscode/settings.json` modification was likewise left out of feature commits.
+Plus a follow-up SESSION_NOTES commit capturing this section.
+
+The stray `.class` files at the repo root (`Exercise.class`, `ExerciseSet.class`, `Main.class`, `Workout.class`) and `bash.exe.stackdump` are still untracked leftovers from old console-prototype builds. Still worth a `.gitignore` cleanup at some point but not pulled into the feature commit. The unrelated `.vscode/settings.json` modification was likewise left out.

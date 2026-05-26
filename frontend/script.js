@@ -1262,8 +1262,10 @@ async function startWorkout(workoutIndex) {
 
         const container = document.getElementById("sets-" + i);
         if (isUnilateral) {
-            for (const prev of exercise.previousSets) {
-                container.appendChild(createInputRow(workout, exercise, i, prev.side));
+            const pairCount = Math.max(exercise.previousLSets.length, exercise.previousRSets.length);
+            for (let k = 0; k < pairCount; k++) {
+                container.appendChild(createInputRow(workout, exercise, i, "LEFT"));
+                container.appendChild(createInputRow(workout, exercise, i, "RIGHT"));
             }
         } else {
             for (let k = 0; k < exercise.previousSets.length; k++) {
@@ -1645,6 +1647,7 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
                 const prevLeft = lastSets.filter(s => s.side === "LEFT");
                 const prevRight = lastSets.filter(s => s.side === "RIGHT");
                 const pairs = Math.max(leftSets.length, rightSets.length);
+                const emptyCell = `<div class="summary-set-cell summary-set-empty">-</div>`;
                 for (let k = 0; k < pairs; k++) {
                     const L = leftSets[k];
                     const R = rightSets[k];
@@ -1659,6 +1662,14 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
                                 <div class="summary-set-cell">${L.reps}${rd}</div>
                             </div>
                         `;
+                    } else {
+                        rows += `
+                            <div class="summary-set-row">
+                                <div class="summary-set-num">Set L${k + 1}</div>
+                                ${emptyCell}
+                                ${emptyCell}
+                            </div>
+                        `;
                     }
                     if (R) {
                         const prev = prevRight[k];
@@ -1669,6 +1680,14 @@ async function renderWorkoutSummary(workout, sessionId, sessionDate, backOnClick
                                 <div class="summary-set-num">Set R${k + 1}</div>
                                 <div class="summary-set-cell">${R.weight}${wd}</div>
                                 <div class="summary-set-cell">${R.reps}${rd}</div>
+                            </div>
+                        `;
+                    } else {
+                        rows += `
+                            <div class="summary-set-row">
+                                <div class="summary-set-num">Set R${k + 1}</div>
+                                ${emptyCell}
+                                ${emptyCell}
                             </div>
                         `;
                     }

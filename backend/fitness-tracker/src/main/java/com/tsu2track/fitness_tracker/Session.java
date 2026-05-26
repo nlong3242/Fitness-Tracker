@@ -2,15 +2,19 @@
 package com.tsu2track.fitness_tracker;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 
 @Entity
 public class Session {
@@ -25,6 +29,14 @@ public class Session {
     @ManyToOne
     @JoinColumn(name="workout_id")
     private Workout workout;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ExerciseSet> sets = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SessionExercise> sessionExercises = new ArrayList<>();
 
     public Session() {}
     

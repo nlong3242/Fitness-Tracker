@@ -457,6 +457,10 @@ body {
         color: var(--text-primary);
     }
 
+    .summary-set-empty {
+        color: var(--text-muted);
+    }
+
     .delta {
         font-size: 0.85em;
         font-weight: bold;

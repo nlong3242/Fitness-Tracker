@@ -325,7 +325,7 @@ function renderCreateWorkoutPage(initialState) {
             });
         }
         workouts.push(newWorkout);
-        renderWorkouts();
+        viewWorkout(workouts.length - 1);
     };
 
     backBtn.onclick = async function() {

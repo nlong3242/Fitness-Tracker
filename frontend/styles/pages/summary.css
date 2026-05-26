@@ -55,6 +55,48 @@
     box-shadow: 0 2px 6px rgba(247, 183, 195, 0.18);
 }
 
+/* Preview mode — the whole card becomes a navigation button back to the
+   exercise. Reuses the same lift-on-hover treatment as workout list rows. */
+.summary-exercise-card.clickable {
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+
+.summary-exercise-card.clickable:hover {
+    background-color: var(--surface-hover);
+    border-color: var(--accent-pink);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(247, 183, 195, 0.40);
+}
+
+/* Top-of-preview Back link — replaces the fixed Prev arrow on the preview
+   surface so it doesn't sit on top of the tappable exercise list. */
+.summary-back-link {
+    background: transparent;
+    border: none;
+    color: var(--action);
+    font-weight: 700;
+    font-size: 0.95em;
+    padding: 8px 0;
+    margin: 8px 0 4px 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.15s;
+}
+
+.summary-back-link:hover {
+    color: var(--action-hover);
+    background: transparent;
+    transform: none;
+}
+
+.summary-back-glyph {
+    font-size: 1.4em;
+    line-height: 1;
+}
+
 .summary-exercise-name {
     font-size: 1.2em;
     font-weight: bold;

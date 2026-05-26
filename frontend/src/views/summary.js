@@ -33,11 +33,31 @@ export async function viewSessionSummary(workoutIndex, sessionId, sessionDate, o
     workout.exercises = snapshotExercises;
 
     const back = onBack || function() { viewWorkout(workoutIndex); };
-    await renderWorkoutSummary(workout, sessionId, sessionDate, back);
+    await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: back });
 }
 
-export async function renderWorkoutSummary(workout, sessionId, sessionDate, onBack) {
-    clearNavGuard();
+/* options: { onBack, target?, mode?, onFinish?, backLabel?, headingPrefix?,
+              onExerciseClick? }
+   - target: element to write into (defaults to #app-content)
+   - mode: "final" (default) or "preview" — preview adds a Finish button and
+     skips the previous-totals fetch (no completed session to compare against)
+   - onFinish: required when mode is "preview"
+   - headingPrefix: text before workout name (default "Workout Summary -")
+   - onExerciseClick(exercise): when provided, each summary exercise card
+     becomes clickable and calls this with the exercise reference instead
+     of opening the read-only modal */
+export async function renderWorkoutSummary(workout, sessionId, sessionDate, options) {
+    const opts = options || {};
+    const onBack = opts.onBack;
+    const target = opts.target || document.getElementById("app-content");
+    const mode = opts.mode || "final";
+    const onFinish = opts.onFinish;
+    const onExerciseClick = opts.onExerciseClick;
+    const backLabel = opts.backLabel || "Back";
+    const headingPrefix = opts.headingPrefix || "Workout Summary -";
+
+    if (mode === "final") clearNavGuard();
+
     let exercisesCount = 0;
     let setsCount = 0;
     let repsTotal = 0;
@@ -53,22 +73,40 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, onBa
         }
     }
 
-    const formattedDate = formatSessionDate(sessionDate);
+    const formattedDate = sessionDate ? formatSessionDate(sessionDate) : "";
 
-    const prevTotalsResponse = await fetchPreviousTotals(workout.id, sessionId);
     let exercisesDelta = "", setsDelta = "", repsDelta = "", volumeDelta = "";
-    if (prevTotalsResponse.ok) {
-        const prev = await prevTotalsResponse.json();
-        exercisesDelta = deltaSpan(exercisesCount - prev.exercises);
-        setsDelta = deltaSpan(setsCount - prev.sets);
-        repsDelta = deltaSpan(repsTotal - prev.reps);
-        volumeDelta = deltaSpan(volumeTotal - prev.volume);
+    if (mode === "final" && sessionId !== null) {
+        const prevTotalsResponse = await fetchPreviousTotals(workout.id, sessionId);
+        if (prevTotalsResponse.ok) {
+            const prev = await prevTotalsResponse.json();
+            exercisesDelta = deltaSpan(exercisesCount - prev.exercises);
+            setsDelta = deltaSpan(setsCount - prev.sets);
+            repsDelta = deltaSpan(repsTotal - prev.reps);
+            volumeDelta = deltaSpan(volumeTotal - prev.volume);
+        }
     }
 
-    const container = document.getElementById("app-content");
-    container.innerHTML = `
-        <h2>Workout Summary - ${workout.name}</h2>
-        <div class="summary-date">${formattedDate}</div>
+    const actionsHtml = mode === "preview"
+        ? `
+            <div class="page-actions">
+                <button id="summary-finish-btn">Finish Workout</button>
+            </div>
+        `
+        : `
+            <div class="page-actions">
+                <button class="btn-secondary" id="summary-back-btn">${backLabel}</button>
+            </div>
+        `;
+
+    const topBackHtml = mode === "preview" && onBack
+        ? `<button class="summary-back-link" id="summary-top-back-btn"><span class="summary-back-glyph">&#8249;</span> Back</button>`
+        : "";
+
+    target.innerHTML = `
+        ${topBackHtml}
+        <h2>${headingPrefix} ${workout.name}</h2>
+        ${formattedDate ? `<div class="summary-date">${formattedDate}</div>` : ""}
         <div class="summary-stats">
             <div class="stat-box">
                 <div class="stat-label">Exercises</div>
@@ -88,14 +126,18 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, onBa
             </div>
         </div>
         <div id="summary-exercises"></div>
-        <div class="page-actions">
-            <button class="btn-secondary" id="summary-back-btn">Back</button>
-        </div>
+        ${actionsHtml}
     `;
 
-    document.getElementById("summary-back-btn").onclick = onBack;
+    if (mode === "preview") {
+        target.querySelector("#summary-finish-btn").onclick = onFinish;
+        const topBack = target.querySelector("#summary-top-back-btn");
+        if (topBack) topBack.onclick = onBack;
+    } else {
+        target.querySelector("#summary-back-btn").onclick = onBack;
+    }
 
-    const exercisesContainer = document.getElementById("summary-exercises");
+    const exercisesContainer = target.querySelector("#summary-exercises");
     for (const exercise of workout.exercises) {
         const lastSets = await fetchLastSets(workout.id, exercise.id, sessionId);
         const isUnilateral = exercise.unilateral === true;
@@ -186,15 +228,20 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, onBa
 
         const exerciseCard = document.createElement("div");
         exerciseCard.className = "summary-exercise-card";
+        if (onExerciseClick) exerciseCard.classList.add("clickable");
         exerciseCard.innerHTML = `
             <div class="summary-exercise-name">${exercise.name}</div>
             <div class="summary-exercise-count">${exercise.sets.length} sets</div>
             ${setsTableHtml}
         `;
-        exerciseCard.querySelector(".summary-exercise-name").onclick = function() {
-            showExerciseReadOnlyModal(exercise);
-        };
-        exerciseCard.appendChild(createNotesPanel(exercise));
+        if (onExerciseClick) {
+            exerciseCard.onclick = function() { onExerciseClick(exercise); };
+        } else {
+            exerciseCard.querySelector(".summary-exercise-name").onclick = function() {
+                showExerciseReadOnlyModal(exercise);
+            };
+            exerciseCard.appendChild(createNotesPanel(exercise));
+        }
 
         exercisesContainer.appendChild(exerciseCard);
     }

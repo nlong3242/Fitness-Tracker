@@ -57,6 +57,14 @@ export function clearNavGuard() {
     navGuard = null;
 }
 
+/* Toggle the entire bottom nav's visibility. Used by views that need a
+   focused, distraction-free surface (e.g., the live workout preview). The
+   nav guard still protects against programmatic tab switches while hidden. */
+export function setNavVisible(visible) {
+    const nav = document.getElementById("bottom-nav");
+    nav.style.display = visible ? "" : "none";
+}
+
 export function renderBottomNav() {
     const nav = document.getElementById("bottom-nav");
     nav.innerHTML = TABS.map(t => `
@@ -81,6 +89,7 @@ export async function setActiveTab(name) {
         navGuard = null;
     }
     const nav = document.getElementById("bottom-nav");
+    nav.style.display = "";
     for (const cell of nav.querySelectorAll(".nav-tab")) {
         cell.classList.toggle("active", cell.dataset.tab === name);
     }

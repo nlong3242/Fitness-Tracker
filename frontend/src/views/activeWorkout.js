@@ -4,19 +4,31 @@ import {
     fetchLastSets,
     finishSession
 } from "../api.js";
-import { attachLongPressDrag } from "../utils/dragDrop.js";
-import { showExerciseReadOnlyModal, showConfirmModal } from "../components/modals.js";
+import {
+    showExerciseReadOnlyModal,
+    showConfirmModal
+} from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
 import {
     createInputRow,
     updateHeaderVisibility,
     renumberSetRows
 } from "../components/setInputRow.js";
-import { setNavGuard, clearNavGuard } from "../components/bottomNav.js";
+import { attachLongPressDrag } from "../utils/dragDrop.js";
+import { setNavGuard, clearNavGuard, setNavVisible } from "../components/bottomNav.js";
 import { abandonSession } from "../session.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary } from "./summary.js";
 
+/* One exercise visible at a time. The full set of .exercise-card divs is
+   built upfront and inserted into #exercise-cards; only the one with the
+   .active class is displayed. Navigation (prev/next/reorder) toggles which
+   card is active — never rebuilds — so unsaved set inputs, the .saved class
+   on logged sets, and notes drafts all survive page navigation.
+
+   currentIndex tracks position in workout.exercises. After a reorder we
+   look up the current exercise by reference (not by old index) so the user
+   stays on the same exercise even when its position changed. */
 export async function startWorkout(workoutIndex) {
     const workout = state.workouts[workoutIndex];
 
@@ -31,13 +43,24 @@ export async function startWorkout(workoutIndex) {
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
         <h2>${workout.name} - Workout</h2>
+        <div id="exercise-pills"></div>
+        <div id="exercise-nav-row">
+            <button class="exercise-nav-btn exercise-nav-prev" id="exercise-nav-prev">
+                <span class="exercise-nav-glyph">&#8249;</span>
+                <span>Prev</span>
+            </button>
+            <div id="exercise-nav-counter"></div>
+            <button class="exercise-nav-btn exercise-nav-next" id="exercise-nav-next">
+                <span>Next</span>
+                <span class="exercise-nav-glyph">&#8250;</span>
+            </button>
+        </div>
         <div id="exercise-cards"></div>
+        <div id="preview-summary" style="display:none"></div>
         <div class="page-actions">
-            <button id="active-workout-finish-btn">Finish Workout</button>
+            <button id="active-workout-finish-btn">Review &amp; Finish</button>
         </div>
     `;
-
-    document.getElementById("active-workout-finish-btn").onclick = function() { finishWorkout(workoutIndex); };
 
     setNavGuard(async function() {
         if (state.currentSessionId === null) return true;
@@ -48,6 +71,114 @@ export async function startWorkout(workoutIndex) {
     });
 
     const cards = document.getElementById("exercise-cards");
+    const previewArea = document.getElementById("preview-summary");
+    const pillsRow = document.getElementById("exercise-pills");
+    const navRow = document.getElementById("exercise-nav-row");
+    const pageActions = pageContainer.querySelector(".page-actions");
+    const navCounter = document.getElementById("exercise-nav-counter");
+    const prevBtn = document.getElementById("exercise-nav-prev");
+    const nextBtn = document.getElementById("exercise-nav-next");
+
+    /* currentIndex semantics:
+         0 .. workout.exercises.length - 1  → an exercise is visible
+         workout.exercises.length           → the preview summary is visible */
+    let currentIndex = 0;
+
+    function isOnPreview() {
+        return currentIndex === workout.exercises.length;
+    }
+
+    async function setActive(newIndex) {
+        currentIndex = newIndex;
+        const total = workout.exercises.length;
+
+        // Pills active state — none active during preview.
+        for (let i = 0; i < pillsRow.children.length; i++) {
+            pillsRow.children[i].classList.toggle("active", i === currentIndex);
+        }
+
+        if (isOnPreview()) {
+            for (const c of cards.children) c.classList.remove("active");
+            previewArea.style.display = "block";
+            pillsRow.style.display = "none";
+            navRow.style.display = "none";
+            pageActions.style.display = "none";
+            setNavVisible(false);
+            await renderWorkoutSummary(workout, state.currentSessionId, state.currentSessionDate, {
+                target: previewArea,
+                mode: "preview",
+                headingPrefix: "Preview -",
+                onBack: function() { setActive(total - 1); },
+                onFinish: function() { commitFinish(); },
+                onExerciseClick: function(exercise) {
+                    const idx = workout.exercises.indexOf(exercise);
+                    if (idx >= 0) setActive(idx);
+                }
+            });
+        } else {
+            previewArea.style.display = "none";
+            pillsRow.style.display = "";
+            navRow.style.display = "";
+            pageActions.style.display = "";
+            setNavVisible(true);
+            for (let i = 0; i < cards.children.length; i++) {
+                cards.children[i].classList.toggle("active", i === currentIndex);
+            }
+            navCounter.textContent = `${currentIndex + 1} / ${total}`;
+            prevBtn.disabled = currentIndex === 0;
+            nextBtn.disabled = false;
+            // Scroll active pill into view if it's off-screen horizontally
+            const activePill = pillsRow.children[currentIndex];
+            if (activePill) activePill.scrollIntoView({ block: "nearest", inline: "nearest" });
+        }
+    }
+
+    prevBtn.onclick = function() {
+        if (currentIndex > 0) setActive(currentIndex - 1);
+    };
+    nextBtn.onclick = function() {
+        if (currentIndex < workout.exercises.length) setActive(currentIndex + 1);
+    };
+
+    document.getElementById("active-workout-finish-btn").onclick = function() {
+        setActive(workout.exercises.length);
+    };
+
+    /* Handle a pill drag-to-reorder. The helper leaves the dragged pill in
+       its original DOM position (just snaps the position:fixed lift back),
+       so we manually move the pill, the workout.exercises entry, and the
+       exercise-cards DOM into their new positions, then re-renumber pill
+       labels and refresh the active state by exercise reference. */
+    function onPillReorder(from, to) {
+        const wasOnPreview = isOnPreview();
+        const currentRef = wasOnPreview ? null : workout.exercises[currentIndex];
+
+        const [moved] = workout.exercises.splice(from, 1);
+        workout.exercises.splice(to, 0, moved);
+
+        const pillEl = pillsRow.children[from];
+        pillsRow.removeChild(pillEl);
+        const pillRef = pillsRow.children[to] || null;
+        pillsRow.insertBefore(pillEl, pillRef);
+
+        const cardEl = cards.children[from];
+        cards.removeChild(cardEl);
+        const refNode = cards.children[to] || null;
+        cards.insertBefore(cardEl, refNode);
+
+        for (let i = 0; i < pillsRow.children.length; i++) {
+            pillsRow.children[i].textContent = String(i + 1);
+        }
+
+        const total = workout.exercises.length;
+        if (wasOnPreview) {
+            setActive(total);
+        } else {
+            const newIdx = workout.exercises.indexOf(currentRef);
+            setActive(newIdx >= 0 ? newIdx : 0);
+        }
+    }
+
     for (let i = 0; i < workout.exercises.length; i++) {
         const exercise = workout.exercises[i];
         const isUnilateral = exercise.unilateral === true;
@@ -58,8 +189,24 @@ export async function startWorkout(workoutIndex) {
             exercise.previousRSets = exercise.previousSets.filter(s => s.side === "RIGHT");
         }
 
+        // Pill — tap to jump, long-press + horizontal drag to reorder.
+        const pill = document.createElement("button");
+        pill.className = "exercise-pill";
+        pill.textContent = String(i + 1);
+        pill.onclick = function() {
+            const idx = Array.from(pillsRow.children).indexOf(pill);
+            if (idx >= 0) setActive(idx);
+        };
+        if (workout.exercises.length > 1) {
+            attachLongPressDrag(pill, {
+                axis: "x",
+                onReorder: onPillReorder
+            });
+        }
+        pillsRow.appendChild(pill);
+
         const card = document.createElement("div");
-        card.className = "exercise-card draggable-row";
+        card.className = "exercise-card";
         card.innerHTML = `
             <h3 class="exercise-card-title">${exercise.name}</h3>
             <div id="sets-${i}"></div>
@@ -100,34 +247,23 @@ export async function startWorkout(workoutIndex) {
         }
         updateHeaderVisibility(i);
         renumberSetRows(i, exercise);
+    }
 
-        if (workout.exercises.length > 1) {
-            attachLongPressDrag(card, {
-                onReorder: function(from, to) {
-                    const [moved] = workout.exercises.splice(from, 1);
-                    workout.exercises.splice(to, 0, moved);
-                    const cardEl = cards.children[from];
-                    cards.removeChild(cardEl);
-                    const refNode = cards.children[to] || null;
-                    cards.insertBefore(cardEl, refNode);
-                }
-            });
+    setActive(0);
+
+    async function commitFinish() {
+        setNavVisible(true);
+        if (state.currentSessionId === null) {
+            clearNavGuard();
+            renderWorkouts();
+            return;
         }
-    }
-}
-
-export async function finishWorkout(workoutIndex) {
-    const workout = state.workouts[workoutIndex];
-    if (state.currentSessionId === null) {
+        const sessionId = state.currentSessionId;
+        const sessionDate = state.currentSessionDate;
+        state.currentSessionId = null;
+        state.currentSessionDate = null;
         clearNavGuard();
-        renderWorkouts();
-        return;
+        await finishSession(sessionId, workout.exercises.map(e => e.id));
+        await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: renderWorkouts });
     }
-    const sessionId = state.currentSessionId;
-    const sessionDate = state.currentSessionDate;
-    state.currentSessionId = null;
-    state.currentSessionDate = null;
-    clearNavGuard();
-    await finishSession(sessionId, workout.exercises.map(e => e.id));
-    await renderWorkoutSummary(workout, sessionId, sessionDate, renderWorkouts);
 }

@@ -1,5 +1,6 @@
 import { CATEGORY_ORDER } from "../config.js";
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
+import { attachLongPressDrag } from "../utils/dragDrop.js";
 
 export function showConfirmModal(message, confirmLabel) {
     return new Promise(function(resolve) {
@@ -341,6 +342,55 @@ export function showExerciseReadOnlyModal(exercise) {
                 </div>
             </div>
         `;
+        document.body.appendChild(overlay);
+        overlay.querySelector(".modal-cancel").onclick = function() {
+            document.body.removeChild(overlay);
+            resolve();
+        };
+    });
+}
+
+/* Reorder modal — vertical draggable list of exercises. onReorder is called
+   each time the user drops a row so the parent view can keep its own state
+   (workout.exercises array and DOM card order) in sync. Resolves when the
+   user closes the modal. */
+export function showReorderModal(workout, onReorder) {
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">Reorder Exercises</div>
+                <ul class="modal-reorder-list"></ul>
+                <div class="modal-actions">
+                    <button class="modal-cancel">Done</button>
+                </div>
+            </div>
+        `;
+        const list = overlay.querySelector(".modal-reorder-list");
+
+        function renderList() {
+            list.innerHTML = "";
+            for (let i = 0; i < workout.exercises.length; i++) {
+                const exercise = workout.exercises[i];
+                const li = document.createElement("li");
+                li.className = "modal-reorder-row draggable-row";
+                li.textContent = `${i + 1}. ${exercise.name}`;
+                list.appendChild(li);
+                if (workout.exercises.length > 1) {
+                    attachLongPressDrag(li, {
+                        onReorder: function(from, to) {
+                            const [moved] = workout.exercises.splice(from, 1);
+                            workout.exercises.splice(to, 0, moved);
+                            onReorder(from, to);
+                            renderList();
+                        }
+                    });
+                }
+            }
+        }
+        renderList();
+
         document.body.appendChild(overlay);
         overlay.querySelector(".modal-cancel").onclick = function() {
             document.body.removeChild(overlay);

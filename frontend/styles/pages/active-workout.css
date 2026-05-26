@@ -1,0 +1,29 @@
+/* Active (in-progress) workout — views/activeWorkout.js.
+   Each exercise renders as a cream card containing:
+   - a clickable title (.exercise-card-title) that opens a read-only details modal
+   - a sets container populated by components/setInputRow.js
+   - the notes panel (components/notesPanel.js) and an Add Set button */
+
+.exercise-card {
+    background-color: var(--surface);
+    color: var(--text-primary);
+    padding: 18px;
+    margin: 12px 0;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(247, 183, 195, 0.18);
+}
+
+.exercise-card h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+}
+
+.exercise-card-title {
+    cursor: pointer;
+    display: inline-block;
+}
+
+.exercise-card-title:hover {
+    color: var(--accent-pink-hover);
+}

@@ -1,0 +1,90 @@
+/* Notes panel — components/notesPanel.js.
+   Three states share one wrapper:
+   - addBtn   (when no note exists yet) → .notes-toggle-btn
+   - readonly (when a saved note exists) → .notes-box
+   - editing  (textarea + save/cancel)   → .notes-panel */
+
+.notes-wrapper {
+    margin-top: 10px;
+}
+
+.notes-toggle-btn {
+    background-color: transparent;
+    color: var(--text-primary);
+    border: 3px solid var(--text-primary);
+    font-size: 0.9em;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.notes-toggle-btn:hover {
+    background-color: rgba(74, 44, 42, 0.10);
+}
+
+.notes-box {
+    margin-top: 8px;
+    background-color: #FFF7F5;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    white-space: pre-wrap;
+    font-size: 0.95em;
+    color: var(--text-primary);
+    transition: border-color 0.15s;
+}
+
+.notes-box:hover {
+    border-color: var(--accent-pink);
+}
+
+.notes-panel {
+    margin-top: 8px;
+    background-color: #FFF7F5;
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+}
+
+.notes-textarea {
+    width: 100%;
+    min-height: 80px;
+    background-color: #FFFFFF;
+    color: var(--text-primary);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    font-family: inherit;
+    font-size: 0.95em;
+    resize: vertical;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+.notes-textarea:focus {
+    outline: none;
+    border-color: var(--accent-pink);
+    border-width: 4px;
+    padding: 6px;
+}
+
+.notes-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.notes-actions button {
+    font-size: 0.9em;
+    padding: 6px 14px;
+}
+
+.notes-cancel {
+    background-color: #C9B0A8;
+    color: var(--text-primary);
+}
+
+.notes-cancel:hover {
+    background-color: #BBA59C;
+}

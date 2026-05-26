@@ -1,0 +1,62 @@
+/* Landing page — views/landing.js.
+   Two-card grid hero ("Workouts" / "Exercise Library").
+   On phones (<=480px) the grid collapses to a single column. */
+
+.landing-hero {
+    text-align: center;
+    margin: 30px 0 40px 0;
+}
+
+.landing-title {
+    font-size: 2em;
+    margin: 0 0 8px 0;
+    color: var(--text-on-dark);
+}
+
+.landing-tagline {
+    color: var(--text-on-dark-muted);
+    margin: 0;
+    font-size: 1.05em;
+}
+
+.landing-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.landing-card {
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, background-color 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 6px rgba(247, 183, 195, 0.18);
+}
+
+.landing-card:hover {
+    background-color: var(--surface-hover);
+    border-color: var(--accent-pink);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(247, 183, 195, 0.40);
+}
+
+.landing-card-title {
+    font-size: 1.4em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.landing-card-desc {
+    color: var(--text-muted);
+    font-size: 0.95em;
+}
+
+@media (max-width: 480px) {
+    .landing-card-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,19 @@
+/* Design tokens — palette, surfaces, and semantic colors.
+   Mirrors the "Palette tokens" section of SESSION_NOTES.md. */
+
+:root {
+    --bg: #2A1F1E;
+    --surface: #E0CAC5;
+    --surface-hover: #E7D1CC;
+    --accent-pink: #F7B7C3;
+    --accent-pink-hover: #E89AA8;
+    --text-primary: #4A2C2A;
+    --text-muted: #8B6B6B;
+    --text-on-dark: #F0DDD4;
+    --text-on-dark-muted: #C9B5AC;
+    --border: #E8D0CC;
+    --action: #6FBF8E;
+    --action-hover: #57A675;
+    --danger: #DC5947;
+    --danger-hover: #BF4232;
+}

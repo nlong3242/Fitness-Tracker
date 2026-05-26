@@ -1,0 +1,117 @@
+/* Workout summary — views/summary.js.
+   Renders end-of-session and historical session views with:
+   - 2x2 stat grid (.summary-stats / .stat-box)
+   - per-exercise card (.summary-exercise-card) with a sets table
+     (.summary-set-header + .summary-set-row + .summary-set-cell)
+   - delta badges (.delta.pos / .delta.neg) inline in numbers */
+
+.summary-date {
+    font-size: 1.1em;
+    color: var(--text-on-dark-muted);
+    margin-bottom: 15px;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.stat-box {
+    background-color: var(--surface);
+    color: var(--text-primary);
+    padding: 15px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(247, 183, 195, 0.18);
+}
+
+.stat-label {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.stat-unit {
+    font-size: 0.7em;
+    font-weight: normal;
+    color: var(--text-muted);
+}
+
+.stat-value {
+    font-size: 1.3em;
+    color: var(--text-primary);
+}
+
+.summary-exercise-card {
+    background-color: var(--surface);
+    color: var(--text-primary);
+    padding: 18px;
+    margin: 12px 0;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(247, 183, 195, 0.18);
+}
+
+.summary-exercise-name {
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    display: inline-block;
+    color: var(--text-primary);
+}
+
+.summary-exercise-name:hover {
+    color: var(--accent-pink-hover);
+}
+
+.summary-exercise-count {
+    color: #4D9967;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.summary-set-header,
+.summary-set-row {
+    display: grid;
+    grid-template-columns: 70px 1fr 1fr;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.summary-set-header {
+    color: var(--text-muted);
+    font-weight: bold;
+    border-bottom: 1px solid var(--border);
+}
+
+.summary-set-row {
+    border-bottom: 1px solid var(--border);
+}
+
+.summary-set-num {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.summary-set-empty {
+    color: var(--text-muted);
+}
+
+/* Delta badges used inline inside .stat-value and .summary-set-cell.
+   Positive uses deeper sage so it reads cleanly on cream surfaces
+   (vs --action, which is too bright as text). */
+.delta {
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+.delta.pos {
+    color: #4CAF50;
+}
+
+.delta.neg {
+    color: #e74c3c;
+}

@@ -1,0 +1,109 @@
+/* Set input row — components/setInputRow.js (Live Workout sets).
+   Three tightly coupled pieces share a DOM contract here:
+   - the header row (.set-header-row)
+   - per-set rows (.set-input-row) with weight + reps inputs and a cancel button
+   - delta badges (.set-input-delta.pos / .neg) overlaid on each input
+
+   Saved-state class: a row gains `.saved` once its values persist to the API,
+   producing a 4px sage border (same width as the pink focus state — see
+   SESSION_NOTES "Input treatment"). */
+
+.set-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+}
+
+.set-input-num {
+    font-weight: bold;
+    min-width: 70px;
+    font-size: 1.2em;
+}
+
+.set-input {
+    background-color: #F0D9D3;
+    color: var(--text-primary);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    width: 100px;
+    font-size: 1.2em;
+    font-weight: bold;
+    -moz-appearance: textfield;
+    appearance: textfield;
+    transition: border-color 0.15s;
+}
+
+.set-input:focus {
+    outline: none;
+    border-color: var(--accent-pink);
+    border-width: 4px;
+    padding: 10px 12px;
+}
+
+.set-input::-webkit-inner-spin-button,
+.set-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.set-input::placeholder {
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
+.set-input-cell {
+    position: relative;
+    display: inline-block;
+}
+
+.set-input-delta {
+    position: absolute;
+    top: 3px;
+    right: 8px;
+    font-size: 0.95em;
+    font-weight: bold;
+    pointer-events: none;
+}
+
+.set-input-delta.pos {
+    color: #4D9967;
+}
+
+.set-input-delta.neg {
+    color: var(--danger);
+}
+
+/* Saved state — strong sage border signals "this is logged". */
+.set-input-row.saved .set-input {
+    border-color: var(--action);
+    border-width: 4px;
+    padding: 10px 12px;
+}
+
+.set-header-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.set-header-cell {
+    width: 128px;
+    text-align: center;
+    font-size: 1.1em;
+}
+
+.set-input-cancel {
+    padding: 6px 10px;
+    font-size: 0.9em;
+    background-color: var(--danger);
+    color: white;
+}
+
+.set-input-cancel:hover {
+    background-color: var(--danger-hover);
+}

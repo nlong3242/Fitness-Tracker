@@ -1,0 +1,56 @@
+/* Base element styling — body, headings, lists.
+   Lists carry the cream "card row" treatment used everywhere
+   (workout list, library list, create-workout pending rows). */
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: var(--bg);
+    color: var(--text-on-dark);
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    background-color: var(--surface);
+    color: var(--text-primary);
+    padding: 14px 18px;
+    margin: 8px 0;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.15s, background-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 4px rgba(247, 183, 195, 0.15);
+}
+
+li:hover {
+    background-color: var(--surface-hover);
+    border-color: var(--accent-pink);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(247, 183, 195, 0.30);
+}
+
+li button {
+    background-color: var(--danger);
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 700;
+}
+
+li button:hover {
+    background-color: var(--danger-hover);
+}

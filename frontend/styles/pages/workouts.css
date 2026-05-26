@@ -1,0 +1,34 @@
+/* Workouts list + Create Workout — views/workouts.js.
+   The plain list and Delete buttons inherit base/elements.css.
+   This file owns the Create Workout form (workout name input). */
+
+.create-workout-form {
+    margin: 15px 0;
+}
+
+.create-workout-form label {
+    display: block;
+    color: var(--text-on-dark);
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.create-workout-form input[type="text"] {
+    background-color: #FFFFFF;
+    color: var(--text-primary);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 1em;
+    box-sizing: border-box;
+    width: 100%;
+    font-family: inherit;
+    transition: border-color 0.15s;
+}
+
+.create-workout-form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent-pink);
+    border-width: 4px;
+    padding: 8px 10px;
+}

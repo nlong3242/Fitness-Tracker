@@ -1,0 +1,16 @@
+/* Category-grouped exercise list — components/libraryList.js.
+   When "ALL" is selected, exercises are bucketed under a category heading.
+   The list rows themselves are plain <li>s and inherit the base
+   .li / li:hover treatment from base/elements.css. */
+
+.library-group {
+    margin-bottom: 20px;
+}
+
+.library-group-heading {
+    color: var(--text-on-dark-muted);
+    border-bottom: 1px solid rgba(247, 183, 195, 0.25);
+    padding-bottom: 6px;
+    margin: 16px 0 8px 0;
+    font-size: 1.1em;
+}

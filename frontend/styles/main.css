@@ -1,0 +1,33 @@
+/* Entry stylesheet — referenced by index.html.
+   Order matters: tokens → base → layout → components → pages → animations.
+   Each @import targets one cohesive module that maps to a JS module under
+   frontend/src/. See SESSION_NOTES.md for the broader architecture context. */
+
+/* 1. Design tokens (must load first — every other file uses var(--*)). */
+@import url("./base/variables.css");
+
+/* 2. Base — raw element styling and the global button system. */
+@import url("./base/elements.css");
+@import url("./base/buttons.css");
+
+/* 3. Layout — page-level primitives (#container, .page-actions, empty state). */
+@import url("./layout/page.css");
+
+/* 4. Components — reusable widgets owned by frontend/src/components/. */
+@import url("./components/modals.css");
+@import url("./components/notes-panel.css");
+@import url("./components/category-pills.css");
+@import url("./components/library-list.css");
+@import url("./components/set-input-row.css");
+
+/* 5. Pages — view-specific styling owned by frontend/src/views/. */
+@import url("./pages/landing.css");
+@import url("./pages/workouts.css");
+@import url("./pages/workout-detail.css");
+@import url("./pages/exercise-picker.css");
+@import url("./pages/active-workout.css");
+@import url("./pages/summary.css");
+
+/* 6. Animations / effects (load last so .dragging / .drag-placeholder
+      can use !important to override the underlying card/row styles). */
+@import url("./animations/drag-drop.css");

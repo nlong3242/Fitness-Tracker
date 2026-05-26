@@ -1,0 +1,38 @@
+/* Long-press drag-to-reorder — utils/dragDrop.js.
+   Three surfaces use this: Create Workout pending list, View Workout
+   exercise list, and the live Active Workout cards.
+
+   - .draggable-row:    rows that opt in (prevents vertical-scroll hijack on mobile).
+   - .dragging:         the lifted row while being dragged (sage glow, scale up).
+   - .drag-placeholder: dashed-pink ghost holding the original slot.
+
+   Selectors are intentionally global (no `li.` prefix) so the same visual
+   treatment applies to <li> rows AND to .exercise-card <div>s in the
+   live-workout flow — see SESSION_NOTES Phase 3 "CSS note". */
+
+.draggable-row {
+    touch-action: pan-y;
+}
+
+.dragging {
+    cursor: grabbing !important;
+    transform: scale(1.02) !important;
+    box-shadow: 0 10px 26px rgba(111, 191, 142, 0.45) !important;
+    border-color: var(--action) !important;
+    background-color: var(--surface-hover) !important;
+}
+
+.drag-placeholder {
+    box-sizing: border-box;
+    background: transparent !important;
+    border: 2px dashed var(--accent-pink) !important;
+    box-shadow: none !important;
+    pointer-events: none;
+}
+
+.drag-placeholder:hover {
+    transform: none !important;
+    background: transparent !important;
+    border-color: var(--accent-pink) !important;
+    box-shadow: none !important;
+}

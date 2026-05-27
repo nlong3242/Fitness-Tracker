@@ -2,7 +2,8 @@ import { state } from "../state.js";
 import {
     fetchWorkoutExercises,
     fetchLastSets,
-    finishSession
+    finishSession,
+    updateSchedule
 } from "../api.js";
 import {
     showExerciseReadOnlyModal,
@@ -29,7 +30,24 @@ import { renderWorkoutSummary } from "./summary.js";
    currentIndex tracks position in workout.exercises. After a reorder we
    look up the current exercise by reference (not by old index) so the user
    stays on the same exercise even when its position changed. */
-export async function startWorkout(workoutIndex) {
+/* options (optional):
+   - scheduledWorkoutId: id of the ScheduledWorkout this session fulfills. If
+     present, on a successful finish (a real session was created and saved),
+     the schedule is PATCHed to COMPLETED. The PATCH is best-effort —
+     failure is swallowed so the summary still shows. If the user abandons
+     or finishes without logging a single set, no PATCH fires and the
+     schedule stays PLANNED.
+   - onComplete: where to navigate when the workout flow ends. Called both
+     after the "no session logged" early exit AND from the Back button on
+     the workout summary. Default is renderWorkouts. */
+export async function startWorkout(workoutIndex, options) {
+    const scheduledWorkoutId = options && options.scheduledWorkoutId
+        ? options.scheduledWorkoutId
+        : null;
+    const onComplete = options && options.onComplete
+        ? options.onComplete
+        : renderWorkouts;
+
     const workout = state.workouts[workoutIndex];
 
     const exercises = await fetchWorkoutExercises(workout.id);
@@ -255,7 +273,7 @@ export async function startWorkout(workoutIndex) {
         setNavVisible(true);
         if (state.currentSessionId === null) {
             clearNavGuard();
-            renderWorkouts();
+            onComplete();
             return;
         }
         const sessionId = state.currentSessionId;
@@ -264,6 +282,14 @@ export async function startWorkout(workoutIndex) {
         state.currentSessionDate = null;
         clearNavGuard();
         await finishSession(sessionId, workout.exercises.map(e => e.id));
-        await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: renderWorkouts });
+        if (scheduledWorkoutId !== null) {
+            /* Best-effort — if the PATCH fails the summary still renders.
+               The schedule stays PLANNED in that case; user can re-flip
+               manually from the calendar. */
+            try {
+                await updateSchedule(scheduledWorkoutId, { status: "COMPLETED" });
+            } catch (e) { /* swallow */ }
+        }
+        await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: onComplete });
     }
 }

@@ -1,6 +1,7 @@
 import { clearNavGuard, setActiveTab } from "../components/bottomNav.js";
 import { showScheduleModal } from "../components/modals.js";
 import { renderCreateWorkoutPage } from "./workouts.js";
+import { startWorkout } from "./activeWorkout.js";
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
 import {
     fetchSchedulesInRange,
@@ -99,6 +100,7 @@ async function renderMonth() {
 }
 
 function mountSchedulesIntoGrid(container, schedules) {
+    const todayIso = isoDate(new Date());
     const byDate = new Map();
     for (const s of schedules) {
         if (!byDate.has(s.date)) byDate.set(s.date, []);
@@ -116,9 +118,21 @@ function mountSchedulesIntoGrid(container, schedules) {
         const overflow = daySchedules.length - visible.length;
         dotsEl.innerHTML = visible.map(function(s) {
             const name = workoutNameById(s.workoutId);
-            return `<div class="schedule-dot status-${s.status.toLowerCase()}" title="${escapeHtml(name)}"></div>`;
+            const display = effectiveStatus(s, todayIso).toLowerCase();
+            return `<div class="schedule-dot status-${display}" title="${escapeHtml(name)}"></div>`;
         }).join("") + (overflow > 0 ? `<span class="schedule-overflow">+${overflow}</span>` : "");
     });
+}
+
+/* Display-only rule: a PLANNED schedule whose date is in the past is
+   shown as SKIPPED (user didn't do it on time). The DB row keeps its
+   PLANNED status — this is purely how we render. Once stats or
+   reporting need a canonical value the backend can promote this. */
+function effectiveStatus(schedule, todayIso) {
+    if (schedule.status === "PLANNED" && schedule.date < todayIso) {
+        return "SKIPPED";
+    }
+    return schedule.status;
 }
 
 function stepMonth(delta) {
@@ -218,29 +232,69 @@ async function renderDayDetail(iso) {
     if (schedules.length === 0) {
         listEl.innerHTML = `<p class="day-detail-empty">Nothing planned for this day.</p>`;
     } else {
-        listEl.innerHTML = schedules.map(renderScheduleRow).join("");
+        listEl.innerHTML = schedules.map(function(s) {
+            return renderScheduleRow(s, todayIso);
+        }).join("");
+        wireScheduleRowActions(listEl, schedules, iso);
     }
 }
 
-function renderScheduleRow(s) {
-    const isPlanned = s.status === "PLANNED";
-    const statusLower = s.status.toLowerCase();
+function renderScheduleRow(s, todayIso) {
+    const displayStatus = effectiveStatus(s, todayIso);
+    const isStartable = displayStatus === "PLANNED";
+    const statusLower = displayStatus.toLowerCase();
     const name = workoutNameById(s.workoutId);
     return `
         <div class="schedule-row" data-schedule-id="${s.id}">
             <div class="schedule-row-head">
                 <span class="schedule-row-name">${escapeHtml(name)}</span>
-                <span class="schedule-status-badge status-${statusLower}">${s.status}</span>
+                <span class="schedule-status-badge status-${statusLower}">${displayStatus}</span>
             </div>
             ${s.notes ? `<p class="schedule-notes">${escapeHtml(s.notes)}</p>` : ""}
             <div class="schedule-actions">
-                <button class="schedule-action-btn" ${isPlanned ? "" : "disabled"}>Start</button>
-                <button class="schedule-action-btn btn-secondary">Reschedule</button>
-                <button class="schedule-action-btn btn-secondary" ${isPlanned ? "" : "disabled"}>Skip</button>
-                <button class="schedule-action-btn btn-danger">Delete</button>
+                <button class="schedule-action-btn" data-action="start" ${isStartable ? "" : "disabled"}>Start</button>
+                <button class="schedule-action-btn btn-secondary" data-action="reschedule">Reschedule</button>
+                <button class="schedule-action-btn btn-secondary" data-action="skip" ${isStartable ? "" : "disabled"}>Skip</button>
+                <button class="schedule-action-btn btn-danger" data-action="delete">Delete</button>
             </div>
         </div>
     `;
+}
+
+/* Per-row action buttons are wired via delegation on the schedules
+   container. Reschedule / Skip / Delete stay unwired here — step 7. */
+function wireScheduleRowActions(listEl, schedules, dayIso) {
+    listEl.onclick = function(e) {
+        const btn = e.target.closest(".schedule-action-btn");
+        if (!btn || btn.disabled) return;
+        const row = btn.closest(".schedule-row");
+        if (!row) return;
+        const scheduleId = Number(row.dataset.scheduleId);
+        const schedule = schedules.find(function(s) { return s.id === scheduleId; });
+        if (!schedule) return;
+
+        const action = btn.dataset.action;
+        if (action === "start") {
+            startFromSchedule(schedule, dayIso);
+        }
+    };
+}
+
+function startFromSchedule(schedule, dayIso) {
+    const workoutIndex = state.workouts.findIndex(function(w) {
+        return w.id === schedule.workoutId;
+    });
+    if (workoutIndex < 0) {
+        showErrorBanner("Couldn't find this workout — it may have been deleted.");
+        return;
+    }
+    startWorkout(workoutIndex, {
+        scheduledWorkoutId: schedule.id,
+        onComplete: function() {
+            setActiveTab("calendar");
+            renderDayDetail(dayIso);
+        }
+    });
 }
 
 async function openScheduleModal(iso, openOptions) {

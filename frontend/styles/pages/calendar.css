@@ -1,0 +1,16 @@
+/* Calendar — views/calendar.js.
+   Placeholder. Month grid and day-detail panel land in upcoming steps. */
+
+.calendar-placeholder {
+    color: var(--text-on-dark);
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.calendar-placeholder h2 {
+    margin-bottom: 8px;
+}
+
+.calendar-placeholder p {
+    color: var(--text-on-dark-muted);
+}

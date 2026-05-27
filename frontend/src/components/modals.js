@@ -314,6 +314,11 @@ export function showScheduleModal(options) {
        - iso:         the day the user tapped — fixed for the lifetime of the
                       modal (rendered as a subtitle under the title)
        - workouts:    [{ id, name }] — list of workout templates to pick from
+       - preselectWorkoutId: optional id — if it matches a row, that row is
+                             marked selected and the Save button enabled on
+                             open. Used to bounce back from "+ Create new
+                             workout" with the freshly-created template
+                             already chosen.
        - conflictChecker: optional (date, workoutId) => boolean. Used in
                           mock mode to simulate the backend's 409 response.
 
@@ -324,6 +329,7 @@ export function showScheduleModal(options) {
     */
     const tappedIso = options.iso;
     const workouts = options.workouts;
+    const preselectWorkoutId = options.preselectWorkoutId || null;
     const conflictChecker = options.conflictChecker || null;
 
     return new Promise(function(resolve) {
@@ -395,7 +401,17 @@ export function showScheduleModal(options) {
                 clearError();
                 updateSaveState();
             };
+            if (w.id === preselectWorkoutId) {
+                row.classList.add("selected");
+                selectedWorkoutId = w.id;
+            }
             listEl.appendChild(row);
+        }
+
+        updateSaveState();
+        if (preselectWorkoutId !== null) {
+            const preselectedRow = listEl.querySelector(`.workout-picker-row[data-workout-id="${preselectWorkoutId}"]`);
+            if (preselectedRow) preselectedRow.scrollIntoView({ block: "nearest" });
         }
 
         function close(result) {

@@ -207,10 +207,15 @@ function renderDayDetail(iso) {
        stay unwired here — steps 6/7. */
 }
 
-async function openScheduleModal(iso) {
+async function openScheduleModal(iso, openOptions) {
+    const preselectWorkoutId = openOptions && openOptions.preselectWorkoutId
+        ? openOptions.preselectWorkoutId
+        : null;
+
     const result = await showScheduleModal({
         iso: iso,
         workouts: MOCK_WORKOUTS,
+        preselectWorkoutId: preselectWorkoutId,
         conflictChecker: function(date, workoutId) {
             return MOCK_SCHEDULES.some(s => s.date === date && s.workoutId === workoutId);
         }
@@ -219,8 +224,28 @@ async function openScheduleModal(iso) {
     if (!result) return;
 
     if (result.action === "create-new-workout") {
+        /* Route to Create Workout with callbacks that bring the user back
+           to this same modal. On Back: reopen empty. On Created: push the
+           new workout into MOCK_WORKOUTS (so the picker shows it) and
+           reopen with it preselected.
+           returnToScheduleModal() relies on the promise-microtask order
+           of setActiveTab — the .then fires before the browser paints, so
+           the month grid renderCalendarPage paints never reaches the
+           screen (no flash). */
+        async function returnToScheduleModal(reopenOpts) {
+            await setActiveTab("calendar");
+            renderDayDetail(iso);
+            openScheduleModal(iso, reopenOpts);
+        }
+
         await setActiveTab("workouts");
-        renderCreateWorkoutPage();
+        renderCreateWorkoutPage(undefined, {
+            onBack: function() { returnToScheduleModal(undefined); },
+            onCreated: function(newWorkout) {
+                MOCK_WORKOUTS.push({ id: newWorkout.id, name: newWorkout.name });
+                returnToScheduleModal({ preselectWorkoutId: newWorkout.id });
+            }
+        });
         return;
     }
 
@@ -237,9 +262,6 @@ async function openScheduleModal(iso) {
             status: "PLANNED",
             notes: result.data.notes
         });
-        /* Land on the new schedule's day — if the user changed the date
-           in the modal, this is the most useful confirmation that the
-           save took effect. */
         renderDayDetail(result.data.date);
     }
 }

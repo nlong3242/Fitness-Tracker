@@ -50,7 +50,17 @@ export function renderWorkouts() {
     }
 }
 
-export function renderCreateWorkoutPage(initialState) {
+/* options (optional):
+   - onBack(): called instead of renderWorkouts() when Back is tapped (after
+     the discard-confirm). Used by callers like the calendar schedule modal
+     that want to route back to themselves instead of the workout list.
+   - onCreated(newWorkout): called instead of viewWorkout(...) after a
+     successful save. Receives the newly-persisted workout. The default
+     behaviour (navigate into the workout detail) only fires when this is
+     absent.
+   options is forwarded through the exercise-picker round-trip so the
+   callbacks survive if the user opens Add Exercise mid-flow. */
+export function renderCreateWorkoutPage(initialState, options) {
     const draft = initialState || { name: "", pendingExercises: [] };
     const container = document.getElementById("app-content");
     container.innerHTML = `
@@ -121,10 +131,10 @@ export function renderCreateWorkoutPage(initialState) {
             title: `Add to ${workoutLabel}`,
             workoutLabel: workoutLabel,
             excludedIds: draft.pendingExercises.map(e => e.id),
-            onCancel: function() { renderCreateWorkoutPage(draft); },
+            onCancel: function() { renderCreateWorkoutPage(draft, options); },
             onConfirm: function(selected) {
                 draft.pendingExercises.push(...selected);
-                renderCreateWorkoutPage(draft);
+                renderCreateWorkoutPage(draft, options);
             }
         });
     };
@@ -144,7 +154,11 @@ export function renderCreateWorkoutPage(initialState) {
         }
         state.workouts.push(newWorkout);
         clearNavGuard();
-        viewWorkout(state.workouts.length - 1);
+        if (options && options.onCreated) {
+            options.onCreated(newWorkout);
+        } else {
+            viewWorkout(state.workouts.length - 1);
+        }
     };
 
     backBtn.onclick = async function() {
@@ -153,6 +167,10 @@ export function renderCreateWorkoutPage(initialState) {
             if (!confirmed) return;
         }
         clearNavGuard();
-        renderWorkouts();
+        if (options && options.onBack) {
+            options.onBack();
+        } else {
+            renderWorkouts();
+        }
     };
 }

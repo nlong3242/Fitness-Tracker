@@ -463,6 +463,123 @@ export function showScheduleModal(options) {
     });
 }
 
+export function showScheduleForWorkoutModal(options) {
+    /* Mirror of showScheduleModal but inverted — workout is fixed (rendered
+       as the subtitle) and the user picks the date. Used from the workout
+       detail page's Schedule button.
+
+       options:
+       - workoutName:    fixed workout name shown as subtitle
+       - todayIso:       date input's min — past dates are forbidden
+       - onSave(data):   async function receiving { date, notes } and
+                         returning the raw Response. 2xx → close with
+                         { schedule }; 409 → inline conflict; else inline
+                         generic error.
+
+       Resolves to:
+       - null               — Cancel
+       - { schedule: {...} } — saved (parsed body from the 2xx response)
+    */
+    const workoutName = options.workoutName;
+    const todayIso = options.todayIso;
+    const onSave = options.onSave;
+
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">Schedule a workout</div>
+                <div class="modal-form-subtitle">${escapeHtml(workoutName)}</div>
+
+                <div class="modal-inline-error" id="sched-error" hidden></div>
+
+                <div class="modal-field">
+                    <label class="modal-field-label">Date <span class="required">*</span></label>
+                    <input type="date" id="sched-date">
+                </div>
+
+                <div class="modal-field">
+                    <label class="modal-field-label">Notes (optional)</label>
+                    <textarea id="sched-notes" placeholder="Anything to remember for this day?"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="modal-cancel">Cancel</button>
+                    <button class="modal-add" id="sched-save" disabled>Schedule</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const dateInput = overlay.querySelector("#sched-date");
+        const notesInput = overlay.querySelector("#sched-notes");
+        const saveBtn = overlay.querySelector("#sched-save");
+        const errorEl = overlay.querySelector("#sched-error");
+
+        dateInput.min = todayIso;
+
+        function clearError() {
+            errorEl.hidden = true;
+            errorEl.textContent = "";
+        }
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.hidden = false;
+        }
+        function updateSaveState() {
+            saveBtn.disabled = !dateInput.value || dateInput.value < todayIso;
+        }
+
+        dateInput.oninput = function() {
+            clearError();
+            updateSaveState();
+        };
+
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+
+        overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
+
+        saveBtn.onclick = async function() {
+            if (saveBtn.disabled) return;
+            saveBtn.disabled = true;
+            const originalLabel = saveBtn.textContent;
+            saveBtn.textContent = "Scheduling…";
+            clearError();
+
+            let resp;
+            try {
+                resp = await onSave({
+                    date: dateInput.value,
+                    notes: notesInput.value.trim() || null
+                });
+            } catch (e) {
+                showError("Couldn't reach the server. Please try again.");
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+                return;
+            }
+
+            if (resp.ok) {
+                const schedule = await resp.json();
+                close({ schedule: schedule });
+                return;
+            }
+
+            if (resp.status === 409) {
+                showError("This workout is already scheduled for that date.");
+            } else {
+                showError("Couldn't save. Please try again.");
+            }
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalLabel;
+        };
+    });
+}
+
 export function showRescheduleModal(options) {
     /* options:
        - currentIso: the schedule's current date (shown as subtitle so the

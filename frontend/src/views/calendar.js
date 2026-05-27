@@ -36,6 +36,19 @@ export function renderCalendarPage() {
     renderMonth();
 }
 
+/* External callers (e.g., workoutDetail's Schedule button) use this to
+   jump straight to a day's detail. Aligns viewYear/viewMonth so the
+   bottom-nav tap on Calendar lands on the right month grid; the
+   .then runs as a microtask before the next paint so renderCalendarPage's
+   month-grid HTML never reaches the screen. */
+export async function navigateToCalendarDay(iso) {
+    const [y, m] = iso.split("-").map(Number);
+    viewYear = y;
+    viewMonth = m - 1;
+    await setActiveTab("calendar");
+    renderDayDetail(iso);
+}
+
 async function renderMonth() {
     const myToken = ++renderToken;
     const container = document.getElementById("app-content");

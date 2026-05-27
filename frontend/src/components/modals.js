@@ -1,5 +1,5 @@
 import { CATEGORY_ORDER } from "../config.js";
-import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
+import { escapeHtml, formatCategoryLabel, formatSessionDate } from "../utils/format.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 
 export function showConfirmModal(message, confirmLabel) {
@@ -306,6 +306,120 @@ export function showExerciseDetailsModal(exercise, options) {
         };
 
         nameInput.focus();
+    });
+}
+
+export function showScheduleModal(options) {
+    /* options:
+       - iso:         the day the user tapped — fixed for the lifetime of the
+                      modal (rendered as a subtitle under the title)
+       - workouts:    [{ id, name }] — list of workout templates to pick from
+       - conflictChecker: optional (date, workoutId) => boolean. Used in
+                          mock mode to simulate the backend's 409 response.
+
+       Resolves to:
+       - null                                — Cancel
+       - { action: "create-new-workout" }    — user tapped + Create new workout
+       - { action: "save", data: {...} }     — { date, workoutId, notes? }
+    */
+    const tappedIso = options.iso;
+    const workouts = options.workouts;
+    const conflictChecker = options.conflictChecker || null;
+
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">Schedule a workout</div>
+                <div class="modal-form-subtitle">${escapeHtml(formatSessionDate(tappedIso))}</div>
+
+                <div class="modal-inline-error" id="sched-error" hidden></div>
+
+                <div class="modal-field">
+                    <label class="modal-field-label">Workout <span class="required">*</span></label>
+                    <div class="workout-picker-list" id="sched-workout-list"></div>
+                </div>
+
+                <div class="modal-field">
+                    <label class="modal-field-label">Notes (optional)</label>
+                    <textarea id="sched-notes" placeholder="Anything to remember for this day?"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="modal-cancel">Cancel</button>
+                    <button class="modal-add" id="sched-save" disabled>Schedule</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const listEl = overlay.querySelector("#sched-workout-list");
+        const notesInput = overlay.querySelector("#sched-notes");
+        const saveBtn = overlay.querySelector("#sched-save");
+        const errorEl = overlay.querySelector("#sched-error");
+
+        let selectedWorkoutId = null;
+
+        function clearError() {
+            errorEl.hidden = true;
+            errorEl.textContent = "";
+        }
+
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.hidden = false;
+        }
+
+        function updateSaveState() {
+            saveBtn.disabled = selectedWorkoutId === null;
+        }
+
+        const createRow = document.createElement("div");
+        createRow.className = "workout-picker-row create-row";
+        createRow.textContent = "+ Create new workout";
+        createRow.onclick = function() { close({ action: "create-new-workout" }); };
+        listEl.appendChild(createRow);
+
+        for (const w of workouts) {
+            const row = document.createElement("div");
+            row.className = "workout-picker-row";
+            row.dataset.workoutId = w.id;
+            row.textContent = w.name;
+            row.onclick = function() {
+                selectedWorkoutId = w.id;
+                listEl.querySelectorAll(".workout-picker-row").forEach(function(r) {
+                    r.classList.remove("selected");
+                });
+                row.classList.add("selected");
+                clearError();
+                updateSaveState();
+            };
+            listEl.appendChild(row);
+        }
+
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+
+        overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
+
+        saveBtn.onclick = function() {
+            if (selectedWorkoutId === null) return;
+            if (conflictChecker && conflictChecker(tappedIso, selectedWorkoutId)) {
+                showError("This workout is already scheduled for this day.");
+                return;
+            }
+            close({
+                action: "save",
+                data: {
+                    date: tappedIso,
+                    workoutId: selectedWorkoutId,
+                    notes: notesInput.value.trim() || null
+                }
+            });
+        };
     });
 }
 

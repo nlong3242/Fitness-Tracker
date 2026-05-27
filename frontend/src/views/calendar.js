@@ -1,28 +1,40 @@
-import { clearNavGuard } from "../components/bottomNav.js";
+import { clearNavGuard, setActiveTab } from "../components/bottomNav.js";
+import { showScheduleModal } from "../components/modals.js";
+import { renderCreateWorkoutPage } from "./workouts.js";
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
 
 /* Mock data — swapped for fetchSchedulesInRange() in the next step.
    Picked to exercise every visual state: empty days, single pill,
-   multi pill, overflow indicator, today highlight, all three statuses. */
+   multi pill, overflow indicator, today highlight, all three statuses.
+   workoutId mirrors the real shape so the modal's conflict check works. */
+const MOCK_WORKOUTS = [
+    { id: 1, name: "Push Day" },
+    { id: 2, name: "Pull Day" },
+    { id: 3, name: "Leg Day" },
+    { id: 4, name: "Cardio" },
+    { id: 5, name: "Mobility" },
+    { id: 6, name: "Stretch" }
+];
+
 const MOCK_SCHEDULES = [
-    { id: 1, date: "2026-05-04", workoutName: "Push Day", status: "COMPLETED" },
-    { id: 2, date: "2026-05-06", workoutName: "Pull Day", status: "COMPLETED" },
-    { id: 3, date: "2026-05-08", workoutName: "Leg Day", status: "SKIPPED" },
-    { id: 4, date: "2026-05-11", workoutName: "Push Day", status: "COMPLETED" },
-    { id: 5, date: "2026-05-13", workoutName: "Pull Day", status: "COMPLETED" },
-    { id: 6, date: "2026-05-15", workoutName: "Leg Day", status: "COMPLETED" },
-    { id: 7, date: "2026-05-18", workoutName: "Push Day", status: "COMPLETED" },
-    { id: 8, date: "2026-05-20", workoutName: "Pull Day", status: "COMPLETED" },
-    { id: 9, date: "2026-05-22", workoutName: "Leg Day", status: "COMPLETED" },
-    { id: 10, date: "2026-05-25", workoutName: "Push Day", status: "COMPLETED" },
-    { id: 11, date: "2026-05-27", workoutName: "Pull Day", status: "COMPLETED", notes: "Felt strong, hit PR on lat pulldowns" },
-    { id: 12, date: "2026-05-27", workoutName: "Cardio", status: "COMPLETED", notes: null },
-    { id: 13, date: "2026-05-29", workoutName: "Leg Day", status: "PLANNED", notes: "Going heavy on squats" },
-    { id: 14, date: "2026-05-29", workoutName: "Mobility", status: "PLANNED", notes: null },
-    { id: 15, date: "2026-05-29", workoutName: "Cardio", status: "PLANNED", notes: null },
-    { id: 16, date: "2026-05-29", workoutName: "Stretch", status: "PLANNED", notes: null },
-    { id: 17, date: "2026-06-01", workoutName: "Push Day", status: "PLANNED", notes: null },
-    { id: 18, date: "2026-06-03", workoutName: "Pull Day", status: "PLANNED", notes: "Try the new bar grip" },
+    { id: 1, date: "2026-05-04", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
+    { id: 2, date: "2026-05-06", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: null },
+    { id: 3, date: "2026-05-08", workoutId: 3, workoutName: "Leg Day", status: "SKIPPED", notes: null },
+    { id: 4, date: "2026-05-11", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
+    { id: 5, date: "2026-05-13", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: null },
+    { id: 6, date: "2026-05-15", workoutId: 3, workoutName: "Leg Day", status: "COMPLETED", notes: null },
+    { id: 7, date: "2026-05-18", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
+    { id: 8, date: "2026-05-20", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: null },
+    { id: 9, date: "2026-05-22", workoutId: 3, workoutName: "Leg Day", status: "COMPLETED", notes: null },
+    { id: 10, date: "2026-05-25", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
+    { id: 11, date: "2026-05-27", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: "Felt strong, hit PR on lat pulldowns" },
+    { id: 12, date: "2026-05-27", workoutId: 4, workoutName: "Cardio", status: "COMPLETED", notes: null },
+    { id: 13, date: "2026-05-29", workoutId: 3, workoutName: "Leg Day", status: "PLANNED", notes: "Going heavy on squats" },
+    { id: 14, date: "2026-05-29", workoutId: 5, workoutName: "Mobility", status: "PLANNED", notes: null },
+    { id: 15, date: "2026-05-29", workoutId: 4, workoutName: "Cardio", status: "PLANNED", notes: null },
+    { id: 16, date: "2026-05-29", workoutId: 6, workoutName: "Stretch", status: "PLANNED", notes: null },
+    { id: 17, date: "2026-06-01", workoutId: 1, workoutName: "Push Day", status: "PLANNED", notes: null },
+    { id: 18, date: "2026-06-03", workoutId: 2, workoutName: "Pull Day", status: "PLANNED", notes: "Try the new bar grip" },
 ];
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -160,6 +172,7 @@ function renderDayDetail(iso) {
     const container = document.getElementById("app-content");
     const todayIso = isoDate(new Date());
     const isToday = iso === todayIso;
+    const isPast = iso < todayIso;
     const formattedDate = formatSessionDate(iso);
     const schedules = MOCK_SCHEDULES.filter(s => s.date === iso);
     const monthLabel = new Date(viewYear, viewMonth, 1)
@@ -181,13 +194,54 @@ function renderDayDetail(iso) {
                     : schedules.map(renderScheduleRow).join("")}
             </div>
 
-            <button class="day-detail-add-cta" id="day-add">+ Schedule a workout for this day</button>
+            ${isPast ? "" : `<button class="day-detail-add-cta" id="day-add">+ Schedule a workout for this day</button>`}
         </div>
     `;
 
     document.getElementById("day-back").onclick = function() { renderMonth(); };
-    /* day-add and per-row action buttons stay unwired here — they hook up
-       in step 5 (schedule modal) and steps 6/7 (start/reschedule/skip/delete). */
+
+    if (!isPast) {
+        document.getElementById("day-add").onclick = function() { openScheduleModal(iso); };
+    }
+    /* Per-row action buttons (Start / Reschedule / Skip / Delete)
+       stay unwired here — steps 6/7. */
+}
+
+async function openScheduleModal(iso) {
+    const result = await showScheduleModal({
+        iso: iso,
+        workouts: MOCK_WORKOUTS,
+        conflictChecker: function(date, workoutId) {
+            return MOCK_SCHEDULES.some(s => s.date === date && s.workoutId === workoutId);
+        }
+    });
+
+    if (!result) return;
+
+    if (result.action === "create-new-workout") {
+        await setActiveTab("workouts");
+        renderCreateWorkoutPage();
+        return;
+    }
+
+    if (result.action === "save") {
+        const workout = MOCK_WORKOUTS.find(w => w.id === result.data.workoutId);
+        const nextId = MOCK_SCHEDULES.length === 0
+            ? 1
+            : Math.max(...MOCK_SCHEDULES.map(s => s.id)) + 1;
+        MOCK_SCHEDULES.push({
+            id: nextId,
+            date: result.data.date,
+            workoutId: result.data.workoutId,
+            workoutName: workout ? workout.name : "(unknown)",
+            status: "PLANNED",
+            notes: result.data.notes
+        });
+        /* Land on the new schedule's day — if the user changed the date
+           in the modal, this is the most useful confirmation that the
+           save took effect. */
+        renderDayDetail(result.data.date);
+    }
 }
 
 function renderScheduleRow(s) {

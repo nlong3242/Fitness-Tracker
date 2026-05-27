@@ -79,6 +79,13 @@
     margin-bottom: 16px;
 }
 
+.modal-form-subtitle {
+    color: var(--text-muted);
+    font-size: 0.95em;
+    font-weight: 600;
+    margin: -10px 0 18px 0;
+}
+
 .modal-field {
     margin-bottom: 14px;
 }
@@ -189,4 +196,57 @@
 
 .modal-delete:hover {
     background-color: var(--danger-hover);
+}
+
+/* Schedule modal — workout picker list + inline error.
+   Used by showScheduleModal in components/modals.js. */
+
+.modal-inline-error {
+    background-color: rgba(220, 89, 71, 0.12);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.workout-picker-list {
+    background-color: #FFFFFF;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.workout-picker-row {
+    padding: 10px 12px;
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background-color 0.12s, color 0.12s;
+}
+
+.workout-picker-row:hover {
+    background-color: rgba(247, 183, 195, 0.18);
+}
+
+.workout-picker-row.selected {
+    background-color: var(--accent-pink);
+    color: #1F0E0C;
+    font-weight: 700;
+}
+
+.workout-picker-row.create-row {
+    color: var(--accent-pink-deep);
+    font-weight: 700;
+    border: 1px dashed var(--accent-pink-deep);
+    margin-bottom: 4px;
+}
+
+.workout-picker-row.create-row:hover {
+    background-color: rgba(199, 91, 113, 0.12);
 }

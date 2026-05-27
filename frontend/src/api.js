@@ -86,6 +86,30 @@ export function fetchPreviousTotals(workoutId, sessionId) {
     return request("GET", `/workouts/${workoutId}/sessions/${sessionId}/previous-totals`);
 }
 
+// --- Scheduled workouts ---
+
+export function fetchSchedulesInRange(from, to) {
+    return requestJson("GET", `/scheduled-workouts?from=${from}&to=${to}`);
+}
+
+export function fetchSchedulesByDate(date) {
+    return requestJson("GET", `/scheduled-workouts/by-date/${date}`);
+}
+
+// Mutating endpoints return the raw response so callers can branch on
+// status — 409 means the (date, workoutId) pair is already scheduled.
+export function createSchedule(data) {
+    return request("POST", `/scheduled-workouts`, data);
+}
+
+export function updateSchedule(scheduleId, data) {
+    return request("PATCH", `/scheduled-workouts/${scheduleId}`, data);
+}
+
+export function deleteSchedule(scheduleId) {
+    return request("DELETE", `/scheduled-workouts/${scheduleId}`);
+}
+
 // --- Sets ---
 
 export function createSet(sessionId, exerciseId, body) {

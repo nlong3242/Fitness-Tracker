@@ -27,6 +27,10 @@ public class Workout {
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL)
     private List<Session> sessions = new ArrayList<>();
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ScheduledWorkout> scheduledWorkouts = new ArrayList<>();
+
     public Workout() {}
 
     public Workout(String name) {

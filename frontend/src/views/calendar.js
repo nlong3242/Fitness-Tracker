@@ -1,5 +1,5 @@
 import { clearNavGuard } from "../components/bottomNav.js";
-import { escapeHtml } from "../utils/format.js";
+import { escapeHtml, formatSessionDate } from "../utils/format.js";
 
 /* Mock data — swapped for fetchSchedulesInRange() in the next step.
    Picked to exercise every visual state: empty days, single pill,
@@ -15,14 +15,14 @@ const MOCK_SCHEDULES = [
     { id: 8, date: "2026-05-20", workoutName: "Pull Day", status: "COMPLETED" },
     { id: 9, date: "2026-05-22", workoutName: "Leg Day", status: "COMPLETED" },
     { id: 10, date: "2026-05-25", workoutName: "Push Day", status: "COMPLETED" },
-    { id: 11, date: "2026-05-27", workoutName: "Pull Day", status: "COMPLETED" },
-    { id: 12, date: "2026-05-27", workoutName: "Cardio", status: "COMPLETED" },
-    { id: 13, date: "2026-05-29", workoutName: "Leg Day", status: "PLANNED" },
-    { id: 14, date: "2026-05-29", workoutName: "Mobility", status: "PLANNED" },
-    { id: 15, date: "2026-05-29", workoutName: "Cardio", status: "PLANNED" },
-    { id: 16, date: "2026-05-29", workoutName: "Stretch", status: "PLANNED" },
-    { id: 17, date: "2026-06-01", workoutName: "Push Day", status: "PLANNED" },
-    { id: 18, date: "2026-06-03", workoutName: "Pull Day", status: "PLANNED" },
+    { id: 11, date: "2026-05-27", workoutName: "Pull Day", status: "COMPLETED", notes: "Felt strong, hit PR on lat pulldowns" },
+    { id: 12, date: "2026-05-27", workoutName: "Cardio", status: "COMPLETED", notes: null },
+    { id: 13, date: "2026-05-29", workoutName: "Leg Day", status: "PLANNED", notes: "Going heavy on squats" },
+    { id: 14, date: "2026-05-29", workoutName: "Mobility", status: "PLANNED", notes: null },
+    { id: 15, date: "2026-05-29", workoutName: "Cardio", status: "PLANNED", notes: null },
+    { id: 16, date: "2026-05-29", workoutName: "Stretch", status: "PLANNED", notes: null },
+    { id: 17, date: "2026-06-01", workoutName: "Push Day", status: "PLANNED", notes: null },
+    { id: 18, date: "2026-06-03", workoutName: "Pull Day", status: "PLANNED", notes: "Try the new bar grip" },
 ];
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -82,6 +82,20 @@ function renderMonth() {
         viewMonth = t.getMonth();
         renderMonth();
     };
+
+    /* Cell tap → day detail. Event delegation on the grid so we only
+       wire one listener regardless of cell count. Tapping an off-month
+       cell first pulls viewMonth onto that day's month, so backing out
+       lands on the right month. */
+    document.querySelector(".calendar-grid").onclick = function(e) {
+        const cell = e.target.closest(".calendar-cell");
+        if (!cell) return;
+        const iso = cell.dataset.date;
+        const [y, m] = iso.split("-").map(Number);
+        viewYear = y;
+        viewMonth = m - 1;
+        renderDayDetail(iso);
+    };
 }
 
 function stepMonth(delta) {
@@ -140,4 +154,58 @@ function isoDate(d) {
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
+}
+
+function renderDayDetail(iso) {
+    const container = document.getElementById("app-content");
+    const todayIso = isoDate(new Date());
+    const isToday = iso === todayIso;
+    const formattedDate = formatSessionDate(iso);
+    const schedules = MOCK_SCHEDULES.filter(s => s.date === iso);
+    const monthLabel = new Date(viewYear, viewMonth, 1)
+        .toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+    container.innerHTML = `
+        <div class="day-detail-page">
+            <div class="page-actions">
+                <button class="btn-secondary" id="day-back">← Back to ${escapeHtml(monthLabel)}</button>
+            </div>
+
+            <h2 class="day-detail-date">
+                ${isToday ? `<span class="day-detail-today-tag">Today</span> ` : ""}${escapeHtml(formattedDate)}
+            </h2>
+
+            <div class="day-detail-schedules">
+                ${schedules.length === 0
+                    ? `<p class="day-detail-empty">Nothing planned for this day.</p>`
+                    : schedules.map(renderScheduleRow).join("")}
+            </div>
+
+            <button class="day-detail-add-cta" id="day-add">+ Schedule a workout for this day</button>
+        </div>
+    `;
+
+    document.getElementById("day-back").onclick = function() { renderMonth(); };
+    /* day-add and per-row action buttons stay unwired here — they hook up
+       in step 5 (schedule modal) and steps 6/7 (start/reschedule/skip/delete). */
+}
+
+function renderScheduleRow(s) {
+    const isPlanned = s.status === "PLANNED";
+    const statusLower = s.status.toLowerCase();
+    return `
+        <div class="schedule-row" data-schedule-id="${s.id}">
+            <div class="schedule-row-head">
+                <span class="schedule-row-name">${escapeHtml(s.workoutName)}</span>
+                <span class="schedule-status-badge status-${statusLower}">${s.status}</span>
+            </div>
+            ${s.notes ? `<p class="schedule-notes">${escapeHtml(s.notes)}</p>` : ""}
+            <div class="schedule-actions">
+                <button class="schedule-action-btn" ${isPlanned ? "" : "disabled"}>Start</button>
+                <button class="schedule-action-btn btn-secondary">Reschedule</button>
+                <button class="schedule-action-btn btn-secondary" ${isPlanned ? "" : "disabled"}>Skip</button>
+                <button class="schedule-action-btn btn-danger">Delete</button>
+            </div>
+        </div>
+    `;
 }

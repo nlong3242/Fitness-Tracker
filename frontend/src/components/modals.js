@@ -319,18 +319,22 @@ export function showScheduleModal(options) {
                              open. Used to bounce back from "+ Create new
                              workout" with the freshly-created template
                              already chosen.
-       - conflictChecker: optional (date, workoutId) => boolean. Used in
-                          mock mode to simulate the backend's 409 response.
+       - onSave(data):  async function receiving { date, workoutId, notes }
+                        and returning the raw Response from the backend. The
+                        modal disables the Save button during the call, then:
+                          - 2xx  → close with { action: "save", schedule }
+                          - 409  → show inline "already scheduled" + re-enable
+                          - else → show inline generic error + re-enable
 
        Resolves to:
        - null                                — Cancel
        - { action: "create-new-workout" }    — user tapped + Create new workout
-       - { action: "save", data: {...} }     — { date, workoutId, notes? }
+       - { action: "save", schedule: {...} } — saved (post-2xx, schedule parsed)
     */
     const tappedIso = options.iso;
     const workouts = options.workouts;
     const preselectWorkoutId = options.preselectWorkoutId || null;
-    const conflictChecker = options.conflictChecker || null;
+    const onSave = options.onSave;
 
     return new Promise(function(resolve) {
         const overlay = document.createElement("div");
@@ -421,20 +425,40 @@ export function showScheduleModal(options) {
 
         overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
 
-        saveBtn.onclick = function() {
+        saveBtn.onclick = async function() {
             if (selectedWorkoutId === null) return;
-            if (conflictChecker && conflictChecker(tappedIso, selectedWorkoutId)) {
-                showError("This workout is already scheduled for this day.");
-                return;
-            }
-            close({
-                action: "save",
-                data: {
+            saveBtn.disabled = true;
+            const originalLabel = saveBtn.textContent;
+            saveBtn.textContent = "Scheduling…";
+            clearError();
+
+            let resp;
+            try {
+                resp = await onSave({
                     date: tappedIso,
                     workoutId: selectedWorkoutId,
                     notes: notesInput.value.trim() || null
-                }
-            });
+                });
+            } catch (e) {
+                showError("Couldn't reach the server. Please try again.");
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+                return;
+            }
+
+            if (resp.ok) {
+                const schedule = await resp.json();
+                close({ action: "save", schedule: schedule });
+                return;
+            }
+
+            if (resp.status === 409) {
+                showError("This workout is already scheduled for this day.");
+            } else {
+                showError("Couldn't save. Please try again.");
+            }
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalLabel;
         };
     });
 }

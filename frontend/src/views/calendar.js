@@ -2,45 +2,22 @@ import { clearNavGuard, setActiveTab } from "../components/bottomNav.js";
 import { showScheduleModal } from "../components/modals.js";
 import { renderCreateWorkoutPage } from "./workouts.js";
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
-
-/* Mock data — swapped for fetchSchedulesInRange() in the next step.
-   Picked to exercise every visual state: empty days, single pill,
-   multi pill, overflow indicator, today highlight, all three statuses.
-   workoutId mirrors the real shape so the modal's conflict check works. */
-const MOCK_WORKOUTS = [
-    { id: 1, name: "Push Day" },
-    { id: 2, name: "Pull Day" },
-    { id: 3, name: "Leg Day" },
-    { id: 4, name: "Cardio" },
-    { id: 5, name: "Mobility" },
-    { id: 6, name: "Stretch" }
-];
-
-const MOCK_SCHEDULES = [
-    { id: 1, date: "2026-05-04", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
-    { id: 2, date: "2026-05-06", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: null },
-    { id: 3, date: "2026-05-08", workoutId: 3, workoutName: "Leg Day", status: "SKIPPED", notes: null },
-    { id: 4, date: "2026-05-11", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
-    { id: 5, date: "2026-05-13", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: null },
-    { id: 6, date: "2026-05-15", workoutId: 3, workoutName: "Leg Day", status: "COMPLETED", notes: null },
-    { id: 7, date: "2026-05-18", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
-    { id: 8, date: "2026-05-20", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: null },
-    { id: 9, date: "2026-05-22", workoutId: 3, workoutName: "Leg Day", status: "COMPLETED", notes: null },
-    { id: 10, date: "2026-05-25", workoutId: 1, workoutName: "Push Day", status: "COMPLETED", notes: null },
-    { id: 11, date: "2026-05-27", workoutId: 2, workoutName: "Pull Day", status: "COMPLETED", notes: "Felt strong, hit PR on lat pulldowns" },
-    { id: 12, date: "2026-05-27", workoutId: 4, workoutName: "Cardio", status: "COMPLETED", notes: null },
-    { id: 13, date: "2026-05-29", workoutId: 3, workoutName: "Leg Day", status: "PLANNED", notes: "Going heavy on squats" },
-    { id: 14, date: "2026-05-29", workoutId: 5, workoutName: "Mobility", status: "PLANNED", notes: null },
-    { id: 15, date: "2026-05-29", workoutId: 4, workoutName: "Cardio", status: "PLANNED", notes: null },
-    { id: 16, date: "2026-05-29", workoutId: 6, workoutName: "Stretch", status: "PLANNED", notes: null },
-    { id: 17, date: "2026-06-01", workoutId: 1, workoutName: "Push Day", status: "PLANNED", notes: null },
-    { id: 18, date: "2026-06-03", workoutId: 2, workoutName: "Pull Day", status: "PLANNED", notes: "Try the new bar grip" },
-];
+import {
+    fetchSchedulesInRange,
+    fetchSchedulesByDate,
+    createSchedule
+} from "../api.js";
+import { state } from "../state.js";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 let viewYear;
 let viewMonth;
+
+/* renderToken invalidates in-flight fetches whose paint would land on a
+   view the user has already navigated away from. Every render bumps it;
+   each fetch captures the value at call time and bails on mismatch. */
+let renderToken = 0;
 
 export function renderCalendarPage() {
     clearNavGuard();
@@ -52,15 +29,21 @@ export function renderCalendarPage() {
     renderMonth();
 }
 
-function renderMonth() {
+async function renderMonth() {
+    const myToken = ++renderToken;
     const container = document.getElementById("app-content");
     const todayIso = isoDate(new Date());
     const days = buildMonthGrid(viewYear, viewMonth);
     const monthLabel = new Date(viewYear, viewMonth, 1)
         .toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+    /* Shell renders first so the user sees structure immediately. Dots
+       get mounted into existing cells once the fetch resolves — no full
+       re-render, no flash. */
     container.innerHTML = `
         <div class="calendar-page">
+            <div class="calendar-error-banner" id="cal-error" hidden></div>
+
             <div class="calendar-header">
                 <button class="calendar-nav-btn" id="cal-prev" aria-label="Previous month">‹</button>
                 <h2 class="calendar-month-label">${escapeHtml(monthLabel)}</h2>
@@ -75,7 +58,7 @@ function renderMonth() {
             </div>
 
             <div class="calendar-grid">
-                ${days.map(d => renderCell(d, todayIso)).join("")}
+                ${days.map(d => renderCellShell(d, todayIso)).join("")}
             </div>
 
             <div class="calendar-legend">
@@ -95,10 +78,6 @@ function renderMonth() {
         renderMonth();
     };
 
-    /* Cell tap → day detail. Event delegation on the grid so we only
-       wire one listener regardless of cell count. Tapping an off-month
-       cell first pulls viewMonth onto that day's month, so backing out
-       lands on the right month. */
     document.querySelector(".calendar-grid").onclick = function(e) {
         const cell = e.target.closest(".calendar-cell");
         if (!cell) return;
@@ -108,6 +87,38 @@ function renderMonth() {
         viewMonth = m - 1;
         renderDayDetail(iso);
     };
+
+    try {
+        const schedules = await fetchSchedulesInRange(days[0].iso, days[days.length - 1].iso);
+        if (myToken !== renderToken) return;
+        mountSchedulesIntoGrid(container, schedules);
+    } catch (e) {
+        if (myToken !== renderToken) return;
+        showErrorBanner("Couldn't load schedules. Check your connection and try again.");
+    }
+}
+
+function mountSchedulesIntoGrid(container, schedules) {
+    const byDate = new Map();
+    for (const s of schedules) {
+        if (!byDate.has(s.date)) byDate.set(s.date, []);
+        byDate.get(s.date).push(s);
+    }
+
+    const MAX_VISIBLE = 6;
+    container.querySelectorAll(".calendar-cell").forEach(function(cell) {
+        const daySchedules = byDate.get(cell.dataset.date) || [];
+        if (daySchedules.length === 0) return;
+
+        cell.classList.add("has-schedules");
+        const dotsEl = cell.querySelector(".schedule-dots");
+        const visible = daySchedules.slice(0, MAX_VISIBLE);
+        const overflow = daySchedules.length - visible.length;
+        dotsEl.innerHTML = visible.map(function(s) {
+            const name = workoutNameById(s.workoutId);
+            return `<div class="schedule-dot status-${s.status.toLowerCase()}" title="${escapeHtml(name)}"></div>`;
+        }).join("") + (overflow > 0 ? `<span class="schedule-overflow">+${overflow}</span>` : "");
+    });
 }
 
 function stepMonth(delta) {
@@ -116,9 +127,8 @@ function stepMonth(delta) {
     viewMonth = d.getMonth();
 }
 
-/* Builds a 6-row x 7-col grid (42 cells) starting on the Monday of the
-   week that contains the 1st. Always 42 cells so grid height is stable
-   when navigating between months. */
+/* 6-row x 7-col grid (42 cells), Monday-start. Always 42 cells so grid
+   height is stable when navigating months. */
 function buildMonthGrid(year, month) {
     const first = new Date(year, month, 1);
     const mondayOffset = (first.getDay() + 6) % 7;
@@ -136,27 +146,14 @@ function buildMonthGrid(year, month) {
     return days;
 }
 
-function renderCell(day, todayIso) {
+function renderCellShell(day, todayIso) {
     const classes = ["calendar-cell"];
     if (!day.inMonth) classes.push("other-month");
     if (day.iso === todayIso) classes.push("today");
-
-    const schedules = MOCK_SCHEDULES.filter(s => s.date === day.iso);
-    if (schedules.length) classes.push("has-schedules");
-
-    const MAX_VISIBLE = 6;
-    const visible = schedules.slice(0, MAX_VISIBLE);
-    const overflow = schedules.length - visible.length;
-
     return `
         <div class="${classes.join(" ")}" data-date="${day.iso}">
             <div class="calendar-day-num">${day.date.getDate()}</div>
-            <div class="schedule-dots">
-                ${visible.map(s => `
-                    <div class="schedule-dot status-${s.status.toLowerCase()}" title="${escapeHtml(s.workoutName)}"></div>
-                `).join("")}
-                ${overflow > 0 ? `<span class="schedule-overflow">+${overflow}</span>` : ""}
-            </div>
+            <div class="schedule-dots"></div>
         </div>
     `;
 }
@@ -168,18 +165,26 @@ function isoDate(d) {
     return `${y}-${m}-${day}`;
 }
 
-function renderDayDetail(iso) {
+function workoutNameById(workoutId) {
+    const w = state.workouts.find(function(w) { return w.id === workoutId; });
+    return w ? w.name : "(unknown workout)";
+}
+
+async function renderDayDetail(iso) {
+    const myToken = ++renderToken;
     const container = document.getElementById("app-content");
     const todayIso = isoDate(new Date());
     const isToday = iso === todayIso;
     const isPast = iso < todayIso;
     const formattedDate = formatSessionDate(iso);
-    const schedules = MOCK_SCHEDULES.filter(s => s.date === iso);
     const monthLabel = new Date(viewYear, viewMonth, 1)
         .toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
+    /* Shell renders immediately; schedules list mounts after fetch. */
     container.innerHTML = `
         <div class="day-detail-page">
+            <div class="calendar-error-banner" id="cal-error" hidden></div>
+
             <div class="page-actions">
                 <button class="btn-secondary" id="day-back">← Back to ${escapeHtml(monthLabel)}</button>
             </div>
@@ -188,91 +193,43 @@ function renderDayDetail(iso) {
                 ${isToday ? `<span class="day-detail-today-tag">Today</span> ` : ""}${escapeHtml(formattedDate)}
             </h2>
 
-            <div class="day-detail-schedules">
-                ${schedules.length === 0
-                    ? `<p class="day-detail-empty">Nothing planned for this day.</p>`
-                    : schedules.map(renderScheduleRow).join("")}
-            </div>
+            <div class="day-detail-schedules" id="day-schedules"></div>
 
             ${isPast ? "" : `<button class="day-detail-add-cta" id="day-add">+ Schedule a workout for this day</button>`}
         </div>
     `;
 
     document.getElementById("day-back").onclick = function() { renderMonth(); };
-
     if (!isPast) {
         document.getElementById("day-add").onclick = function() { openScheduleModal(iso); };
     }
-    /* Per-row action buttons (Start / Reschedule / Skip / Delete)
-       stay unwired here — steps 6/7. */
-}
 
-async function openScheduleModal(iso, openOptions) {
-    const preselectWorkoutId = openOptions && openOptions.preselectWorkoutId
-        ? openOptions.preselectWorkoutId
-        : null;
-
-    const result = await showScheduleModal({
-        iso: iso,
-        workouts: MOCK_WORKOUTS,
-        preselectWorkoutId: preselectWorkoutId,
-        conflictChecker: function(date, workoutId) {
-            return MOCK_SCHEDULES.some(s => s.date === date && s.workoutId === workoutId);
-        }
-    });
-
-    if (!result) return;
-
-    if (result.action === "create-new-workout") {
-        /* Route to Create Workout with callbacks that bring the user back
-           to this same modal. On Back: reopen empty. On Created: push the
-           new workout into MOCK_WORKOUTS (so the picker shows it) and
-           reopen with it preselected.
-           returnToScheduleModal() relies on the promise-microtask order
-           of setActiveTab — the .then fires before the browser paints, so
-           the month grid renderCalendarPage paints never reaches the
-           screen (no flash). */
-        async function returnToScheduleModal(reopenOpts) {
-            await setActiveTab("calendar");
-            renderDayDetail(iso);
-            openScheduleModal(iso, reopenOpts);
-        }
-
-        await setActiveTab("workouts");
-        renderCreateWorkoutPage(undefined, {
-            onBack: function() { returnToScheduleModal(undefined); },
-            onCreated: function(newWorkout) {
-                MOCK_WORKOUTS.push({ id: newWorkout.id, name: newWorkout.name });
-                returnToScheduleModal({ preselectWorkoutId: newWorkout.id });
-            }
-        });
+    let schedules;
+    try {
+        schedules = await fetchSchedulesByDate(iso);
+    } catch (e) {
+        if (myToken !== renderToken) return;
+        showErrorBanner("Couldn't load this day's schedules.");
         return;
     }
+    if (myToken !== renderToken) return;
 
-    if (result.action === "save") {
-        const workout = MOCK_WORKOUTS.find(w => w.id === result.data.workoutId);
-        const nextId = MOCK_SCHEDULES.length === 0
-            ? 1
-            : Math.max(...MOCK_SCHEDULES.map(s => s.id)) + 1;
-        MOCK_SCHEDULES.push({
-            id: nextId,
-            date: result.data.date,
-            workoutId: result.data.workoutId,
-            workoutName: workout ? workout.name : "(unknown)",
-            status: "PLANNED",
-            notes: result.data.notes
-        });
-        renderDayDetail(result.data.date);
+    const listEl = document.getElementById("day-schedules");
+    if (schedules.length === 0) {
+        listEl.innerHTML = `<p class="day-detail-empty">Nothing planned for this day.</p>`;
+    } else {
+        listEl.innerHTML = schedules.map(renderScheduleRow).join("");
     }
 }
 
 function renderScheduleRow(s) {
     const isPlanned = s.status === "PLANNED";
     const statusLower = s.status.toLowerCase();
+    const name = workoutNameById(s.workoutId);
     return `
         <div class="schedule-row" data-schedule-id="${s.id}">
             <div class="schedule-row-head">
-                <span class="schedule-row-name">${escapeHtml(s.workoutName)}</span>
+                <span class="schedule-row-name">${escapeHtml(name)}</span>
                 <span class="schedule-status-badge status-${statusLower}">${s.status}</span>
             </div>
             ${s.notes ? `<p class="schedule-notes">${escapeHtml(s.notes)}</p>` : ""}
@@ -284,4 +241,57 @@ function renderScheduleRow(s) {
             </div>
         </div>
     `;
+}
+
+async function openScheduleModal(iso, openOptions) {
+    const preselectWorkoutId = openOptions && openOptions.preselectWorkoutId
+        ? openOptions.preselectWorkoutId
+        : null;
+
+    const result = await showScheduleModal({
+        iso: iso,
+        workouts: state.workouts,
+        preselectWorkoutId: preselectWorkoutId,
+        onSave: function(data) { return createSchedule(data); }
+    });
+
+    if (!result) return;
+
+    if (result.action === "create-new-workout") {
+        /* See "tab flash" notes: setActiveTab → renderCalendarPage paints
+           never reach the screen because the .then runs before the next
+           browser paint. */
+        async function returnToScheduleModal(reopenOpts) {
+            await setActiveTab("calendar");
+            renderDayDetail(iso);
+            openScheduleModal(iso, reopenOpts);
+        }
+
+        await setActiveTab("workouts");
+        renderCreateWorkoutPage(undefined, {
+            onBack: function() { returnToScheduleModal(undefined); },
+            onCreated: function(newWorkout) {
+                returnToScheduleModal({ preselectWorkoutId: newWorkout.id });
+            }
+        });
+        return;
+    }
+
+    if (result.action === "save") {
+        renderDayDetail(iso);
+    }
+}
+
+function showErrorBanner(message) {
+    const banner = document.getElementById("cal-error");
+    if (!banner) return;
+    banner.innerHTML = `
+        <span class="cal-error-msg">${escapeHtml(message)}</span>
+        <button class="cal-error-dismiss" aria-label="Dismiss">×</button>
+    `;
+    banner.hidden = false;
+    banner.querySelector(".cal-error-dismiss").onclick = function() {
+        banner.hidden = true;
+        banner.innerHTML = "";
+    };
 }

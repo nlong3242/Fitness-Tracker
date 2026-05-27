@@ -1,16 +1,188 @@
 /* Calendar — views/calendar.js.
-   Placeholder. Month grid and day-detail panel land in upcoming steps. */
+   Month grid with prev/next nav, weekday header, 6x7 day cells, and
+   per-day schedule pills colored by status. */
 
-.calendar-placeholder {
+.calendar-page {
+    padding: 0 2px;
+}
+
+/* --- Header (prev / month label / next) --- */
+
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin: 12px 0 6px 0;
+}
+
+.calendar-month-label {
     color: var(--text-on-dark);
+    margin: 0;
+    min-width: 170px;
     text-align: center;
-    padding: 40px 20px;
+    font-size: 1.2em;
 }
 
-.calendar-placeholder h2 {
-    margin-bottom: 8px;
+.calendar-nav-btn {
+    background: transparent;
+    color: var(--text-on-dark);
+    border: 2px solid var(--accent-pink);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 1.3em;
+    line-height: 1;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.calendar-placeholder p {
+.calendar-nav-btn:hover {
+    background: var(--accent-pink);
+    color: var(--text-primary);
+}
+
+/* --- Toolbar (Today button) --- */
+
+.calendar-toolbar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.calendar-today-btn {
+    background: transparent;
     color: var(--text-on-dark-muted);
+    border: 1px solid var(--text-on-dark-muted);
+    border-radius: 14px;
+    padding: 3px 14px;
+    font-size: 0.8em;
+    font-weight: 600;
 }
+
+.calendar-today-btn:hover {
+    background: var(--text-on-dark-muted);
+    color: var(--bg);
+}
+
+/* --- Weekday header row --- */
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.calendar-weekdays > div {
+    text-align: center;
+    color: var(--text-on-dark-muted);
+    font-size: 0.7em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* --- Day grid --- */
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.calendar-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    min-height: 96px;
+    padding: 5px 5px 6px 5px;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    overflow: hidden;
+}
+
+.calendar-cell:hover {
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.calendar-cell.other-month {
+    opacity: 0.38;
+}
+
+.calendar-cell.today {
+    box-shadow: inset 0 0 0 3px var(--action);
+}
+
+.calendar-day-num {
+    color: var(--text-primary);
+    font-size: 0.92em;
+    font-weight: 700;
+    margin-bottom: 3px;
+    line-height: 1;
+}
+
+/* --- Dots inside a day cell --- */
+
+.schedule-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-content: flex-start;
+    align-items: center;
+}
+
+.schedule-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.schedule-dot.status-planned { background: var(--accent-pink-deep); }
+.schedule-dot.status-completed { background: var(--action); }
+.schedule-dot.status-skipped { background: var(--text-muted); }
+
+.schedule-overflow {
+    font-size: 0.7em;
+    color: var(--text-muted);
+    font-weight: 700;
+    line-height: 1;
+    margin-left: 1px;
+}
+
+/* --- Legend --- */
+
+.calendar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-on-dark-muted);
+    font-size: 0.78em;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-dot.status-planned { background: var(--accent-pink-deep); }
+.legend-dot.status-completed { background: var(--action); }
+.legend-dot.status-skipped { background: var(--text-muted); }

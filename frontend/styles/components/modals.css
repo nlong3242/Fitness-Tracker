@@ -102,6 +102,7 @@
 }
 
 .modal-field input[type="text"],
+.modal-field input[type="date"],
 .modal-field textarea {
     background-color: #FFFFFF;
     color: var(--text-primary);
@@ -116,6 +117,7 @@
 }
 
 .modal-field input[type="text"]:focus,
+.modal-field input[type="date"]:focus,
 .modal-field textarea:focus {
     outline: none;
     border-color: var(--accent-pink);

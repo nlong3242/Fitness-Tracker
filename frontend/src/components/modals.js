@@ -463,6 +463,117 @@ export function showScheduleModal(options) {
     });
 }
 
+export function showRescheduleModal(options) {
+    /* options:
+       - currentIso: the schedule's current date (shown as subtitle so the
+         user can see what they're moving from)
+       - todayIso:   becomes the date input's min — past dates are forbidden
+       - onSave(newDate): async function returning the raw Response from the
+                          backend PATCH. The modal disables the Save button
+                          during the call, then:
+                            - 2xx → close with { schedule } (parsed body)
+                            - 409 → show inline conflict, re-enable
+                            - else → generic inline error, re-enable
+
+       Resolves to:
+       - null               — Cancel
+       - { schedule: {...} } — saved (post-2xx, schedule parsed from response)
+    */
+    const currentIso = options.currentIso;
+    const todayIso = options.todayIso;
+    const onSave = options.onSave;
+
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">Reschedule</div>
+                <div class="modal-form-subtitle">Currently on ${escapeHtml(formatSessionDate(currentIso))}</div>
+
+                <div class="modal-inline-error" id="resched-error" hidden></div>
+
+                <div class="modal-field">
+                    <label class="modal-field-label">New date <span class="required">*</span></label>
+                    <input type="date" id="resched-date">
+                </div>
+
+                <div class="modal-actions">
+                    <button class="modal-cancel">Cancel</button>
+                    <button class="modal-add" id="resched-save" disabled>Reschedule</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const dateInput = overlay.querySelector("#resched-date");
+        const saveBtn = overlay.querySelector("#resched-save");
+        const errorEl = overlay.querySelector("#resched-error");
+
+        dateInput.value = currentIso;
+        dateInput.min = todayIso;
+
+        function clearError() {
+            errorEl.hidden = true;
+            errorEl.textContent = "";
+        }
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.hidden = false;
+        }
+        function updateSaveState() {
+            saveBtn.disabled = !dateInput.value
+                || dateInput.value === currentIso
+                || dateInput.value < todayIso;
+        }
+
+        dateInput.oninput = function() {
+            clearError();
+            updateSaveState();
+        };
+
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+
+        overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
+
+        saveBtn.onclick = async function() {
+            if (saveBtn.disabled) return;
+            const newDate = dateInput.value;
+            saveBtn.disabled = true;
+            const originalLabel = saveBtn.textContent;
+            saveBtn.textContent = "Saving…";
+            clearError();
+
+            let resp;
+            try {
+                resp = await onSave(newDate);
+            } catch (e) {
+                showError("Couldn't reach the server. Please try again.");
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalLabel;
+                return;
+            }
+
+            if (resp.ok) {
+                const schedule = await resp.json();
+                close({ schedule: schedule });
+                return;
+            }
+
+            if (resp.status === 409) {
+                showError("This workout is already scheduled for that date.");
+            } else {
+                showError("Couldn't reschedule. Please try again.");
+            }
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalLabel;
+        };
+    });
+}
+
 export function showExerciseReadOnlyModal(exercise) {
     return new Promise(function(resolve) {
         const overlay = document.createElement("div");

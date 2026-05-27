@@ -1,12 +1,18 @@
 import { clearNavGuard, setActiveTab } from "../components/bottomNav.js";
-import { showScheduleModal } from "../components/modals.js";
+import {
+    showScheduleModal,
+    showRescheduleModal,
+    showConfirmModal
+} from "../components/modals.js";
 import { renderCreateWorkoutPage } from "./workouts.js";
 import { startWorkout } from "./activeWorkout.js";
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
 import {
     fetchSchedulesInRange,
     fetchSchedulesByDate,
-    createSchedule
+    createSchedule,
+    updateSchedule,
+    deleteSchedule
 } from "../api.js";
 import { state } from "../state.js";
 
@@ -262,7 +268,7 @@ function renderScheduleRow(s, todayIso) {
 }
 
 /* Per-row action buttons are wired via delegation on the schedules
-   container. Reschedule / Skip / Delete stay unwired here — step 7. */
+   container — one listener regardless of row count. */
 function wireScheduleRowActions(listEl, schedules, dayIso) {
     listEl.onclick = function(e) {
         const btn = e.target.closest(".schedule-action-btn");
@@ -274,9 +280,10 @@ function wireScheduleRowActions(listEl, schedules, dayIso) {
         if (!schedule) return;
 
         const action = btn.dataset.action;
-        if (action === "start") {
-            startFromSchedule(schedule, dayIso);
-        }
+        if (action === "start") startFromSchedule(schedule, dayIso);
+        else if (action === "skip") skipSchedule(schedule, dayIso, btn);
+        else if (action === "delete") deleteScheduleAction(schedule, dayIso, btn);
+        else if (action === "reschedule") rescheduleSchedule(schedule, dayIso, btn);
     };
 }
 
@@ -295,6 +302,90 @@ function startFromSchedule(schedule, dayIso) {
             renderDayDetail(dayIso);
         }
     });
+}
+
+async function skipSchedule(schedule, dayIso, btn) {
+    btn.disabled = true;
+    const name = workoutNameById(schedule.workoutId);
+    const confirmed = await showConfirmModal(
+        `Skip "${name}" on this day?`,
+        "Skip"
+    );
+    if (!confirmed) {
+        btn.disabled = false;
+        return;
+    }
+    try {
+        const resp = await updateSchedule(schedule.id, { status: "SKIPPED" });
+        if (!resp.ok) {
+            showErrorBanner("Couldn't mark this as skipped. Please try again.");
+            btn.disabled = false;
+            return;
+        }
+    } catch (e) {
+        showErrorBanner("Couldn't reach the server.");
+        btn.disabled = false;
+        return;
+    }
+    renderDayDetail(dayIso);
+}
+
+async function deleteScheduleAction(schedule, dayIso, btn) {
+    btn.disabled = true;
+    const name = workoutNameById(schedule.workoutId);
+    const confirmed = await showConfirmModal(
+        `Delete the scheduled "${name}" for this day?`,
+        "Delete"
+    );
+    if (!confirmed) {
+        btn.disabled = false;
+        return;
+    }
+    try {
+        const resp = await deleteSchedule(schedule.id);
+        if (!resp.ok) {
+            showErrorBanner("Couldn't delete this schedule. Please try again.");
+            btn.disabled = false;
+            return;
+        }
+    } catch (e) {
+        showErrorBanner("Couldn't reach the server.");
+        btn.disabled = false;
+        return;
+    }
+    renderDayDetail(dayIso);
+}
+
+async function rescheduleSchedule(schedule, dayIso, btn) {
+    btn.disabled = true;
+    const todayIso = isoDate(new Date());
+    const result = await showRescheduleModal({
+        currentIso: schedule.date,
+        todayIso: todayIso,
+        onSave: function(newDate) {
+            /* If the schedule was explicitly SKIPPED, treat reschedule as
+               an implicit un-skip → flip back to PLANNED with the new date.
+               Past-PLANNED schedules are PLANNED in the DB (only display
+               flips to SKIPPED), so this branch only fires for genuine
+               user-skipped rows. COMPLETED and PLANNED rows keep their
+               status. */
+            const body = (schedule.status === "SKIPPED")
+                ? { date: newDate, status: "PLANNED" }
+                : { date: newDate };
+            return updateSchedule(schedule.id, body);
+        }
+    });
+
+    if (!result) {
+        btn.disabled = false;
+        return;
+    }
+
+    const newDate = result.schedule.date;
+    const [y, m] = newDate.split("-").map(Number);
+    viewYear = y;
+    viewMonth = m - 1;
+    renderDayDetail(newDate);
 }
 
 async function openScheduleModal(iso, openOptions) {

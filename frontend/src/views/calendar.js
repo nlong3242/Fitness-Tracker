@@ -9,6 +9,7 @@ import { startWorkout } from "./activeWorkout.js";
 import { viewSessionSummary } from "./summary.js";
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
 import {
+    fetchWorkouts,
     fetchSchedulesInRange,
     fetchSchedulesByDate,
     createSchedule,
@@ -16,6 +17,15 @@ import {
     deleteSchedule
 } from "../api.js";
 import { state } from "../state.js";
+
+/* state.workouts is loaded once at startup; exerciseCount goes stale
+   whenever the user links or unlinks an exercise elsewhere. Refresh
+   on every entry into the calendar so the Start gate (which depends
+   on exerciseCount) reflects the current backend state. */
+async function refreshWorkoutsCache() {
+    try { state.workouts = await fetchWorkouts(); }
+    catch (e) { /* keep the stale cache rather than blanking the UI */ }
+}
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -27,13 +37,14 @@ let viewMonth;
    each fetch captures the value at call time and bails on mismatch. */
 let renderToken = 0;
 
-export function renderCalendarPage() {
+export async function renderCalendarPage() {
     clearNavGuard();
     if (viewYear === undefined) {
         const today = new Date();
         viewYear = today.getFullYear();
         viewMonth = today.getMonth();
     }
+    await refreshWorkoutsCache();
     renderMonth();
 }
 
@@ -46,6 +57,10 @@ export async function navigateToCalendarDay(iso) {
     const [y, m] = iso.split("-").map(Number);
     viewYear = y;
     viewMonth = m - 1;
+    /* Refresh BEFORE setActiveTab so renderDayDetail (fire-and-forget
+       after setActiveTab returns) sees fresh data — setActiveTab's
+       internal renderCalendarPage call races concurrently. */
+    await refreshWorkoutsCache();
     await setActiveTab("calendar");
     renderDayDetail(iso);
 }
@@ -204,6 +219,11 @@ function workoutNameById(workoutId) {
     return w ? w.name : "(unknown workout)";
 }
 
+function workoutExerciseCount(workoutId) {
+    const w = state.workouts.find(function(w) { return w.id === workoutId; });
+    return w ? w.exerciseCount : 0;
+}
+
 async function renderDayDetail(iso) {
     const myToken = ++renderToken;
     const container = document.getElementById("app-content");
@@ -261,7 +281,11 @@ async function renderDayDetail(iso) {
 
 function renderScheduleRow(s, todayIso) {
     const displayStatus = effectiveStatus(s, todayIso);
-    const isStartable = displayStatus === "PLANNED";
+    /* Start additionally requires the workout to have at least one
+       exercise — same rule as workoutDetail's Start button. Prevents
+       landing on an empty preview page with nothing to do. */
+    const hasExercises = workoutExerciseCount(s.workoutId) > 0;
+    const isStartable = displayStatus === "PLANNED" && hasExercises;
     /* COMPLETED rows are an immutable historical record — mirrors the
        backend's "Cannot delete a finished session" rule. Reschedule and
        Delete are gated on this, on top of the existing Start/Skip gating. */
@@ -270,6 +294,7 @@ function renderScheduleRow(s, todayIso) {
        on click. Rows without a sessionId are pre-link historical rows and
        silently stay non-clickable. */
     const isViewable = displayStatus === "COMPLETED" && s.sessionId != null;
+    const isSkippable = displayStatus === "PLANNED";
     const statusLower = displayStatus.toLowerCase();
     const name = workoutNameById(s.workoutId);
     return `
@@ -282,7 +307,7 @@ function renderScheduleRow(s, todayIso) {
             <div class="schedule-actions">
                 <button class="schedule-action-btn" data-action="start" ${isStartable ? "" : "disabled"}>Start</button>
                 <button class="schedule-action-btn btn-secondary" data-action="reschedule" ${isEditable ? "" : "disabled"}>Reschedule</button>
-                <button class="schedule-action-btn btn-secondary" data-action="skip" ${isStartable ? "" : "disabled"}>Skip</button>
+                <button class="schedule-action-btn btn-secondary" data-action="skip" ${isSkippable ? "" : "disabled"}>Skip</button>
                 <button class="schedule-action-btn btn-danger" data-action="delete" ${isEditable ? "" : "disabled"}>Delete</button>
             </div>
         </div>

@@ -21,4 +21,11 @@ public interface WorkoutExerciseRepository extends JpaRepository<WorkoutExercise
 
     @Query("SELECT COALESCE(MAX(we.position), -1) FROM WorkoutExercise we WHERE we.workout.id = :workoutId")
     int findMaxPositionForWorkout(@Param("workoutId") Long workoutId);
+
+    @Query("""
+        SELECT COUNT(we) FROM WorkoutExercise we
+        WHERE we.workout.id = :workoutId
+          AND we.exercise.deleted = false
+        """)
+    long countLiveByWorkoutId(@Param("workoutId") Long workoutId);
 }

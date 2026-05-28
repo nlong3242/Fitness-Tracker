@@ -36,13 +36,19 @@ export async function viewWorkout(workoutIndex) {
             <button id="workout-past-sessions-btn">Past Sessions</button>
         </div>
         <ul id="exercise-list"></ul>
+        <div id="exercise-list-empty" class="empty-sessions" hidden></div>
         <div class="page-actions">
             <button class="btn-secondary" id="workout-back-btn">Back</button>
         </div>
     `;
 
     document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutIndex); };
-    document.getElementById("workout-start-btn").onclick = function() { startWorkout(workoutIndex); };
+    const startBtn = document.getElementById("workout-start-btn");
+    if (workout.exercises.length === 0) {
+        startBtn.disabled = true;
+    } else {
+        startBtn.onclick = function() { startWorkout(workoutIndex); };
+    }
     document.getElementById("workout-schedule-btn").onclick = async function() {
         const todayIso = isoToday();
         const result = await showScheduleForWorkoutModal({
@@ -72,8 +78,16 @@ export async function viewWorkout(workoutIndex) {
         return `${y}-${m}-${day}`;
     }
 
+    const emptyState = document.getElementById("exercise-list-empty");
+
     function rebuildExerciseList() {
         list.innerHTML = "";
+        if (workout.exercises.length === 0) {
+            emptyState.textContent = `No exercises for "${workout.name}" yet.`;
+            emptyState.hidden = false;
+            return;
+        }
+        emptyState.hidden = true;
         for (let i = 0; i < workout.exercises.length; i++) {
             const exercise = workout.exercises[i];
             const item = document.createElement("li");

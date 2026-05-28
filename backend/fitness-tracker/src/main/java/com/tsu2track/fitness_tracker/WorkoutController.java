@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tsu2track.fitness_tracker.dto.CreateWorkoutRequest;
+
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/workouts")
 public class WorkoutController {
@@ -62,8 +66,8 @@ public class WorkoutController {
     }
 
     @PostMapping
-    public WorkoutSummary createWorkout(@RequestBody Workout workout){
-        Workout saved = workoutRepository.save(workout);
+    public WorkoutSummary createWorkout(@RequestBody @Valid CreateWorkoutRequest req){
+        Workout saved = workoutRepository.save(new Workout(req.name()));
         return toSummary(saved);
     }
 

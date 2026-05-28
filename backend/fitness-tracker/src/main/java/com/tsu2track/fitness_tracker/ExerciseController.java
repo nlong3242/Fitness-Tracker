@@ -21,6 +21,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.tsu2track.fitness_tracker.dto.CreateExerciseRequest;
+import com.tsu2track.fitness_tracker.dto.UpdateExerciseRequest;
+
+import jakarta.validation.Valid;
+
 @RestController
 public class ExerciseController {
     private final ExerciseRepository exerciseRepository;
@@ -49,25 +54,23 @@ public class ExerciseController {
     }
 
     @PostMapping("/exercises")
-    public Exercise createLibraryExercise(@RequestBody Exercise exercise) {
-        validateExercisePayload(exercise);
-        return exerciseRepository.save(exercise);
+    public Exercise createLibraryExercise(@RequestBody @Valid CreateExerciseRequest req) {
+        return exerciseRepository.save(buildExercise(req));
     }
 
     @PutMapping("/exercises/{id}")
-    public Exercise updateLibraryExercise(@PathVariable Long id, @RequestBody Exercise body) {
+    public Exercise updateLibraryExercise(@PathVariable Long id, @RequestBody @Valid UpdateExerciseRequest body) {
         Exercise existing = exerciseRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
         if (existing.isDeleted()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
-        validateExercisePayload(body);
-        existing.setName(body.getName());
-        existing.setCategory(body.getCategory());
-        existing.setPrimaryMuscleGroups(body.getPrimaryMuscleGroups());
-        existing.setExerciseType(body.getExerciseType());
-        existing.setCues(body.getCues());
-        existing.setUnilateral(body.getUnilateral());
+        existing.setName(body.name());
+        existing.setCategory(body.category());
+        existing.setPrimaryMuscleGroups(body.primaryMuscleGroups());
+        existing.setExerciseType(body.exerciseType());
+        existing.setCues(body.cues());
+        existing.setUnilateral(body.unilateral());
         return exerciseRepository.save(existing);
     }
 
@@ -94,11 +97,10 @@ public class ExerciseController {
     }
 
     @PostMapping("/workouts/{workoutId}/exercises")
-    public Exercise createAndLinkExercise(@RequestBody Exercise exercise, @PathVariable Long workoutId){
-        validateExercisePayload(exercise);
+    public Exercise createAndLinkExercise(@RequestBody @Valid CreateExerciseRequest req, @PathVariable Long workoutId){
         Workout workout = workoutRepository.findById(workoutId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
-        Exercise saved = exerciseRepository.save(exercise);
+        Exercise saved = exerciseRepository.save(buildExercise(req));
         int nextPosition = workoutExerciseRepository.findMaxPositionForWorkout(workoutId) + 1;
         workoutExerciseRepository.save(new WorkoutExercise(workout, saved, nextPosition));
         return saved;
@@ -123,7 +125,7 @@ public class ExerciseController {
     }
 
     @PutMapping("/workouts/{workoutId}/exercises/{id}")
-    public Exercise updateExerciseFromWorkout(@PathVariable Long workoutId, @PathVariable Long id, @RequestBody Exercise body){
+    public Exercise updateExerciseFromWorkout(@PathVariable Long workoutId, @PathVariable Long id, @RequestBody @Valid UpdateExerciseRequest body){
         return updateLibraryExercise(id, body);
     }
 
@@ -180,12 +182,15 @@ public class ExerciseController {
         return exerciseRepository.save(exercise);
     }
 
-    private void validateExercisePayload(Exercise exercise) {
-        if (exercise.getName() == null || exercise.getName().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name is required");
-        }
-        if (exercise.getCategory() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is required");
-        }
+    private Exercise buildExercise(CreateExerciseRequest req) {
+        Exercise exercise = new Exercise();
+        exercise.setName(req.name());
+        exercise.setCategory(req.category());
+        exercise.setPrimaryMuscleGroups(req.primaryMuscleGroups());
+        exercise.setExerciseType(req.exerciseType());
+        exercise.setCues(req.cues());
+        exercise.setNotes(req.notes());
+        exercise.setUnilateral(req.unilateral());
+        return exercise;
     }
 }

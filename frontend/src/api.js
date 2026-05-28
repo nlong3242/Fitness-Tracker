@@ -15,11 +15,12 @@ async function request(method, path, body, _isRetry = false) {
 
     if (response.status === 401 && !_isRetry) {
         clearApiKey();
-        const entered = window.prompt('Enter your API key. (Use "dev-key" for local dev.)');
-        if (entered) {
-            setApiKey(entered);
-            return request(method, path, body, true);
-        }
+        let entered;
+        do {
+            entered = window.prompt('Enter your API key. (Use "dev-key" for local dev.)');
+        } while (!entered);
+        setApiKey(entered);
+        return request(method, path, body, true);
     }
     return response;
 }

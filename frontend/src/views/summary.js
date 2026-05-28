@@ -5,7 +5,7 @@ import {
     fetchLastSets,
     fetchPreviousTotals
 } from "../api.js";
-import { deltaSpan, formatSessionDate } from "../utils/format.js";
+import { deltaSpan, formatSessionDate, escapeHtml } from "../utils/format.js";
 import { showExerciseReadOnlyModal } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
 import { clearNavGuard } from "../components/bottomNav.js";
@@ -105,7 +105,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
 
     target.innerHTML = `
         ${topBackHtml}
-        <h2>${headingPrefix} ${workout.name}</h2>
+        <h2>${headingPrefix} ${escapeHtml(workout.name)}</h2>
         ${formattedDate ? `<div class="summary-date">${formattedDate}</div>` : ""}
         <div class="summary-stats">
             <div class="stat-box">
@@ -230,7 +230,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
         exerciseCard.className = "summary-exercise-card";
         if (onExerciseClick) exerciseCard.classList.add("clickable");
         exerciseCard.innerHTML = `
-            <div class="summary-exercise-name">${exercise.name}</div>
+            <div class="summary-exercise-name">${escapeHtml(exercise.name)}</div>
             <div class="summary-exercise-count">${exercise.sets.length} sets</div>
             ${setsTableHtml}
         `;

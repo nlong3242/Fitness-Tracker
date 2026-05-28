@@ -18,6 +18,7 @@ import { addExercise } from "./exercisePicker.js";
 import { startWorkout } from "./activeWorkout.js";
 import { viewPastSessions } from "./pastSessions.js";
 import { navigateToCalendarDay } from "./calendar.js";
+import { escapeHtml } from "../utils/format.js";
 
 export async function viewWorkout(workoutIndex) {
     clearNavGuard();
@@ -26,7 +27,7 @@ export async function viewWorkout(workoutIndex) {
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>${workout.name}</h2>
+        <h2>${escapeHtml(workout.name)}</h2>
         <div class="page-actions">
             <button id="workout-add-exercise-btn">Add Exercise</button>
             <button id="workout-start-btn">Start Workout</button>

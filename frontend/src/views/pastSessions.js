@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { fetchSessionsPage } from "../api.js";
-import { formatSessionDate } from "../utils/format.js";
+import { formatSessionDate, escapeHtml } from "../utils/format.js";
 import { clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { viewSessionSummary } from "./summary.js";
@@ -11,7 +11,7 @@ export async function viewPastSessions(workoutIndex) {
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>${workout.name} History</h2>
+        <h2>${escapeHtml(workout.name)} History</h2>
         <div id="session-list"></div>
         <button id="load-more-sessions" style="display:none">Load More</button>
         <div class="page-actions">

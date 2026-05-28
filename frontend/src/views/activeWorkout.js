@@ -22,6 +22,7 @@ import { setNavGuard, clearNavGuard, setNavVisible } from "../components/bottomN
 import { abandonSession } from "../session.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary } from "./summary.js";
+import { escapeHtml } from "../utils/format.js";
 
 /* One exercise visible at a time. The full set of .exercise-card divs is
    built upfront and inserted into #exercise-cards; only the one with the
@@ -62,7 +63,7 @@ export async function startWorkout(workoutIndex, options) {
 
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
-        <h2>${workout.name} - Workout</h2>
+        <h2>${escapeHtml(workout.name)} - Workout</h2>
         <div id="exercise-pills"></div>
         <div id="exercise-nav-row">
             <button class="exercise-nav-btn exercise-nav-prev" id="exercise-nav-prev">
@@ -228,7 +229,7 @@ export async function startWorkout(workoutIndex, options) {
         const card = document.createElement("div");
         card.className = "exercise-card";
         card.innerHTML = `
-            <h3 class="exercise-card-title">${exercise.name}</h3>
+            <h3 class="exercise-card-title">${escapeHtml(exercise.name)}</h3>
             <div id="sets-${i}"></div>
         `;
         card.querySelector(".exercise-card-title").onclick = function() {

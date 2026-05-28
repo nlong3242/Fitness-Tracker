@@ -256,6 +256,86 @@ Walked through: open a workout with multiple sessions → click Past Sessions �
 
 ---
 
+## This Session — Calendar ↔ Sessions Unification
+
+The calendar was already wired end-to-end (Start, Skip, Delete, Reschedule, the past-as-skipped display rule, the workout-first Schedule button). This session closed the remaining loops so the calendar truthfully reflects activity in both directions and so the row gestures all map to something sensible.
+
+### Auto-sync finished sessions to the calendar
+
+When a user finishes a workout, the calendar should show it — regardless of whether they started from a schedule or ad-hoc. `activeWorkout.commitFinish` now calls a `syncCalendarOnFinish(workoutId, sessionId, date, scheduledWorkoutId)` helper after `finishSession`. Three branches:
+
+- **Started from schedule** — PATCH that row to `COMPLETED` and link the `sessionId` that just finished.
+- **Ad-hoc, same workout already PLANNED for that date** — PATCH the PLANNED row to `COMPLETED` instead of POSTing a new one. Avoids the backend's `(date, workoutId)` uniqueness reject, and converges to "calendar shows what actually happened" (the planned row gets promoted rather than duplicated).
+- **Ad-hoc, no matching row** — POST a new row carrying `status: COMPLETED` + `sessionId`.
+
+All three swallow failures — the workout summary still renders even if the sync round-trip blows up. Best-effort by design.
+
+The backend changes were narrow: `ScheduledWorkoutController.CreateBody` and `PatchBody` accept optional `status` and `sessionId`. `status` defaults to `PLANNED` via the entity's `@PrePersist` when omitted (so existing POSTs still work unchanged). `sessionId` is validated against `SessionRepository` and linked via the `ScheduledWorkout.session` `@OneToOne` that was already defined on the entity but never populated until now. The existing `getSessionId()` getter auto-serializes through Jackson.
+
+Frontend pulled `sessionDate` from `state.currentSessionDate` (already captured at session creation) instead of parsing `finishSession`'s response — simpler, and means no wrapper changes in `api.js`.
+
+### COMPLETED rows are read-only AND navigable
+
+Two changes on the same row, same status, complementary in intent:
+
+1. **Read-only** — Reschedule and Delete are now disabled on COMPLETED rows (Start and Skip were already disabled because `isStartable` required PLANNED). Mirrors the backend's existing "Cannot delete a finished session" rule from `SessionController.deleteSession`. Finished sessions are immutable historical record; the calendar should reflect that.
+2. **Navigable** — tapping the row body of a COMPLETED row jumps to the session summary via `viewSessionSummary(workoutIndex, sessionId, date, backToDay)`. Reuses the existing summary view; no new rendering code.
+
+`renderScheduleRow` now stamps a `data-click-target` attribute (`"summary"` or `"workout"`) that the click delegation reads. This avoids re-deriving the status inside the click handler and keeps the dispatch declarative.
+
+Click conflict with the action buttons is handled by the same delegation: the handler checks for `.schedule-action-btn` first, and only falls through to the row-body navigation if the click wasn't on a button.
+
+### PLANNED / SKIPPED rows navigate to workoutDetail
+
+Continued the "tap a row to see what it represents" semantic: for COMPLETED it's the session record, for PLANNED/SKIPPED there's no session, so the right target is the workout template. `openWorkoutDetailFromSchedule` calls `setActiveTab("workouts")` first (so the bottom-nav highlight matches the destination) then `viewWorkout(workoutIndex)`, overriding the default workouts-list paint. Same trick `navigateToCalendarDay` uses in reverse from the workoutDetail Schedule button.
+
+Both display-states get this treatment — explicit SKIPPED (user tapped Skip) and display-SKIPPED (PLANNED in the past, shown as SKIPPED via `effectiveStatus`). The underlying schedule still references a workout in both cases, so the click target is the same.
+
+Trade-off: `viewWorkout`'s Back button returns to the workouts list, not to the calendar day. Considered plumbing an optional `onBack` override but the bottom-nav lets the user one-tap back to Calendar — not worth the signature churn on `viewWorkout` for marginal polish.
+
+### Empty-workout Start gate
+
+A workout with zero exercises used to drop the user on an empty preview page when they tapped Start. Fixed in two surfaces:
+
+**workoutDetail page** — Start Workout is disabled when `workout.exercises.length === 0`. Below the (empty) exercise `<ul>`, a sibling `<div class="empty-sessions">No exercises for "{name}" yet.</div>` explains the state.
+
+Gotcha worth flagging: my first cut put the empty-state inside the `<ul>` as an `<li class="empty-sessions">`. That inherited the base `li` style from `elements.css` (pink cream pill, border, hover lift) so the message rendered as a fake list-row. Fixed by moving it to a sibling `<div>` outside the `<ul>` — matches the Past Sessions empty-state pattern. The page.css comment about `.empty-sessions` already noted it's a `<div>`-styled primitive; it just wasn't visible until I tried the wrong placement.
+
+**Calendar day modal** — same rule applied to schedule rows. Required a small backend change: `GET /workouts` now returns `{id, name, exerciseCount}` via a tiny `WorkoutSummary` DTO. `WorkoutExerciseRepository.countLiveByWorkoutId` reuses the same "exclude soft-deleted exercises" semantics as `findLiveByWorkoutId` so the count matches what the user actually sees in the workoutDetail list. `POST /workouts` returns the same shape (newly-created workouts have `exerciseCount: 0`).
+
+`renderScheduleRow` reads `exerciseCount` from `state.workouts` via a `workoutExerciseCount(workoutId)` helper and ANDs it with the existing PLANNED gate on the Start button.
+
+While in there, also split `isSkippable` off `isStartable` — they used to share. An empty-workout PLANNED row should still let the user mark it Skipped (just because you can't do the workout doesn't mean you can't acknowledge you're not doing it), so Skip's gating is now PLANNED-only, independent of exercise count.
+
+### state.workouts staleness on the calendar
+
+`state.workouts` is loaded once at startup (main.js:6). After the user adds/removes exercises elsewhere, the cached `exerciseCount` would go stale. Fix: `refreshWorkoutsCache()` re-fetches `/workouts` at both calendar entry points — `renderCalendarPage` (nav-tab tap) and `navigateToCalendarDay` (from the workoutDetail Schedule button). The refresh inside `navigateToCalendarDay` runs BEFORE `setActiveTab` because `setActiveTab` doesn't await the tab's `render()` and `renderDayDetail` fires immediately after — without the pre-refresh, `renderDayDetail` could race against the in-flight `renderCalendarPage` fetch and read stale data.
+
+Considered the lighter alternative — updating the cache locally on every `linkExerciseToWorkout` / `removeWorkoutExercise` call — but that spreads logic across three view files (`exercisePicker`, `workoutDetail`, `workouts`). One fetch per calendar entry is the simpler trade-off; the calendar is a relatively infrequent surface and `/workouts` is small.
+
+### Files touched (this session)
+
+- `backend/.../ScheduledWorkoutController.java` — optional `status` + `sessionId` on `CreateBody`/`PatchBody`, `SessionRepository` injected.
+- `backend/.../WorkoutController.java` — returns `WorkoutSummary` DTO from GET and POST.
+- `backend/.../WorkoutExerciseRepository.java` — new `countLiveByWorkoutId` query.
+- `frontend/src/views/activeWorkout.js` — `syncCalendarOnFinish` helper, imports.
+- `frontend/src/views/calendar.js` — `isEditable` + `clickTarget` + `isSkippable` gating, two `open…FromSchedule` helpers, `refreshWorkoutsCache`.
+- `frontend/src/views/workoutDetail.js` — Start gate + empty-state.
+- `frontend/styles/pages/calendar.css` — `.schedule-row.clickable` hover lift.
+
+### Verification
+
+Walked through:
+- Ad-hoc finish on a clean day → calendar shows COMPLETED dot, tap → session summary opens, Back returns to day modal.
+- Ad-hoc finish on a day with the same workout already PLANNED → single COMPLETED row, not two.
+- Schedule a workout for today → tap Start from day modal → finish → schedule row shows COMPLETED with link to the session that just ran.
+- Tap a COMPLETED row's Reschedule/Delete → buttons are disabled, no response.
+- Create a new workout with no exercises → Start Workout button disabled, empty-state message visible. Schedule that workout for today → from Calendar day modal, Start is disabled but Skip works. Tap the row → lands on workoutDetail.
+- Tap a SKIPPED row → lands on workoutDetail.
+- Add an exercise to a previously-empty workout, navigate to Calendar → Start now enabled on that workout's schedule rows (cache refreshed).
+
+---
+
 ## Future Plans (Discussed, Not Built)
 
 - **Built-in exercise library shipped with the app.** A curated, immutable preset list users can browse and pick from. When this lands, the right split is:
@@ -271,16 +351,18 @@ Walked through: open a workout with multiple sessions → click Past Sessions �
 
 ## Repo State Note
 
-This session's commit on `master`:
+This session's commits on `master` (closing the calendar feature loop):
 
-- Frontend Past Sessions page — extracted from the View Workout view into a dedicated `views/pastSessions.js` + `pages/past-sessions.css`, reachable from a new button on the detail page.
+- `df6416b` — Open workoutDetail when tapping a PLANNED or SKIPPED row.
+- `972ff64` — Disable Start on calendar rows whose workout has no exercises (adds `exerciseCount` to `/workouts`).
+- `682e313` — Disable Start when a workout has no exercises, show empty state (workoutDetail).
+- `861c976` — Auto-sync finished sessions to the calendar + open summary on tap (the HANDOFF_calendar_session_sync.md spec plus the click-to-summary feature; HANDOFF file deleted afterward).
 
 Plus a follow-up SESSION_NOTES commit capturing this section.
 
 Earlier sessions on `master`:
 
+- The calendar feature itself (commits `6ff76d1` through `3fefe72`) — backend CRUD, frontend scaffolding, day modal actions, Start-from-schedule, workout-first Schedule button.
 - `c696db1` — Update SESSION_NOTES for the CSS architecture refactor.
 - `8d739bd` — Refactor frontend style.css into modular CSS architecture.
 - `57aa2f6` — Refactor frontend script.js into ES modules.
-
-The unrelated `.vscode/settings.json` modification is still left out of the feature commit (same pattern as the previous refactor sessions).

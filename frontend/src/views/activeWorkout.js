@@ -3,7 +3,9 @@ import {
     fetchWorkoutExercises,
     fetchLastSets,
     finishSession,
-    updateSchedule
+    updateSchedule,
+    fetchSchedulesByDate,
+    createSchedule
 } from "../api.js";
 import {
     showExerciseReadOnlyModal,
@@ -282,14 +284,37 @@ export async function startWorkout(workoutIndex, options) {
         state.currentSessionDate = null;
         clearNavGuard();
         await finishSession(sessionId, workout.exercises.map(e => e.id));
-        if (scheduledWorkoutId !== null) {
-            /* Best-effort — if the PATCH fails the summary still renders.
-               The schedule stays PLANNED in that case; user can re-flip
-               manually from the calendar. */
-            try {
-                await updateSchedule(scheduledWorkoutId, { status: "COMPLETED" });
-            } catch (e) { /* swallow */ }
-        }
+        await syncCalendarOnFinish(workout.id, sessionId, sessionDate, scheduledWorkoutId);
         await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: onComplete });
     }
+}
+
+/* Best-effort calendar sync on workout finish.
+   - Started-from-schedule: PATCH that row to COMPLETED + link sessionId.
+   - Ad-hoc, same workout already PLANNED on session date: PATCH it to COMPLETED
+     + link sessionId (avoids the duplicate-(date,workoutId) backend reject,
+     and converges to "calendar shows what happened").
+   - Ad-hoc, no matching row: POST a new COMPLETED row carrying sessionId.
+   The sessionId link lets the calendar's day modal open the session summary
+   when the user taps a COMPLETED row. Failures are swallowed — the workout
+   summary still renders. */
+async function syncCalendarOnFinish(workoutId, sessionId, date, scheduledWorkoutId) {
+    try {
+        if (scheduledWorkoutId !== null) {
+            await updateSchedule(scheduledWorkoutId, { status: "COMPLETED", sessionId: sessionId });
+            return;
+        }
+        const existing = await fetchSchedulesByDate(date);
+        const match = existing.find(s => s.workoutId === workoutId);
+        if (match) {
+            await updateSchedule(match.id, { status: "COMPLETED", sessionId: sessionId });
+        } else {
+            await createSchedule({
+                date: date,
+                workoutId: workoutId,
+                status: "COMPLETED",
+                sessionId: sessionId
+            });
+        }
+    } catch (e) { /* swallow */ }
 }

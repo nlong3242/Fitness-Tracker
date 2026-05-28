@@ -6,6 +6,7 @@ import {
 } from "../components/modals.js";
 import { renderCreateWorkoutPage } from "./workouts.js";
 import { startWorkout } from "./activeWorkout.js";
+import { viewSessionSummary } from "./summary.js";
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
 import {
     fetchSchedulesInRange,
@@ -261,10 +262,18 @@ async function renderDayDetail(iso) {
 function renderScheduleRow(s, todayIso) {
     const displayStatus = effectiveStatus(s, todayIso);
     const isStartable = displayStatus === "PLANNED";
+    /* COMPLETED rows are an immutable historical record — mirrors the
+       backend's "Cannot delete a finished session" rule. Reschedule and
+       Delete are gated on this, on top of the existing Start/Skip gating. */
+    const isEditable = displayStatus !== "COMPLETED";
+    /* COMPLETED rows linked to a session navigate to that session's summary
+       on click. Rows without a sessionId are pre-link historical rows and
+       silently stay non-clickable. */
+    const isViewable = displayStatus === "COMPLETED" && s.sessionId != null;
     const statusLower = displayStatus.toLowerCase();
     const name = workoutNameById(s.workoutId);
     return `
-        <div class="schedule-row" data-schedule-id="${s.id}">
+        <div class="schedule-row${isViewable ? " clickable" : ""}" data-schedule-id="${s.id}">
             <div class="schedule-row-head">
                 <span class="schedule-row-name">${escapeHtml(name)}</span>
                 <span class="schedule-status-badge status-${statusLower}">${displayStatus}</span>
@@ -272,32 +281,55 @@ function renderScheduleRow(s, todayIso) {
             ${s.notes ? `<p class="schedule-notes">${escapeHtml(s.notes)}</p>` : ""}
             <div class="schedule-actions">
                 <button class="schedule-action-btn" data-action="start" ${isStartable ? "" : "disabled"}>Start</button>
-                <button class="schedule-action-btn btn-secondary" data-action="reschedule">Reschedule</button>
+                <button class="schedule-action-btn btn-secondary" data-action="reschedule" ${isEditable ? "" : "disabled"}>Reschedule</button>
                 <button class="schedule-action-btn btn-secondary" data-action="skip" ${isStartable ? "" : "disabled"}>Skip</button>
-                <button class="schedule-action-btn btn-danger" data-action="delete">Delete</button>
+                <button class="schedule-action-btn btn-danger" data-action="delete" ${isEditable ? "" : "disabled"}>Delete</button>
             </div>
         </div>
     `;
 }
 
-/* Per-row action buttons are wired via delegation on the schedules
-   container — one listener regardless of row count. */
+/* Per-row interactions are wired via delegation on the schedules container —
+   one listener regardless of row count. Handles both action-button clicks
+   and (for COMPLETED rows linked to a session) row-body clicks that
+   navigate to the session summary. */
 function wireScheduleRowActions(listEl, schedules, dayIso) {
     listEl.onclick = function(e) {
-        const btn = e.target.closest(".schedule-action-btn");
-        if (!btn || btn.disabled) return;
-        const row = btn.closest(".schedule-row");
+        const row = e.target.closest(".schedule-row");
         if (!row) return;
         const scheduleId = Number(row.dataset.scheduleId);
         const schedule = schedules.find(function(s) { return s.id === scheduleId; });
         if (!schedule) return;
 
-        const action = btn.dataset.action;
-        if (action === "start") startFromSchedule(schedule, dayIso);
-        else if (action === "skip") skipSchedule(schedule, dayIso, btn);
-        else if (action === "delete") deleteScheduleAction(schedule, dayIso, btn);
-        else if (action === "reschedule") rescheduleSchedule(schedule, dayIso, btn);
+        const btn = e.target.closest(".schedule-action-btn");
+        if (btn) {
+            if (btn.disabled) return;
+            const action = btn.dataset.action;
+            if (action === "start") startFromSchedule(schedule, dayIso);
+            else if (action === "skip") skipSchedule(schedule, dayIso, btn);
+            else if (action === "delete") deleteScheduleAction(schedule, dayIso, btn);
+            else if (action === "reschedule") rescheduleSchedule(schedule, dayIso, btn);
+            return;
+        }
+
+        if (row.classList.contains("clickable")) {
+            openSessionSummaryFromSchedule(schedule, dayIso);
+        }
     };
+}
+
+function openSessionSummaryFromSchedule(schedule, dayIso) {
+    const workoutIndex = state.workouts.findIndex(function(w) {
+        return w.id === schedule.workoutId;
+    });
+    if (workoutIndex < 0) {
+        showErrorBanner("Couldn't find this workout — it may have been deleted.");
+        return;
+    }
+    viewSessionSummary(workoutIndex, schedule.sessionId, schedule.date, function() {
+        setActiveTab("calendar");
+        renderDayDetail(dayIso);
+    });
 }
 
 function startFromSchedule(schedule, dayIso) {

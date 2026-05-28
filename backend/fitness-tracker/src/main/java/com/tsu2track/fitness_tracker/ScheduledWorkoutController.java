@@ -22,13 +22,16 @@ public class ScheduledWorkoutController {
 
     private final ScheduledWorkoutRepository scheduledWorkoutRepository;
     private final WorkoutRepository workoutRepository;
+    private final SessionRepository sessionRepository;
 
     public ScheduledWorkoutController(
         ScheduledWorkoutRepository scheduledWorkoutRepository,
-        WorkoutRepository workoutRepository
+        WorkoutRepository workoutRepository,
+        SessionRepository sessionRepository
     ) {
         this.scheduledWorkoutRepository = scheduledWorkoutRepository;
         this.workoutRepository = workoutRepository;
+        this.sessionRepository = sessionRepository;
     }
 
     @GetMapping
@@ -53,6 +56,8 @@ public class ScheduledWorkoutController {
         private LocalDate date;
         private Long workoutId;
         private String notes;
+        private ScheduleStatus status;
+        private Long sessionId;
 
         public LocalDate getDate() { return date; }
         public void setDate(LocalDate date) { this.date = date; }
@@ -60,6 +65,10 @@ public class ScheduledWorkoutController {
         public void setWorkoutId(Long workoutId) { this.workoutId = workoutId; }
         public String getNotes() { return notes; }
         public void setNotes(String notes) { this.notes = notes; }
+        public ScheduleStatus getStatus() { return status; }
+        public void setStatus(ScheduleStatus status) { this.status = status; }
+        public Long getSessionId() { return sessionId; }
+        public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
     }
 
     @PostMapping
@@ -78,6 +87,12 @@ public class ScheduledWorkoutController {
         scheduled.setDate(body.getDate());
         scheduled.setWorkout(workout);
         scheduled.setNotes(body.getNotes());
+        if (body.getStatus() != null) scheduled.setStatus(body.getStatus());
+        if (body.getSessionId() != null) {
+            Session session = sessionRepository.findById(body.getSessionId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
+            scheduled.setSession(session);
+        }
         return scheduledWorkoutRepository.save(scheduled);
     }
 
@@ -85,6 +100,7 @@ public class ScheduledWorkoutController {
         private LocalDate date;
         private ScheduleStatus status;
         private String notes;
+        private Long sessionId;
 
         public LocalDate getDate() { return date; }
         public void setDate(LocalDate date) { this.date = date; }
@@ -92,6 +108,8 @@ public class ScheduledWorkoutController {
         public void setStatus(ScheduleStatus status) { this.status = status; }
         public String getNotes() { return notes; }
         public void setNotes(String notes) { this.notes = notes; }
+        public Long getSessionId() { return sessionId; }
+        public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
     }
 
     @PatchMapping("/{id}")
@@ -109,6 +127,11 @@ public class ScheduledWorkoutController {
             }
             if (body.getStatus() != null) scheduled.setStatus(body.getStatus());
             if (body.getNotes() != null) scheduled.setNotes(body.getNotes());
+            if (body.getSessionId() != null) {
+                Session session = sessionRepository.findById(body.getSessionId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
+                scheduled.setSession(session);
+            }
         }
         return scheduledWorkoutRepository.save(scheduled);
     }

@@ -1,12 +1,27 @@
 import { API_BASE } from "./config.js";
+import { getApiKey, setApiKey, clearApiKey } from "./auth.js";
 
-async function request(method, path, body) {
-    const opts = { method };
+async function request(method, path, body, _isRetry = false) {
+    const opts = { method, headers: {} };
+    const key = getApiKey();
+    if (key) {
+        opts.headers["X-API-Key"] = key;
+    }
     if (body !== undefined) {
-        opts.headers = { "Content-Type": "application/json" };
+        opts.headers["Content-Type"] = "application/json";
         opts.body = JSON.stringify(body);
     }
-    return fetch(`${API_BASE}${path}`, opts);
+    const response = await fetch(`${API_BASE}${path}`, opts);
+
+    if (response.status === 401 && !_isRetry) {
+        clearApiKey();
+        const entered = window.prompt('Enter your API key. (Use "dev-key" for local dev.)');
+        if (entered) {
+            setApiKey(entered);
+            return request(method, path, body, true);
+        }
+    }
+    return response;
 }
 
 async function requestJson(method, path, body) {

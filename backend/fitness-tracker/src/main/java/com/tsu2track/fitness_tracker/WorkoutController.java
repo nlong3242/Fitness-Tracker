@@ -1,7 +1,6 @@
 package com.tsu2track.fitness_tracker;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tsu2track.fitness_tracker.dto.CreateWorkoutRequest;
+import com.tsu2track.fitness_tracker.service.WorkoutService;
 
 import jakarta.validation.Valid;
 
@@ -19,15 +19,10 @@ import jakarta.validation.Valid;
 @RequestMapping("/workouts")
 public class WorkoutController {
 
-    private final WorkoutRepository workoutRepository;
-    private final WorkoutExerciseRepository workoutExerciseRepository;
+    private final WorkoutService workoutService;
 
-    public WorkoutController(
-        WorkoutRepository workoutRepository,
-        WorkoutExerciseRepository workoutExerciseRepository
-    ) {
-        this.workoutRepository = workoutRepository;
-        this.workoutExerciseRepository = workoutExerciseRepository;
+    public WorkoutController(WorkoutService workoutService) {
+        this.workoutService = workoutService;
     }
 
     /* Wire-shape for /workouts. The plain Workout entity hides
@@ -50,29 +45,18 @@ public class WorkoutController {
         public long getExerciseCount() { return exerciseCount; }
     }
 
-    private WorkoutSummary toSummary(Workout w) {
-        return new WorkoutSummary(
-            w.getId(),
-            w.getName(),
-            workoutExerciseRepository.countLiveByWorkoutId(w.getId())
-        );
-    }
-
     @GetMapping
     public List<WorkoutSummary> getAllWorkouts() {
-        return workoutRepository.findAll().stream()
-            .map(this::toSummary)
-            .collect(Collectors.toList());
+        return workoutService.findAllSummaries();
     }
 
     @PostMapping
-    public WorkoutSummary createWorkout(@RequestBody @Valid CreateWorkoutRequest req){
-        Workout saved = workoutRepository.save(new Workout(req.name()));
-        return toSummary(saved);
+    public WorkoutSummary createWorkout(@RequestBody @Valid CreateWorkoutRequest req) {
+        return workoutService.create(req.name());
     }
 
     @DeleteMapping("/{id}")
-    public void deleteWorkout(@PathVariable Long id){
-        workoutRepository.deleteById(id);
+    public void deleteWorkout(@PathVariable Long id) {
+        workoutService.delete(id);
     }
 }

@@ -1,14 +1,11 @@
 package com.tsu2track.fitness_tracker;
 
-import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,27 +13,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
+
+import com.tsu2track.fitness_tracker.service.SessionService;
 
 @RestController
 public class SessionController {
-    private final SessionRepository sessionRepository;
-    private final WorkoutRepository workoutRepository;
-    private final ExerciseRepository exerciseRepository;
-    private final ExerciseSetRepository exerciseSetRepository;
-    private final SessionExerciseRepository sessionExerciseRepository;
-    private final WorkoutExerciseRepository workoutExerciseRepository;
+    private final SessionService sessionService;
 
-    public SessionController(SessionRepository sessionRepository, WorkoutRepository workoutRepository,
-        ExerciseRepository exerciseRepository, ExerciseSetRepository exerciseSetRepository,
-        SessionExerciseRepository sessionExerciseRepository,
-        WorkoutExerciseRepository workoutExerciseRepository){
-        this.sessionRepository =  sessionRepository;
-        this.workoutRepository = workoutRepository;
-        this.exerciseRepository = exerciseRepository;
-        this.exerciseSetRepository = exerciseSetRepository;
-        this.sessionExerciseRepository = sessionExerciseRepository;
-        this.workoutExerciseRepository = workoutExerciseRepository;
+    public SessionController(SessionService sessionService) {
+        this.sessionService = sessionService;
     }
 
     @GetMapping("/workouts/{workoutId}/sessions")
@@ -45,19 +30,12 @@ public class SessionController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "5") int size
     ) {
-        return sessionRepository.findByWorkout_IdOrderByDateDescIdDesc(workoutId, PageRequest.of(page, size));
+        return sessionService.findSessions(workoutId, PageRequest.of(page, size));
     }
 
     @PostMapping("/workouts/{workoutId}/sessions")
     public Session createSession(@PathVariable Long workoutId) {
-        Optional<Workout> workout = workoutRepository.findById(workoutId);
-        if (!workout.isPresent()) {
-            return null;
-        }
-        Session session = new Session();
-        session.setDate(LocalDate.now());
-        session.setWorkout(workout.get());
-        return sessionRepository.save(session);
+        return sessionService.createSession(workoutId);
     }
 
     public static class FinishBody {
@@ -68,80 +46,18 @@ public class SessionController {
 
     @PostMapping("/sessions/{sessionId}/finish")
     public Session finishSession(@PathVariable Long sessionId, @RequestBody(required = false) FinishBody body) {
-        Session session = sessionRepository.findById(sessionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-        if (session.isFinished()) {
-            return session;
-        }
-
-        Long workoutId = session.getWorkoutId();
-        List<WorkoutExercise> currentJoins = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
-        List<ExerciseSet> sessionSets = exerciseSetRepository.findBySession_Id(sessionId);
-
-        Map<Long, Exercise> currentById = new LinkedHashMap<>();
-        for (WorkoutExercise we : currentJoins) {
-            currentById.put(we.getExercise().getId(), we.getExercise());
-        }
-
-        Map<Long, Exercise> exercisesById = new LinkedHashMap<>();
-        if (body != null && body.getOrderedExerciseIds() != null) {
-            for (Long id : body.getOrderedExerciseIds()) {
-                Exercise ex = currentById.get(id);
-                if (ex != null) exercisesById.put(id, ex);
-            }
-            for (Map.Entry<Long, Exercise> e : currentById.entrySet()) {
-                if (!exercisesById.containsKey(e.getKey())) {
-                    exercisesById.put(e.getKey(), e.getValue());
-                }
-            }
-        } else {
-            exercisesById.putAll(currentById);
-        }
-
-        for (ExerciseSet set : sessionSets) {
-            Long exId = set.getExerciseId();
-            if (exId != null && !exercisesById.containsKey(exId)) {
-                Optional<Exercise> ex = exerciseRepository.findById(exId);
-                if (ex.isPresent()) {
-                    exercisesById.put(exId, ex.get());
-                }
-            }
-        }
-
-        int position = 0;
-        for (Exercise ex : exercisesById.values()) {
-            SessionExercise snapshot = new SessionExercise();
-            snapshot.setSession(session);
-            snapshot.setExercise(ex);
-            snapshot.setPosition(position++);
-            snapshot.setName(ex.getName());
-            snapshot.setCategory(ex.getCategory());
-            snapshot.setPrimaryMuscleGroups(ex.getPrimaryMuscleGroups());
-            snapshot.setExerciseType(ex.getExerciseType());
-            snapshot.setCues(ex.getCues());
-            snapshot.setUnilateral(ex.getUnilateral());
-            sessionExerciseRepository.save(snapshot);
-        }
-
-        session.setFinished(true);
-        return sessionRepository.save(session);
+        List<Long> orderedIds = body != null ? body.getOrderedExerciseIds() : null;
+        return sessionService.finishSession(sessionId, orderedIds);
     }
 
     @GetMapping("/sessions/{sessionId}/exercises")
     public List<SessionExercise> getSessionExercises(@PathVariable Long sessionId) {
-        if (!sessionRepository.existsById(sessionId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found");
-        }
-        return sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+        return sessionService.findSessionExercises(sessionId);
     }
 
     @DeleteMapping("/sessions/{sessionId}")
-    public void deleteSession (@PathVariable Long sessionId){
-        Optional<Session> session = sessionRepository.findById(sessionId);
-        if (session.isPresent() && session.get().isFinished()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot delete a finished session");
-        }
-        sessionRepository.deleteById(sessionId);
+    public void deleteSession(@PathVariable Long sessionId) {
+        sessionService.deleteSession(sessionId);
     }
 
     public static class SessionTotals {
@@ -162,33 +78,11 @@ public class SessionController {
     }
 
     @GetMapping("/workouts/{workoutId}/sessions/{sessionId}/previous-totals")
-    public org.springframework.http.ResponseEntity<SessionTotals> getPreviousTotals(
+    public ResponseEntity<SessionTotals> getPreviousTotals(
         @PathVariable Long workoutId,
         @PathVariable Long sessionId
     ) {
-        Session current = sessionRepository.findById(sessionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-        Optional<Session> previous = sessionRepository.findPreviousSession(workoutId, current.getDate(), sessionId);
-        if (!previous.isPresent()) {
-            return org.springframework.http.ResponseEntity.notFound().build();
-        }
-
-        List<ExerciseSet> sets = exerciseSetRepository.findBySession_Id(previous.get().getId());
-        java.util.Set<Long> uniqueExercises = new java.util.HashSet<>();
-        int repsTotal = 0;
-        double volumeTotal = 0;
-        for (ExerciseSet set : sets) {
-            uniqueExercises.add(set.getExerciseId());
-            repsTotal += set.getReps();
-            volumeTotal += set.getWeight() * set.getReps();
-        }
-
-        SessionTotals totals = new SessionTotals();
-        totals.setExercises(uniqueExercises.size());
-        totals.setSets(sets.size());
-        totals.setReps(repsTotal);
-        totals.setVolume(volumeTotal);
-        return org.springframework.http.ResponseEntity.ok(totals);
+        Optional<SessionTotals> totals = sessionService.findPreviousTotals(workoutId, sessionId);
+        return totals.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
-
 }

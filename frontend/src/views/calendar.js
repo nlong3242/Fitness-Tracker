@@ -7,6 +7,7 @@ import {
 import { renderCreateWorkoutPage } from "./workouts.js";
 import { startWorkout } from "./activeWorkout.js";
 import { viewSessionSummary } from "./summary.js";
+import { viewWorkout } from "./workoutDetail.js";
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
 import {
     fetchWorkouts,
@@ -290,15 +291,22 @@ function renderScheduleRow(s, todayIso) {
        backend's "Cannot delete a finished session" rule. Reschedule and
        Delete are gated on this, on top of the existing Start/Skip gating. */
     const isEditable = displayStatus !== "COMPLETED";
-    /* COMPLETED rows linked to a session navigate to that session's summary
-       on click. Rows without a sessionId are pre-link historical rows and
+    /* Row body is clickable in two cases, dispatched via data-click-target:
+       - COMPLETED + sessionId → opens that session's summary.
+       - PLANNED / SKIPPED → opens the workout's detail page (useful for
+         inspecting or editing the workout before its scheduled date,
+         and gives users a path forward when Start is disabled because
+         the workout has no exercises yet).
+       COMPLETED rows without a sessionId are pre-link historical rows and
        silently stay non-clickable. */
-    const isViewable = displayStatus === "COMPLETED" && s.sessionId != null;
+    const clickTarget = (displayStatus === "COMPLETED" && s.sessionId != null) ? "summary"
+        : (displayStatus === "PLANNED" || displayStatus === "SKIPPED") ? "workout"
+        : null;
     const isSkippable = displayStatus === "PLANNED";
     const statusLower = displayStatus.toLowerCase();
     const name = workoutNameById(s.workoutId);
     return `
-        <div class="schedule-row${isViewable ? " clickable" : ""}" data-schedule-id="${s.id}">
+        <div class="schedule-row${clickTarget ? " clickable" : ""}" data-schedule-id="${s.id}"${clickTarget ? ` data-click-target="${clickTarget}"` : ""}>
             <div class="schedule-row-head">
                 <span class="schedule-row-name">${escapeHtml(name)}</span>
                 <span class="schedule-status-badge status-${statusLower}">${displayStatus}</span>
@@ -337,9 +345,10 @@ function wireScheduleRowActions(listEl, schedules, dayIso) {
             return;
         }
 
-        if (row.classList.contains("clickable")) {
-            openSessionSummaryFromSchedule(schedule, dayIso);
-        }
+        if (!row.classList.contains("clickable")) return;
+        const target = row.dataset.clickTarget;
+        if (target === "summary") openSessionSummaryFromSchedule(schedule, dayIso);
+        else if (target === "workout") openWorkoutDetailFromSchedule(schedule);
     };
 }
 
@@ -355,6 +364,22 @@ function openSessionSummaryFromSchedule(schedule, dayIso) {
         setActiveTab("calendar");
         renderDayDetail(dayIso);
     });
+}
+
+/* Cross-tab navigation: setActiveTab first so the bottom-nav highlights
+   the Workouts tab (otherwise Calendar stays highlighted while the user
+   is looking at workoutDetail). viewWorkout immediately overrides the
+   default workouts-list paint, same trick navigateToCalendarDay uses. */
+async function openWorkoutDetailFromSchedule(schedule) {
+    const workoutIndex = state.workouts.findIndex(function(w) {
+        return w.id === schedule.workoutId;
+    });
+    if (workoutIndex < 0) {
+        showErrorBanner("Couldn't find this workout — it may have been deleted.");
+        return;
+    }
+    await setActiveTab("workouts");
+    viewWorkout(workoutIndex);
 }
 
 function startFromSchedule(schedule, dayIso) {

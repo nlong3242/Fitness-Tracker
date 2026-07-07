@@ -11,7 +11,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tsu2track.fitness_tracker.dto.CreateSetRequest;
+import com.tsu2track.fitness_tracker.dto.UpdateSetRequest;
 import com.tsu2track.fitness_tracker.service.SessionService;
+
+import jakarta.validation.Valid;
 
 @RestController
 public class ExerciseSetController {
@@ -36,12 +40,12 @@ public class ExerciseSetController {
     }
 
     @PostMapping("/sessions/{sessionId}/sets")
-    public ExerciseSet createSet(@RequestBody ExerciseSet set, @RequestParam Long exerciseId, @PathVariable Long sessionId) {
-        return sessionService.createSet(sessionId, exerciseId, set);
+    public ExerciseSet createSet(@RequestBody @Valid CreateSetRequest body, @RequestParam Long exerciseId, @PathVariable Long sessionId) {
+        return sessionService.createSet(sessionId, exerciseId, body);
     }
 
     @PutMapping("/sets/{setId}")
-    public ExerciseSet updateSet(@PathVariable Long setId, @RequestBody ExerciseSet body) {
+    public ExerciseSet updateSet(@PathVariable Long setId, @RequestBody @Valid UpdateSetRequest body) {
         return sessionService.updateSet(setId, body);
     }
 

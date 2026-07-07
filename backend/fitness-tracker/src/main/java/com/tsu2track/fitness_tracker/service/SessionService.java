@@ -29,6 +29,8 @@ import com.tsu2track.fitness_tracker.Workout;
 import com.tsu2track.fitness_tracker.WorkoutExercise;
 import com.tsu2track.fitness_tracker.WorkoutExerciseRepository;
 import com.tsu2track.fitness_tracker.WorkoutRepository;
+import com.tsu2track.fitness_tracker.dto.CreateSetRequest;
+import com.tsu2track.fitness_tracker.dto.UpdateSetRequest;
 
 @Service
 public class SessionService {
@@ -195,7 +197,7 @@ public class SessionService {
         return exerciseSetRepository.findLastSetsForExercise(workoutId, exerciseId, beforeSessionId, beforeDate);
     }
 
-    public ExerciseSet createSet(Long sessionId, Long exerciseId, ExerciseSet set) {
+    public ExerciseSet createSet(Long sessionId, Long exerciseId, CreateSetRequest req) {
         Optional<Session> session = sessionRepository.findById(sessionId);
         Optional<Exercise> exercise = exerciseRepository.findById(exerciseId);
         if (session.isPresent() && exercise.isPresent()) {
@@ -203,12 +205,16 @@ public class SessionService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
             }
             boolean isUnilateral = Boolean.TRUE.equals(exercise.get().getUnilateral());
-            if (isUnilateral && set.getSide() == null) {
+            if (isUnilateral && req.side() == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side is required for unilateral exercises");
             }
-            if (!isUnilateral && set.getSide() != null) {
+            if (!isUnilateral && req.side() != null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side must not be set for bilateral exercises");
             }
+            ExerciseSet set = new ExerciseSet();
+            set.setWeight(req.weight());
+            set.setReps(req.reps());
+            set.setSide(req.side());
             set.setExercise(exercise.get());
             set.setSession(session.get());
             return exerciseSetRepository.save(set);
@@ -216,15 +222,15 @@ public class SessionService {
         return null;
     }
 
-    public ExerciseSet updateSet(Long setId, ExerciseSet body) {
+    public ExerciseSet updateSet(Long setId, UpdateSetRequest req) {
         Optional<ExerciseSet> existing = exerciseSetRepository.findById(setId);
         if (existing.isPresent()) {
             ExerciseSet set = existing.get();
             if (set.getSession() != null && set.getSession().isFinished()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
             }
-            set.setWeight(body.getWeight());
-            set.setReps(body.getReps());
+            set.setWeight(req.weight());
+            set.setReps(req.reps());
             return exerciseSetRepository.save(set);
         }
         return null;

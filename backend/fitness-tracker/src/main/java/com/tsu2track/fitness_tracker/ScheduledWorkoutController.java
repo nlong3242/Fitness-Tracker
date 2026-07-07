@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.tsu2track.fitness_tracker.dto.CreateScheduledWorkoutRequest;
+import com.tsu2track.fitness_tracker.dto.UpdateScheduledWorkoutRequest;
+
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/scheduled-workouts")
 public class ScheduledWorkoutController {
@@ -52,86 +57,46 @@ public class ScheduledWorkoutController {
         return scheduledWorkoutRepository.findByDateOrderByCreatedAtAsc(date);
     }
 
-    public static class CreateBody {
-        private LocalDate date;
-        private Long workoutId;
-        private String notes;
-        private ScheduleStatus status;
-        private Long sessionId;
-
-        public LocalDate getDate() { return date; }
-        public void setDate(LocalDate date) { this.date = date; }
-        public Long getWorkoutId() { return workoutId; }
-        public void setWorkoutId(Long workoutId) { this.workoutId = workoutId; }
-        public String getNotes() { return notes; }
-        public void setNotes(String notes) { this.notes = notes; }
-        public ScheduleStatus getStatus() { return status; }
-        public void setStatus(ScheduleStatus status) { this.status = status; }
-        public Long getSessionId() { return sessionId; }
-        public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
-    }
-
     @PostMapping
-    public ScheduledWorkout create(@RequestBody CreateBody body) {
-        if (body == null || body.getDate() == null || body.getWorkoutId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "date and workoutId are required");
-        }
-        Workout workout = workoutRepository.findById(body.getWorkoutId())
+    public ScheduledWorkout create(@RequestBody @Valid CreateScheduledWorkoutRequest body) {
+        Workout workout = workoutRepository.findById(body.workoutId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Workout not found"));
 
-        if (scheduledWorkoutRepository.existsByDateAndWorkout_Id(body.getDate(), body.getWorkoutId())) {
+        if (scheduledWorkoutRepository.existsByDateAndWorkout_Id(body.date(), body.workoutId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
         }
 
         ScheduledWorkout scheduled = new ScheduledWorkout();
-        scheduled.setDate(body.getDate());
+        scheduled.setDate(body.date());
         scheduled.setWorkout(workout);
-        scheduled.setNotes(body.getNotes());
-        if (body.getStatus() != null) scheduled.setStatus(body.getStatus());
-        if (body.getSessionId() != null) {
-            Session session = sessionRepository.findById(body.getSessionId())
+        scheduled.setNotes(body.notes());
+        if (body.status() != null) scheduled.setStatus(body.status());
+        if (body.sessionId() != null) {
+            Session session = sessionRepository.findById(body.sessionId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
             scheduled.setSession(session);
         }
         return scheduledWorkoutRepository.save(scheduled);
     }
 
-    public static class PatchBody {
-        private LocalDate date;
-        private ScheduleStatus status;
-        private String notes;
-        private Long sessionId;
-
-        public LocalDate getDate() { return date; }
-        public void setDate(LocalDate date) { this.date = date; }
-        public ScheduleStatus getStatus() { return status; }
-        public void setStatus(ScheduleStatus status) { this.status = status; }
-        public String getNotes() { return notes; }
-        public void setNotes(String notes) { this.notes = notes; }
-        public Long getSessionId() { return sessionId; }
-        public void setSessionId(Long sessionId) { this.sessionId = sessionId; }
-    }
-
     @PatchMapping("/{id}")
-    public ScheduledWorkout update(@PathVariable Long id, @RequestBody PatchBody body) {
+    public ScheduledWorkout update(@PathVariable Long id, @RequestBody @Valid UpdateScheduledWorkoutRequest body) {
         ScheduledWorkout scheduled = scheduledWorkoutRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scheduled workout not found"));
-        if (body != null) {
-            if (body.getDate() != null && !body.getDate().equals(scheduled.getDate())) {
-                if (scheduledWorkoutRepository.existsByDateAndWorkout_IdAndIdNot(
-                    body.getDate(), scheduled.getWorkoutId(), id
-                )) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
-                }
-                scheduled.setDate(body.getDate());
+        if (body.date() != null && !body.date().equals(scheduled.getDate())) {
+            if (scheduledWorkoutRepository.existsByDateAndWorkout_IdAndIdNot(
+                body.date(), scheduled.getWorkoutId(), id
+            )) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
             }
-            if (body.getStatus() != null) scheduled.setStatus(body.getStatus());
-            if (body.getNotes() != null) scheduled.setNotes(body.getNotes());
-            if (body.getSessionId() != null) {
-                Session session = sessionRepository.findById(body.getSessionId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
-                scheduled.setSession(session);
-            }
+            scheduled.setDate(body.date());
+        }
+        if (body.status() != null) scheduled.setStatus(body.status());
+        if (body.notes() != null) scheduled.setNotes(body.notes());
+        if (body.sessionId() != null) {
+            Session session = sessionRepository.findById(body.sessionId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
+            scheduled.setSession(session);
         }
         return scheduledWorkoutRepository.save(scheduled);
     }

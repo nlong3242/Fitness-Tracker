@@ -1,7 +1,8 @@
 import { state } from "../state.js";
-import { fetchSessionsPage } from "../api.js";
+import { fetchSessionsPage, deleteSession } from "../api.js";
 import { formatSessionDate, escapeHtml } from "../utils/format.js";
 import { clearNavGuard } from "../components/bottomNav.js";
+import { showConfirmModal } from "../components/modals.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { viewSessionSummary } from "./summary.js";
 
@@ -39,6 +40,22 @@ export async function viewPastSessions(workoutIndex) {
             row.onclick = function() {
                 viewSessionSummary(workoutIndex, session.id, session.date, function() { viewPastSessions(workoutIndex); });
             };
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "btn-danger session-delete-btn";
+            deleteBtn.textContent = "Delete";
+            deleteBtn.onclick = async function(event) {
+                event.stopPropagation();
+                const confirmed = await showConfirmModal(
+                    `Delete the session from ${formatSessionDate(session.date)}? Its sets are removed permanently.`,
+                    "Delete"
+                );
+                if (!confirmed) return;
+                await deleteSession(session.id);
+                viewPastSessions(workoutIndex);
+            };
+            row.appendChild(deleteBtn);
+
             sessionList.appendChild(row);
             sessionIndex++;
         }

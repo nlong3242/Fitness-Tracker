@@ -15,7 +15,8 @@ import {
     fetchSchedulesByDate,
     createSchedule,
     updateSchedule,
-    deleteSchedule
+    deleteSchedule,
+    deleteSession
 } from "../api.js";
 import { state } from "../state.js";
 
@@ -287,9 +288,9 @@ function renderScheduleRow(s, todayIso) {
        landing on an empty preview page with nothing to do. */
     const hasExercises = workoutExerciseCount(s.workoutId) > 0;
     const isStartable = displayStatus === "PLANNED" && hasExercises;
-    /* COMPLETED rows are an immutable historical record — mirrors the
-       backend's "Cannot delete a finished session" rule. Reschedule and
-       Delete are gated on this, on top of the existing Start/Skip gating. */
+    /* Reschedule stays disabled on COMPLETED rows (moving a workout that
+       already happened makes no sense), but Delete is always available:
+       on COMPLETED rows it removes the entry and its finished session. */
     const isEditable = displayStatus !== "COMPLETED";
     /* Row body is clickable in two cases, dispatched via data-click-target:
        - COMPLETED + sessionId → opens that session's summary.
@@ -316,7 +317,7 @@ function renderScheduleRow(s, todayIso) {
                 <button class="schedule-action-btn" data-action="start" ${isStartable ? "" : "disabled"}>Start</button>
                 <button class="schedule-action-btn btn-secondary" data-action="reschedule" ${isEditable ? "" : "disabled"}>Reschedule</button>
                 <button class="schedule-action-btn btn-secondary" data-action="skip" ${isSkippable ? "" : "disabled"}>Skip</button>
-                <button class="schedule-action-btn btn-danger" data-action="delete" ${isEditable ? "" : "disabled"}>Delete</button>
+                <button class="schedule-action-btn btn-danger" data-action="delete">Delete</button>
             </div>
         </div>
     `;
@@ -428,8 +429,14 @@ async function skipSchedule(schedule, dayIso, btn) {
 async function deleteScheduleAction(schedule, dayIso, btn) {
     btn.disabled = true;
     const name = workoutNameById(schedule.workoutId);
+    /* COMPLETED rows linked to a session delete the workout history too;
+       everything else (PLANNED, SKIPPED, pre-link COMPLETED rows) only
+       removes the calendar entry. */
+    const deletesSession = schedule.status === "COMPLETED" && schedule.sessionId != null;
     const confirmed = await showConfirmModal(
-        `Delete the scheduled "${name}" for this day?`,
+        deletesSession
+            ? `Delete "${name}" and its finished session from this day? Its sets are removed permanently.`
+            : `Delete the scheduled "${name}" for this day?`,
         "Delete"
     );
     if (!confirmed) {
@@ -437,6 +444,14 @@ async function deleteScheduleAction(schedule, dayIso, btn) {
         return;
     }
     try {
+        if (deletesSession) {
+            const sessionResp = await deleteSession(schedule.sessionId);
+            if (!sessionResp.ok) {
+                showErrorBanner("Couldn't delete this session. Please try again.");
+                btn.disabled = false;
+                return;
+            }
+        }
         const resp = await deleteSchedule(schedule.id);
         if (!resp.ok) {
             showErrorBanner("Couldn't delete this schedule. Please try again.");

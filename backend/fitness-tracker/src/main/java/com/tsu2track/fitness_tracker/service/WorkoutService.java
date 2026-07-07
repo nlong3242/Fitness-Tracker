@@ -3,7 +3,9 @@ package com.tsu2track.fitness_tracker.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.tsu2track.fitness_tracker.Workout;
 import com.tsu2track.fitness_tracker.WorkoutController;
@@ -33,6 +35,9 @@ public class WorkoutService {
     }
 
     public void delete(Long id) {
+        if (!workoutRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found");
+        }
         workoutRepository.deleteById(id);
     }
 

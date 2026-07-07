@@ -19,6 +19,7 @@ import com.tsu2track.fitness_tracker.Exercise;
 import com.tsu2track.fitness_tracker.ExerciseRepository;
 import com.tsu2track.fitness_tracker.ExerciseSet;
 import com.tsu2track.fitness_tracker.ExerciseSetRepository;
+import com.tsu2track.fitness_tracker.ScheduledWorkoutRepository;
 import com.tsu2track.fitness_tracker.Session;
 import com.tsu2track.fitness_tracker.SessionController;
 import com.tsu2track.fitness_tracker.SessionExercise;
@@ -37,19 +38,22 @@ public class SessionService {
     private final ExerciseSetRepository exerciseSetRepository;
     private final SessionExerciseRepository sessionExerciseRepository;
     private final WorkoutExerciseRepository workoutExerciseRepository;
+    private final ScheduledWorkoutRepository scheduledWorkoutRepository;
 
     public SessionService(SessionRepository sessionRepository,
                           WorkoutRepository workoutRepository,
                           ExerciseRepository exerciseRepository,
                           ExerciseSetRepository exerciseSetRepository,
                           SessionExerciseRepository sessionExerciseRepository,
-                          WorkoutExerciseRepository workoutExerciseRepository) {
+                          WorkoutExerciseRepository workoutExerciseRepository,
+                          ScheduledWorkoutRepository scheduledWorkoutRepository) {
         this.sessionRepository = sessionRepository;
         this.workoutRepository = workoutRepository;
         this.exerciseRepository = exerciseRepository;
         this.exerciseSetRepository = exerciseSetRepository;
         this.sessionExerciseRepository = sessionExerciseRepository;
         this.workoutExerciseRepository = workoutExerciseRepository;
+        this.scheduledWorkoutRepository = scheduledWorkoutRepository;
     }
 
     public Page<Session> findSessions(Long workoutId, Pageable pageable) {
@@ -128,12 +132,18 @@ public class SessionService {
         return sessionRepository.save(session);
     }
 
+    @Transactional
     public void deleteSession(Long sessionId) {
-        Optional<Session> session = sessionRepository.findById(sessionId);
-        if (session.isPresent() && session.get().isFinished()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot delete a finished session");
-        }
-        sessionRepository.deleteById(sessionId);
+        Session session = sessionRepository.findById(sessionId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        // scheduled_workout.session_id has a plain FK to session; deleting a
+        // linked session without unlinking first is a constraint violation.
+        // The calendar entry itself (and its status) is left untouched.
+        scheduledWorkoutRepository.findBySession_Id(sessionId).ifPresent(sw -> {
+            sw.setSession(null);
+            scheduledWorkoutRepository.save(sw);
+        });
+        sessionRepository.delete(session);
     }
 
     public List<SessionExercise> findSessionExercises(Long sessionId) {

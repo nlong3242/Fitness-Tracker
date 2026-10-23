@@ -18,6 +18,8 @@ import com.tsu2track.fitness_tracker.service.SessionService;
 
 @RestController
 public class SessionController {
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final SessionService sessionService;
 
     public SessionController(SessionService sessionService) {
@@ -30,7 +32,11 @@ public class SessionController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "5") int size
     ) {
-        return sessionService.findSessions(workoutId, PageRequest.of(page, size));
+        // Clamp instead of rejecting: PageRequest.of throws on a negative page
+        // or a size below 1, and an uncapped size returns the whole history.
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        return sessionService.findSessions(workoutId, PageRequest.of(safePage, safeSize));
     }
 
     @PostMapping("/workouts/{workoutId}/sessions")

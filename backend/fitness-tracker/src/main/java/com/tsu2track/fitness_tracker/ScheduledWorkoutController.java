@@ -62,7 +62,9 @@ public class ScheduledWorkoutController {
         Workout workout = workoutRepository.findById(body.workoutId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Workout not found"));
 
-        if (scheduledWorkoutRepository.existsByDateAndWorkout_Id(body.date(), body.workoutId())) {
+        ScheduleStatus status = body.status() != null ? body.status() : ScheduleStatus.PLANNED;
+        if (status != ScheduleStatus.COMPLETED && scheduledWorkoutRepository
+                .existsByDateAndWorkout_IdAndStatusNot(body.date(), body.workoutId(), ScheduleStatus.COMPLETED)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
         }
 
@@ -70,7 +72,7 @@ public class ScheduledWorkoutController {
         scheduled.setDate(body.date());
         scheduled.setWorkout(workout);
         scheduled.setNotes(body.notes());
-        if (body.status() != null) scheduled.setStatus(body.status());
+        scheduled.setStatus(status);
         if (body.sessionId() != null) {
             Session session = sessionRepository.findById(body.sessionId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
@@ -83,15 +85,16 @@ public class ScheduledWorkoutController {
     public ScheduledWorkout update(@PathVariable Long id, @RequestBody @Valid UpdateScheduledWorkoutRequest body) {
         ScheduledWorkout scheduled = scheduledWorkoutRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scheduled workout not found"));
-        if (body.date() != null && !body.date().equals(scheduled.getDate())) {
-            if (scheduledWorkoutRepository.existsByDateAndWorkout_IdAndIdNot(
-                body.date(), scheduled.getWorkoutId(), id
-            )) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
-            }
-            scheduled.setDate(body.date());
+        // One plan (PLANNED/SKIPPED) per date and workout; COMPLETED entries
+        // can repeat, one per session (a workout done twice in a day).
+        LocalDate newDate = body.date() != null ? body.date() : scheduled.getDate();
+        ScheduleStatus newStatus = body.status() != null ? body.status() : scheduled.getStatus();
+        if (newStatus != ScheduleStatus.COMPLETED && scheduledWorkoutRepository
+                .existsByDateAndWorkout_IdAndStatusNotAndIdNot(newDate, scheduled.getWorkoutId(), ScheduleStatus.COMPLETED, id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
         }
-        if (body.status() != null) scheduled.setStatus(body.status());
+        scheduled.setDate(newDate);
+        scheduled.setStatus(newStatus);
         if (body.notes() != null) scheduled.setNotes(body.notes());
         if (body.sessionId() != null) {
             Session session = sessionRepository.findById(body.sessionId())

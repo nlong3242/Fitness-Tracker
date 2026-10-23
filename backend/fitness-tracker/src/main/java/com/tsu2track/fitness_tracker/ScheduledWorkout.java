@@ -15,11 +15,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 
+// No (date, workout) uniqueness any more (V4): repeat COMPLETED entries are
+// allowed; ScheduledWorkoutController keeps one PLANNED/SKIPPED per day.
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(name = "uk_scheduled_workout_date_workout", columnNames = {"date", "workout_id"}))
 public class ScheduledWorkout {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

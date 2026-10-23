@@ -388,10 +388,12 @@ export async function startWorkout(workoutId, options) {
 
 /* Best-effort calendar sync on workout finish.
    - Started-from-schedule: PATCH that row to COMPLETED + link sessionId.
-   - Ad-hoc, same workout already PLANNED on session date: PATCH it to COMPLETED
-     + link sessionId (avoids the duplicate-(date,workoutId) backend reject,
-     and converges to "calendar shows what happened").
-   - Ad-hoc, no matching row: POST a new COMPLETED row carrying sessionId.
+   - Ad-hoc, same workout PLANNED or SKIPPED on the session date (the plan,
+     not yet done): PATCH it to COMPLETED + link sessionId, so the calendar
+     shows what happened instead of a plan next to a completion.
+   - Otherwise POST a new COMPLETED row carrying sessionId. In particular an
+     existing COMPLETED row belongs to another session (same workout twice in
+     a day) and must not be taken over.
    The sessionId link lets the calendar's day modal open the session summary
    when the user taps a COMPLETED row. Failures are swallowed — the workout
    summary still renders. */
@@ -402,7 +404,8 @@ export async function syncCalendarOnFinish(workoutId, sessionId, date, scheduled
             return;
         }
         const existing = await fetchSchedulesByDate(date);
-        const match = existing.find(s => s.workoutId === workoutId);
+        const match = existing.find(s =>
+            s.workoutId === workoutId && s.status !== "COMPLETED" && s.sessionId == null);
         if (match) {
             await updateSchedule(match.id, { status: "COMPLETED", sessionId: sessionId });
         } else {

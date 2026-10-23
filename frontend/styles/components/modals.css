@@ -3,17 +3,30 @@
    - exercise form modal (.modal-form-box, .modal-field, .modal-pill)
    - exercise details / read-only modal (.modal-readonly-*) */
 
+/* The overlay is the scroll container, sized to the *visible* viewport
+   (--vv-height / --vv-top are kept in sync with window.visualViewport in
+   main.js). On iOS the keyboard shrinks only the visual viewport, so a
+   plain 100%-height fixed overlay would leave the form behind it.
+   Boxes use margin: auto rather than align-items: center so a box taller
+   than the overlay scrolls from its top instead of being clipped. */
 .modal-overlay {
     position: fixed;
-    top: 0;
+    top: var(--vv-top, 0px);
     left: 0;
     width: 100%;
-    height: 100%;
+    height: var(--vv-height, 100%);
     background-color: rgba(0, 0, 0, 0.55);
     display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: max(16px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+    box-sizing: border-box;
     z-index: 1000;
+}
+
+.modal-overlay > * {
+    margin: auto;
 }
 
 .modal-box {
@@ -67,8 +80,7 @@
     border-radius: 14px;
     width: 480px;
     max-width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
+    box-sizing: border-box;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 

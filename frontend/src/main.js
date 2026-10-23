@@ -1,6 +1,20 @@
-import { state } from "./state.js";
-import { fetchWorkouts } from "./api.js";
+import { state, findWorkout } from "./state.js";
+import { fetchWorkouts, fetchUnfinishedSession } from "./api.js";
 import { renderBottomNav, setActiveTab } from "./components/bottomNav.js";
+import { initResumeBanner } from "./components/resumeBanner.js";
+
+// Pick up a workout left in progress (page reloaded, iOS closed the app...)
+// so the resume bar can offer it. Best-effort: no bar if this fails.
+async function restoreInProgressSession() {
+    try {
+        const session = await fetchUnfinishedSession();
+        if (session && findWorkout(session.workoutId)) {
+            state.currentSessionId = session.id;
+            state.currentSessionDate = session.date;
+            state.currentWorkoutId = session.workoutId;
+        }
+    } catch (e) { /* keep going without it */ }
+}
 
 // Mirror the visual viewport into CSS so modal overlays (modals.css) fit
 // the area above the iOS keyboard instead of the full screen behind it.
@@ -20,7 +34,9 @@ function trackVisualViewport() {
 async function bootstrap() {
     trackVisualViewport();
     state.workouts = await fetchWorkouts();
+    await restoreInProgressSession();
     renderBottomNav();
+    initResumeBanner();
     setActiveTab("home");
 }
 

@@ -2,7 +2,9 @@ import { state } from "../state.js";
 import { createSet, updateSet, deleteSet } from "../api.js";
 import { ensureCurrentSession, maybeCleanupOrphanSession } from "../session.js";
 
-export function createInputRow(workout, exercise, exerciseIndex, side) {
+/* savedSet (optional): an already-persisted set to show in the row, used
+   when resuming an in-progress session. */
+export function createInputRow(workout, exercise, exerciseIndex, side, savedSet) {
     const isUnilateral = exercise.unilateral === true;
     const row = document.createElement("div");
     row.className = "set-input-row";
@@ -45,6 +47,13 @@ export function createInputRow(workout, exercise, exerciseIndex, side) {
     }
     row._setFailed = setFailed;
     row._clearFailed = clearFailed;
+
+    if (savedSet) {
+        weightInput.value = savedSet.weight;
+        repsInput.value = savedSet.reps;
+        row._savedSet = savedSet;
+        row.classList.add("saved");
+    }
 
     function disableWheelScroll(input) {
         input.addEventListener("wheel", function() { this.blur(); });

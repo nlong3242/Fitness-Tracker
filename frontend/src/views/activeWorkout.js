@@ -1,7 +1,8 @@
-import { state, findWorkout } from "../state.js";
+import { state, findWorkout, clearCurrentSession } from "../state.js";
 import {
     fetchWorkoutExercises,
     fetchLastSets,
+    fetchSessionSets,
     finishSession,
     updateSchedule,
     fetchSchedulesByDate,
@@ -18,7 +19,7 @@ import {
     renumberSetRows
 } from "../components/setInputRow.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
-import { setNavGuard, clearNavGuard, setNavVisible } from "../components/bottomNav.js";
+import { clearNavGuard, setNavVisible } from "../components/bottomNav.js";
 import { abandonSession } from "../session.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary } from "./summary.js";
@@ -42,7 +43,12 @@ import { escapeHtml } from "../utils/format.js";
      schedule stays PLANNED.
    - onComplete: where to navigate when the workout flow ends. Called both
      after the "no session logged" early exit AND from the Back button on
-     the workout summary. Default is renderWorkouts. */
+     the workout summary. Default is renderWorkouts.
+
+   Resume: if a session is already in progress for this workout (still open
+   from earlier, or restored at boot from GET /sessions/unfinished), its
+   saved sets are loaded into the rows instead of starting fresh. Leaving
+   the page keeps the session; only Discard deletes it. */
 export async function startWorkout(workoutId, options) {
     const scheduledWorkoutId = options && options.scheduledWorkoutId
         ? options.scheduledWorkoutId
@@ -53,13 +59,28 @@ export async function startWorkout(workoutId, options) {
 
     const workout = findWorkout(workoutId);
 
+    // Only one workout can be in progress; starting another discards it.
+    if (state.currentSessionId !== null && state.currentWorkoutId !== workoutId) {
+        const other = findWorkout(state.currentWorkoutId);
+        const confirmed = await showConfirmModal(
+            `"${other ? other.name : "Another workout"}" is still in progress. Discard it and start "${workout.name}"?`,
+            "Discard & start"
+        );
+        if (!confirmed) return;
+        try {
+            await abandonSession();
+        } catch (e) {
+            await showConfirmModal("Couldn't discard the other workout. Check your connection and try again.", "OK");
+            return;
+        }
+    }
+
+    // Otherwise the session is created lazily, when the first set is logged.
+    const resumeSessionId = state.currentSessionId;
+
     const exercises = await fetchWorkoutExercises(workout.id);
     exercises.forEach(ex => ex.sets = []);
     workout.exercises = exercises;
-
-    // Session is created lazily — only when the first set is logged.
-    state.currentSessionId = null;
-    state.currentSessionDate = null;
 
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
@@ -80,16 +101,12 @@ export async function startWorkout(workoutId, options) {
         <div id="preview-summary" style="display:none"></div>
         <div class="page-actions">
             <button id="active-workout-finish-btn">Review &amp; Finish</button>
+            <button class="btn-danger" id="active-workout-discard-btn">Discard</button>
         </div>
     `;
 
-    setNavGuard(async function() {
-        if (state.currentSessionId === null) return true;
-        const confirmed = await showConfirmModal("Abandon current workout?", "Abandon");
-        if (!confirmed) return false;
-        await abandonSession();
-        return true;
-    });
+    // Leaving is safe now (the resume bar brings you back), so no guard.
+    clearNavGuard();
 
     const cards = document.getElementById("exercise-cards");
     const previewArea = document.getElementById("preview-summary");
@@ -165,6 +182,21 @@ export async function startWorkout(workoutId, options) {
         setActive(workout.exercises.length);
     };
 
+    document.getElementById("active-workout-discard-btn").onclick = async function() {
+        if (state.currentSessionId !== null) {
+            const confirmed = await showConfirmModal(
+                "Discard this workout? The sets you logged are deleted.", "Discard");
+            if (!confirmed) return;
+            try {
+                await abandonSession();
+            } catch (e) {
+                await showConfirmModal("Couldn't discard. Check your connection and try again.", "OK");
+                return;
+            }
+        }
+        onComplete();
+    };
+
     /* Handle a pill drag-to-reorder. The helper leaves the dragged pill in
        its original DOM position (just snaps the position:fixed lift back),
        so we manually move the pill, the workout.exercises entry, and the
@@ -201,10 +233,13 @@ export async function startWorkout(workoutId, options) {
     }
 
     // One round-trip per exercise, so fetch them all at once rather than
-    // awaiting each in turn.
-    const lastSetsByExercise = await Promise.all(
-        workout.exercises.map(ex => fetchLastSets(workout.id, ex.id))
-    );
+    // awaiting each in turn. When resuming, "last time" means before this
+    // session, and the session's own sets fill the rows.
+    const [lastSetsByExercise, resumedSets] = await Promise.all([
+        Promise.all(workout.exercises.map(ex =>
+            fetchLastSets(workout.id, ex.id, resumeSessionId ?? undefined))),
+        resumeSessionId !== null ? fetchSessionSets(resumeSessionId) : Promise.resolve([])
+    ]);
 
     for (let i = 0; i < workout.exercises.length; i++) {
         const exercise = workout.exercises[i];
@@ -215,6 +250,10 @@ export async function startWorkout(workoutId, options) {
             exercise.previousLSets = exercise.previousSets.filter(s => s.side === "LEFT");
             exercise.previousRSets = exercise.previousSets.filter(s => s.side === "RIGHT");
         }
+        const saved = resumedSets
+            .filter(s => s.exerciseId === exercise.id)
+            .sort((a, b) => a.id - b.id);
+        exercise.sets = saved.slice();
 
         // Pill — tap to jump, long-press + horizontal drag to reorder.
         const pill = document.createElement("button");
@@ -261,15 +300,21 @@ export async function startWorkout(workoutId, options) {
         cards.appendChild(card);
 
         const setsContainer = document.getElementById("sets-" + i);
+        // One row per previous set (as placeholders), or more if this
+        // session already logged more; saved sets fill the first rows.
         if (isUnilateral) {
-            const pairCount = Math.max(exercise.previousLSets.length, exercise.previousRSets.length);
+            const savedL = saved.filter(s => s.side === "LEFT");
+            const savedR = saved.filter(s => s.side === "RIGHT");
+            const pairCount = Math.max(exercise.previousLSets.length, exercise.previousRSets.length,
+                savedL.length, savedR.length);
             for (let k = 0; k < pairCount; k++) {
-                setsContainer.appendChild(createInputRow(workout, exercise, i, "LEFT"));
-                setsContainer.appendChild(createInputRow(workout, exercise, i, "RIGHT"));
+                setsContainer.appendChild(createInputRow(workout, exercise, i, "LEFT", savedL[k]));
+                setsContainer.appendChild(createInputRow(workout, exercise, i, "RIGHT", savedR[k]));
             }
         } else {
-            for (let k = 0; k < exercise.previousSets.length; k++) {
-                setsContainer.appendChild(createInputRow(workout, exercise, i, null));
+            const rowCount = Math.max(exercise.previousSets.length, saved.length);
+            for (let k = 0; k < rowCount; k++) {
+                setsContainer.appendChild(createInputRow(workout, exercise, i, null, saved[k]));
             }
         }
         updateHeaderVisibility(i);
@@ -279,18 +324,22 @@ export async function startWorkout(workoutId, options) {
     setActive(0);
 
     async function commitFinish() {
-        setNavVisible(true);
         if (state.currentSessionId === null) {
-            clearNavGuard();
+            setNavVisible(true);
             onComplete();
             return;
         }
         const sessionId = state.currentSessionId;
         const sessionDate = state.currentSessionDate;
-        state.currentSessionId = null;
-        state.currentSessionDate = null;
-        clearNavGuard();
-        await finishSession(sessionId, workout.exercises.map(e => e.id));
+        try {
+            await finishSession(sessionId, workout.exercises.map(e => e.id));
+        } catch (e) {
+            // Keep the session in progress (resumable) and stay on the preview.
+            await showConfirmModal("Couldn't finish the workout. Check your connection and try again.", "OK");
+            return;
+        }
+        clearCurrentSession();
+        setNavVisible(true);
         await syncCalendarOnFinish(workout.id, sessionId, sessionDate, scheduledWorkoutId);
         await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: onComplete });
     }

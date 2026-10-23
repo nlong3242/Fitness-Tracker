@@ -123,6 +123,34 @@ class WebLayerTest {
         assertPaging("?page=2&size=20", 2, 20);
     }
 
+    // --- GET /sessions/unfinished ---
+
+    @Test
+    void unfinishedSessionIsReturned() throws Exception {
+        Workout w = new Workout("Upper");
+        w.setId(3L);
+        Session s = new Session();
+        s.setId(42L);
+        s.setWorkout(w);
+        s.setDate(java.time.LocalDate.of(2026, 1, 6));
+        when(sessionService.findUnfinishedSession()).thenReturn(java.util.Optional.of(s));
+
+        mvc.perform(get("/sessions/unfinished").header("X-API-Key", KEY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(42))
+            .andExpect(jsonPath("$.workoutId").value(3))
+            .andExpect(jsonPath("$.date").value("2026-01-06"))
+            .andExpect(jsonPath("$.finished").value(false));
+    }
+
+    @Test
+    void noUnfinishedSessionIsNoContent() throws Exception {
+        when(sessionService.findUnfinishedSession()).thenReturn(java.util.Optional.empty());
+
+        mvc.perform(get("/sessions/unfinished").header("X-API-Key", KEY))
+            .andExpect(status().isNoContent());
+    }
+
     // --- Security sanity: these tests really go through the key check ---
 
     @Test

@@ -1,4 +1,4 @@
-import { findWorkout } from "../state.js";
+import { state, findWorkout, clearCurrentSession } from "../state.js";
 import { fetchSessionsPage, deleteSession } from "../api.js";
 import { formatSessionDate, escapeHtml } from "../utils/format.js";
 import { clearNavGuard } from "../components/bottomNav.js";
@@ -52,6 +52,7 @@ export async function viewPastSessions(workoutId) {
                 );
                 if (!confirmed) return;
                 await deleteSession(session.id);
+                if (state.currentSessionId === session.id) clearCurrentSession();
                 viewPastSessions(workoutId);
             };
             row.appendChild(deleteBtn);

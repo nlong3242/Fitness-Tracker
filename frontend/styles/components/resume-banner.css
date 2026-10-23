@@ -1,0 +1,79 @@
+/* Resume bar — components/resumeBanner.js.
+   Fixed directly above the bottom nav (60px + the home-indicator inset the
+   nav pads itself with), same 500px column. While shown, body gets
+   .has-resume-banner so page content can scroll clear of it. */
+
+#resume-banner {
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom));
+    left: 0;
+    right: 0;
+    max-width: 500px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background-color: var(--accent-pink-deep);
+    color: #ffffff;
+    box-shadow: 0 -4px 14px rgba(42, 31, 30, 0.35);
+    z-index: 99;
+    cursor: pointer;
+    transition: filter 0.15s;
+}
+
+/* Whole bar is the tap target; brief darken as press feedback. */
+#resume-banner:active {
+    filter: brightness(0.9);
+}
+
+#resume-banner[hidden] {
+    display: none;
+}
+
+.resume-dot {
+    flex: 0 0 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--action);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
+.resume-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.resume-title {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.resume-sub {
+    font-size: 0.8em;
+    opacity: 0.85;
+}
+
+/* Visual cue only — a span styled like a pill; the bar takes the tap. */
+.resume-btn {
+    flex: 0 0 auto;
+    background-color: #ffffff;
+    color: var(--accent-pink-deep);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.95em;
+    font-weight: 700;
+}
+
+@media (hover: hover) {
+    #resume-banner:hover {
+        filter: brightness(1.06);
+    }
+}
+
+.has-resume-banner #app-content {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom));
+}

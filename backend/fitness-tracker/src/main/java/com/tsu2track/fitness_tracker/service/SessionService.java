@@ -62,6 +62,12 @@ public class SessionService {
         return sessionRepository.findByWorkout_IdOrderByDateDescIdDesc(workoutId, pageable);
     }
 
+    /* The workout the user is still in the middle of (started, never
+       finished), so the app can offer to resume it. Most recent wins. */
+    public Optional<Session> findUnfinishedSession() {
+        return sessionRepository.findFirstByFinishedFalseOrderByDateDescIdDesc();
+    }
+
     public Session createSession(Long workoutId) {
         Optional<Workout> workout = workoutRepository.findById(workoutId);
         if (!workout.isPresent()) {

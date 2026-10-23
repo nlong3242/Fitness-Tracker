@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 public interface SessionRepository extends JpaRepository<Session, Long> {
     List<Session> findByWorkout_Id(Long workoutId);
     Page<Session> findByWorkout_IdOrderByDateDescIdDesc(Long workoutId, Pageable pageable);
+    Optional<Session> findFirstByFinishedFalseOrderByDateDescIdDesc();
 
     @Query("""
         SELECT s FROM Session s

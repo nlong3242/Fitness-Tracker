@@ -39,6 +39,14 @@ public class SessionController {
         return sessionService.findSessions(workoutId, PageRequest.of(safePage, safeSize));
     }
 
+    // 204 when there's nothing to resume.
+    @GetMapping("/sessions/unfinished")
+    public ResponseEntity<Session> getUnfinishedSession() {
+        return sessionService.findUnfinishedSession()
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @PostMapping("/workouts/{workoutId}/sessions")
     public Session createSession(@PathVariable Long workoutId) {
         return sessionService.createSession(workoutId);

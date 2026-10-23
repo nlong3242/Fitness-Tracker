@@ -1,4 +1,4 @@
-import { state } from "../state.js";
+import { state, clearCurrentSession } from "../state.js";
 import {
     createWorkout,
     deleteWorkout,
@@ -39,6 +39,8 @@ export function renderWorkouts() {
             const confirmed = await showConfirmModal(`Delete workout "${workout.name}"?`, "Delete");
             if (!confirmed) return;
             await deleteWorkout(workout.id);
+            // Its sessions go with it, including one still in progress.
+            if (state.currentWorkoutId === workout.id) clearCurrentSession();
             state.workouts = state.workouts.filter(w => w.id !== workout.id);
             renderWorkouts();
         };

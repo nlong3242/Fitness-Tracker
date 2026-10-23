@@ -103,7 +103,13 @@ export function deleteSession(sessionId) {
 }
 
 export function finishSession(sessionId, orderedExerciseIds) {
-    return request("POST", `/sessions/${sessionId}/finish`, { orderedExerciseIds });
+    return requestOk("POST", `/sessions/${sessionId}/finish`, { orderedExerciseIds });
+}
+
+// The started-but-not-finished session to offer for resume, or null.
+export async function fetchUnfinishedSession() {
+    const response = await requestOk("GET", "/sessions/unfinished");
+    return response.status === 204 ? null : response.json();
 }
 
 export function fetchSessionExercises(sessionId) {

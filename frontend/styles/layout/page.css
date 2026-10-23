@@ -10,7 +10,7 @@
 #app-content {
     max-width: 500px;
     margin: 0 auto;
-    padding-bottom: 80px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 .page-actions {

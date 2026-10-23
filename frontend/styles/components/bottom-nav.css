@@ -14,6 +14,8 @@
     background-color: var(--surface);
     border-top: 3px solid var(--text-primary);
     box-shadow: 0 -4px 14px rgba(42, 31, 30, 0.35);
+    /* Lift the tabs above the iPhone home indicator. */
+    padding-bottom: env(safe-area-inset-bottom);
     z-index: 100;
 }
 

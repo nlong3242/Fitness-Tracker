@@ -7,7 +7,10 @@ body {
     background-color: var(--bg);
     color: var(--text-on-dark);
     margin: 0;
-    padding: 20px;
+    /* Keep content clear of the notch / home indicator on iPhone. */
+    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+             20px max(20px, env(safe-area-inset-left));
+    -webkit-tap-highlight-color: transparent;
 }
 
 h1 {

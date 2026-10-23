@@ -308,6 +308,16 @@
     font-weight: 700;
 }
 
+/* "Session 1 · 3 sets" under each completed workout (calendar.js
+   labelSessions); a workout done twice that day continues with Session 2. */
+.schedule-row-sub {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8em;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
 .schedule-status-badge {
     font-size: 0.68em;
     font-weight: 700;

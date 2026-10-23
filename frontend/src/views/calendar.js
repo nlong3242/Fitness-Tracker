@@ -16,7 +16,8 @@ import {
     createSchedule,
     updateSchedule,
     deleteSchedule,
-    deleteSession
+    deleteSession,
+    fetchSessionSets
 } from "../api.js";
 import { state, findWorkout } from "../state.js";
 
@@ -275,6 +276,8 @@ async function renderDayDetail(iso) {
         return;
     }
     if (myToken !== renderToken) return;
+    schedules = await labelSessions(schedules);
+    if (myToken !== renderToken) return;
 
     const listEl = document.getElementById("day-schedules");
     if (schedules.length === 0) {
@@ -285,6 +288,47 @@ async function renderDayDetail(iso) {
         }).join("");
         wireScheduleRowActions(listEl, schedules, iso);
     }
+}
+
+/* Every COMPLETED row linked to a session gets "Session N · M sets": N
+   counts that workout's sessions on the day in session order (so a
+   workout done twice reads Session 1, Session 2) and a repeated workout's rows are listed in
+   that order. PLANNED/SKIPPED rows have no session and stay unlabelled.
+   Returns the (re-ordered) list. */
+async function labelSessions(schedules) {
+    const byWorkout = new Map();
+    for (const s of schedules) {
+        if (s.status !== "COMPLETED" || s.sessionId == null) continue;
+        if (!byWorkout.has(s.workoutId)) byWorkout.set(s.workoutId, []);
+        byWorkout.get(s.workoutId).push(s);
+    }
+    const groups = [...byWorkout.values()];
+    if (groups.length === 0) return schedules;
+
+    await Promise.all(groups.flat().map(async function(s) {
+        try { s._setCount = (await fetchSessionSets(s.sessionId)).length; }
+        catch (e) { s._setCount = null; } // label still shows the session number
+    }));
+    for (const group of groups) {
+        group.sort((a, b) => a.sessionId - b.sessionId);
+        group.forEach(function(s, i) {
+            const sets = s._setCount == null ? ""
+                : ` · ${s._setCount} ${s._setCount === 1 ? "set" : "sets"}`;
+            s._sessionLabel = `Session ${i + 1}${sets}`;
+        });
+    }
+    // Keep the day's order, but list each group's rows in session order,
+    // at the position of the group's first row.
+    const ordered = [];
+    const placed = new Set();
+    for (const s of schedules) {
+        const group = groups.find(g => g.includes(s));
+        if (!group) { ordered.push(s); continue; }
+        if (placed.has(group)) continue;
+        placed.add(group);
+        ordered.push(...group);
+    }
+    return ordered;
 }
 
 function renderScheduleRow(s, todayIso) {
@@ -315,7 +359,7 @@ function renderScheduleRow(s, todayIso) {
     return `
         <div class="schedule-row${clickTarget ? " clickable" : ""}" data-schedule-id="${s.id}"${clickTarget ? ` data-click-target="${clickTarget}"` : ""}>
             <div class="schedule-row-head">
-                <span class="schedule-row-name">${escapeHtml(name)}</span>
+                <span class="schedule-row-name">${escapeHtml(name)}${s._sessionLabel ? `<span class="schedule-row-sub">${escapeHtml(s._sessionLabel)}</span>` : ""}</span>
                 <span class="schedule-status-badge status-${statusLower}">${displayStatus}</span>
             </div>
             ${s.notes ? `<p class="schedule-notes">${escapeHtml(s.notes)}</p>` : ""}
@@ -425,7 +469,8 @@ async function skipSchedule(schedule, dayIso, btn) {
 
 async function deleteScheduleAction(schedule, dayIso, btn) {
     btn.disabled = true;
-    const name = workoutNameById(schedule.workoutId);
+    const name = workoutNameById(schedule.workoutId)
+        + (schedule._sessionLabel ? ` (${schedule._sessionLabel})` : "");
     /* COMPLETED rows linked to a session delete the workout history too;
        everything else (PLANNED, SKIPPED, pre-link COMPLETED rows) only
        removes the calendar entry. */

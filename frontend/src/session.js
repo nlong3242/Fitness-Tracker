@@ -1,13 +1,23 @@
 import { state } from "./state.js";
 import { createSession, deleteSession } from "./api.js";
 
+/* Two set rows can save at nearly the same moment (e.g. on a slow phone
+   connection); both must land in one session. Callers arriving while the
+   create is in flight share its promise instead of creating another. */
+let pendingSession = null;
+
 export async function ensureCurrentSession(workout) {
-    if (state.currentSessionId === null) {
-        const session = await createSession(workout.id);
-        state.currentSessionId = session.id;
-        state.currentSessionDate = session.date;
+    if (state.currentSessionId !== null) return state.currentSessionId;
+    if (!pendingSession) {
+        pendingSession = createSession(workout.id)
+            .then(function(session) {
+                state.currentSessionId = session.id;
+                state.currentSessionDate = session.date;
+                return session.id;
+            })
+            .finally(function() { pendingSession = null; });
     }
-    return state.currentSessionId;
+    return pendingSession;
 }
 
 export async function maybeCleanupOrphanSession(workout) {

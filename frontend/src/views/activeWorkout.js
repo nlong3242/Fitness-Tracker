@@ -200,11 +200,17 @@ export async function startWorkout(workoutId, options) {
         }
     }
 
+    // One round-trip per exercise, so fetch them all at once rather than
+    // awaiting each in turn.
+    const lastSetsByExercise = await Promise.all(
+        workout.exercises.map(ex => fetchLastSets(workout.id, ex.id))
+    );
+
     for (let i = 0; i < workout.exercises.length; i++) {
         const exercise = workout.exercises[i];
         const isUnilateral = exercise.unilateral === true;
 
-        exercise.previousSets = await fetchLastSets(workout.id, exercise.id);
+        exercise.previousSets = lastSetsByExercise[i];
         if (isUnilateral) {
             exercise.previousLSets = exercise.previousSets.filter(s => s.side === "LEFT");
             exercise.previousRSets = exercise.previousSets.filter(s => s.side === "RIGHT");

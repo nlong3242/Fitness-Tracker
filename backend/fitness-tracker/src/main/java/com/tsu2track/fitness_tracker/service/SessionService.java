@@ -1,5 +1,6 @@
 package com.tsu2track.fitness_tracker.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.HashSet;
@@ -75,6 +76,7 @@ public class SessionService {
         }
         Session session = new Session();
         session.setDate(LocalDate.now());
+        session.setLastActivityAt(Instant.now());
         session.setWorkout(workout.get());
         return sessionRepository.save(session);
     }
@@ -223,6 +225,7 @@ public class SessionService {
             set.setSide(req.side());
             set.setExercise(exercise.get());
             set.setSession(session.get());
+            touch(session.get());
             return exerciseSetRepository.save(set);
         }
         return null;
@@ -237,6 +240,7 @@ public class SessionService {
             }
             set.setWeight(req.weight());
             set.setReps(req.reps());
+            if (set.getSession() != null) touch(set.getSession());
             return exerciseSetRepository.save(set);
         }
         return null;
@@ -247,6 +251,13 @@ public class SessionService {
         if (existing.isPresent() && existing.get().getSession() != null && existing.get().getSession().isFinished()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
         }
+        if (existing.isPresent() && existing.get().getSession() != null) touch(existing.get().getSession());
         exerciseSetRepository.deleteById(setId);
+    }
+
+    // Any set change counts as activity on its session (see Session.lastActivityAt).
+    private void touch(Session session) {
+        session.setLastActivityAt(Instant.now());
+        sessionRepository.save(session);
     }
 }

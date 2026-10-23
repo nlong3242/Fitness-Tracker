@@ -395,7 +395,7 @@ export async function startWorkout(workoutId, options) {
    The sessionId link lets the calendar's day modal open the session summary
    when the user taps a COMPLETED row. Failures are swallowed — the workout
    summary still renders. */
-async function syncCalendarOnFinish(workoutId, sessionId, date, scheduledWorkoutId) {
+export async function syncCalendarOnFinish(workoutId, sessionId, date, scheduledWorkoutId) {
     try {
         if (scheduledWorkoutId !== null) {
             await updateSchedule(scheduledWorkoutId, { status: "COMPLETED", sessionId: sessionId });

@@ -1,6 +1,7 @@
 
 package com.tsu2track.fitness_tracker;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,10 @@ public class Session {
     private LocalDate date;
 
     private boolean finished = false;
+
+    // Last time a set was logged, edited or deleted (or the session created);
+    // the app auto-ends a workout that has been idle too long.
+    private Instant lastActivityAt;
 
     @JsonIgnore
     @ManyToOne
@@ -74,5 +79,13 @@ public class Session {
 
     public void setFinished(boolean finished) {
         this.finished = finished;
+    }
+
+    public Instant getLastActivityAt() {
+        return lastActivityAt;
+    }
+
+    public void setLastActivityAt(Instant lastActivityAt) {
+        this.lastActivityAt = lastActivityAt;
     }
 }

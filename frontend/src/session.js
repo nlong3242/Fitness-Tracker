@@ -39,6 +39,11 @@ export function getStartedWorkoutId() {
 
 let startedInMemory = null;
 
+// A set was logged, edited or deleted (the server records the same).
+export function touchActivity() {
+    if (state.currentSessionId !== null) state.currentLastActivityAt = Date.now();
+}
+
 /* Two set rows can save at nearly the same moment (e.g. on a slow phone
    connection); both must land in one session. Callers arriving while the
    create is in flight share its promise instead of creating another. */
@@ -52,6 +57,7 @@ export async function ensureCurrentSession(workout) {
                 state.currentSessionId = session.id;
                 state.currentSessionDate = session.date;
                 state.currentWorkoutId = workout.id;
+                state.currentLastActivityAt = Date.now();
                 clearStartedWorkout(); // a real session supersedes it
                 return session.id;
             })

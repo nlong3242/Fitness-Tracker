@@ -2,6 +2,7 @@ import { state, findWorkout } from "./state.js";
 import { fetchWorkouts, fetchUnfinishedSession } from "./api.js";
 import { renderBottomNav, setActiveTab } from "./components/bottomNav.js";
 import { initResumeBanner } from "./components/resumeBanner.js";
+import { startIdleWatch } from "./autoEnd.js";
 
 // Pick up a workout left in progress (page reloaded, iOS closed the app...)
 // so the resume bar can offer it. Best-effort: no bar if this fails.
@@ -12,6 +13,7 @@ async function restoreInProgressSession() {
             state.currentSessionId = session.id;
             state.currentSessionDate = session.date;
             state.currentWorkoutId = session.workoutId;
+            state.currentLastActivityAt = session.lastActivityAt ? Date.parse(session.lastActivityAt) : null;
         }
     } catch (e) { /* keep going without it */ }
 }
@@ -38,6 +40,7 @@ async function bootstrap() {
     renderBottomNav();
     initResumeBanner();
     setActiveTab("home");
+    startIdleWatch();
 }
 
 bootstrap();

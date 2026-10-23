@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { createSet, updateSet, deleteSet } from "../api.js";
-import { ensureCurrentSession, maybeCleanupOrphanSession } from "../session.js";
+import { ensureCurrentSession, maybeCleanupOrphanSession, touchActivity } from "../session.js";
 import { saveExerciseDrafts } from "../drafts.js";
 
 /* savedSet (optional): an already-persisted set to show in the row, used
@@ -191,6 +191,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
             }
             clearFailed();
             saveDraft();
+            touchActivity();
         } catch (e) {
             row.classList.remove("saved");
             setFailed("Not saved", persist);
@@ -211,6 +212,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         row.classList.remove("saved");
         try {
             await deleteSet(saved.id);
+            touchActivity();
             const idx = exercise.sets.indexOf(saved);
             if (idx >= 0) exercise.sets.splice(idx, 1);
             clearFailed();
@@ -241,6 +243,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     async function deleteRowSet(r) {
         if (r._savedSet) {
             await deleteSet(r._savedSet.id);
+            touchActivity();
             const idx = exercise.sets.indexOf(r._savedSet);
             if (idx >= 0) exercise.sets.splice(idx, 1);
         }

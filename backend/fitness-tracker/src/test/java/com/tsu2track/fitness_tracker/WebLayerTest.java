@@ -133,6 +133,7 @@ class WebLayerTest {
         s.setId(42L);
         s.setWorkout(w);
         s.setDate(java.time.LocalDate.of(2026, 1, 6));
+        s.setLastActivityAt(java.time.Instant.parse("2026-01-06T09:30:00Z"));
         when(sessionService.findUnfinishedSession()).thenReturn(java.util.Optional.of(s));
 
         mvc.perform(get("/sessions/unfinished").header("X-API-Key", KEY))
@@ -140,7 +141,8 @@ class WebLayerTest {
             .andExpect(jsonPath("$.id").value(42))
             .andExpect(jsonPath("$.workoutId").value(3))
             .andExpect(jsonPath("$.date").value("2026-01-06"))
-            .andExpect(jsonPath("$.finished").value(false));
+            .andExpect(jsonPath("$.finished").value(false))
+            .andExpect(jsonPath("$.lastActivityAt").value("2026-01-06T09:30:00Z"));
     }
 
     @Test

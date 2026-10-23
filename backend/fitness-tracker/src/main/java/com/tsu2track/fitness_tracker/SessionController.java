@@ -1,5 +1,6 @@
 package com.tsu2track.fitness_tracker;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +46,16 @@ public class SessionController {
         return sessionService.findUnfinishedSession()
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    // Home page stats. lastSession is null when nothing has been finished yet.
+    public record HomeOverview(long sessionsThisWeek, Session lastSession) {}
+
+    @GetMapping("/sessions/overview")
+    public HomeOverview getOverview(@RequestParam LocalDate weekStart) {
+        return new HomeOverview(
+            sessionService.countFinishedInWeek(weekStart),
+            sessionService.findLastFinishedSession().orElse(null));
     }
 
     @PostMapping("/workouts/{workoutId}/sessions")

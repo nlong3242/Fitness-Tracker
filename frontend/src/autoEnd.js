@@ -6,6 +6,7 @@ import { syncCalendarOnFinish } from "./views/activeWorkout.js";
 import { setActiveTab } from "./components/bottomNav.js";
 import { updateResumeBanner } from "./components/resumeBanner.js";
 import { showConfirmModal } from "./components/modals.js";
+import { renderHomePage } from "./views/home.js";
 
 /* Idle auto-end: a workout with no set logged, edited or deleted for
    IDLE_LIMIT is finished exactly as the Finish button would (same calendar
@@ -40,6 +41,7 @@ export async function endIdleWorkout() {
 
     // Don't leave the user on a live workout that no longer exists.
     if (document.getElementById("exercise-cards") !== null) await setActiveTab("home");
+    else if (document.getElementById("home-week-count") !== null) renderHomePage(); // stats changed
     else updateResumeBanner();
 
     const workout = findWorkout(workoutId);

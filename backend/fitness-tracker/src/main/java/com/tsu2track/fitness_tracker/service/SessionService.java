@@ -69,6 +69,16 @@ public class SessionService {
         return sessionRepository.findFirstByFinishedFalseOrderByDateDescIdDesc();
     }
 
+    // Home page stats. weekStart comes from the client so "this week" follows
+    // the user's local calendar (Monday start, like the calendar view).
+    public long countFinishedInWeek(LocalDate weekStart) {
+        return sessionRepository.countByFinishedTrueAndDateBetween(weekStart, weekStart.plusDays(6));
+    }
+
+    public Optional<Session> findLastFinishedSession() {
+        return sessionRepository.findFirstByFinishedTrueOrderByDateDescIdDesc();
+    }
+
     public Session createSession(Long workoutId) {
         Optional<Workout> workout = workoutRepository.findById(workoutId);
         if (!workout.isPresent()) {

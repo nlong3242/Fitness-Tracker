@@ -106,6 +106,12 @@ export function finishSession(sessionId, orderedExerciseIds) {
     return requestOk("POST", `/sessions/${sessionId}/finish`, { orderedExerciseIds });
 }
 
+// Home page stats for the week starting weekStart (local Monday, YYYY-MM-DD):
+// { sessionsThisWeek, lastSession: { id, workoutId, date, ... } | null }.
+export function fetchOverview(weekStart) {
+    return requestJson("GET", `/sessions/overview?weekStart=${weekStart}`);
+}
+
 // The started-but-not-finished session to offer for resume, or null.
 export async function fetchUnfinishedSession() {
     const response = await requestOk("GET", "/sessions/unfinished");

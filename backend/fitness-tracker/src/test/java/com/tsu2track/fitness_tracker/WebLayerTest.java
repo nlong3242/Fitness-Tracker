@@ -153,6 +153,44 @@ class WebLayerTest {
             .andExpect(status().isNoContent());
     }
 
+    // --- GET /sessions/overview ---
+
+    @Test
+    void overviewReportsWeekCountAndLastSession() throws Exception {
+        Workout w = new Workout("Legs");
+        w.setId(4L);
+        Session s = new Session();
+        s.setId(9L);
+        s.setWorkout(w);
+        s.setDate(java.time.LocalDate.of(2026, 10, 22));
+        s.setFinished(true);
+        when(sessionService.countFinishedInWeek(java.time.LocalDate.of(2026, 10, 19))).thenReturn(3L);
+        when(sessionService.findLastFinishedSession()).thenReturn(java.util.Optional.of(s));
+
+        mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").header("X-API-Key", KEY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sessionsThisWeek").value(3))
+            .andExpect(jsonPath("$.lastSession.workoutId").value(4))
+            .andExpect(jsonPath("$.lastSession.date").value("2026-10-22"));
+    }
+
+    @Test
+    void overviewWithNoSessionsYet() throws Exception {
+        when(sessionService.countFinishedInWeek(any())).thenReturn(0L);
+        when(sessionService.findLastFinishedSession()).thenReturn(java.util.Optional.empty());
+
+        mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").header("X-API-Key", KEY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sessionsThisWeek").value(0))
+            .andExpect(jsonPath("$.lastSession").isEmpty());
+    }
+
+    @Test
+    void overviewNeedsWeekStart() throws Exception {
+        mvc.perform(get("/sessions/overview").header("X-API-Key", KEY))
+            .andExpect(status().isBadRequest());
+    }
+
     // --- Security sanity: these tests really go through the key check ---
 
     @Test

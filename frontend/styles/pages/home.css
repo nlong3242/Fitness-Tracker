@@ -1,5 +1,6 @@
 /* Home page — views/home.js.
-   Dashboard layout: greeting hero + primary CTA + placeholder stat strip.
+   Dashboard layout: greeting hero + primary CTA + stat strip (this week's
+   finished sessions, last session; filled from GET /sessions/overview).
    On phones (<=480px) the stat row collapses to a single column. */
 
 .home-hero {

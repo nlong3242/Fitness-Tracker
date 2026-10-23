@@ -15,6 +15,10 @@
     --border: #E8D0CC;
     --action: #6FBF8E;
     --action-hover: #57A675;
+    /* Green for bold/large text on the cream surface: 3.35:1 on --surface,
+       above the 3:1 large-text minimum (--action is only 1.41:1). For
+       small regular text, go darker (#276140 = 4.68:1). */
+    --action-text: #2F7A4C;
     --danger: #DC5947;
     --danger-hover: #BF4232;
 }

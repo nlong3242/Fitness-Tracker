@@ -31,6 +31,15 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     const cancelBtn = row.querySelector(".set-input-cancel");
     const retryBtn = row.querySelector(".set-input-retry");
     const errorEl = row.querySelector(".set-input-error");
+    const numEl = row.querySelector(".set-input-num");
+
+    /* The label is a "log last time" button only while there is something
+       to fill: .complete (both fields have a value) turns it back into
+       plain text. Whether a last-time hint exists (.has-hint) is set by
+       renumberSetRows, which knows the row's position. */
+    function refreshTapState() {
+        numEl.classList.toggle("complete", weightInput.value !== "" && repsInput.value !== "");
+    }
     let persisting = false;
 
     /* A failed save/delete must be obvious mid-set: the row turns red with
@@ -54,6 +63,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         row._savedSet = savedSet;
         row.classList.add("saved");
     }
+    refreshTapState();
 
     function disableWheelScroll(input) {
         input.addEventListener("wheel", function() { this.blur(); });
@@ -125,6 +135,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     function onInputChange() {
         updateDeltas();
         refreshSavedClass();
+        refreshTapState();
     }
 
     weightInput.oninput = onInputChange;
@@ -163,6 +174,20 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
 
     weightInput.onchange = persist;
     repsInput.onchange = persist;
+
+    /* Tap the "Set 01" label to log last time's values (the placeholder
+       hints) in one go. Only empty fields are filled, so a stray tap never
+       overwrites a logged value, and "new weight, same reps" is one tap. */
+    numEl.onclick = function() {
+        const prev = lookupPrev();
+        if (!prev) return;
+        let filled = false;
+        if (weightInput.value === "") { weightInput.value = prev.weight; filled = true; }
+        if (repsInput.value === "") { repsInput.value = prev.reps; filled = true; }
+        if (!filled) return;
+        onInputChange();
+        persist();
+    };
 
     async function deleteRowSet(r) {
         if (r._savedSet) {
@@ -255,6 +280,7 @@ export function renumberSetRows(exerciseIndex, exercise) {
             }
             const numEl = child.querySelector(".set-num, .set-input-num");
             if (numEl) numEl.textContent = label;
+            if (numEl) numEl.classList.toggle("has-hint", Boolean(prev));
             const weightInput = child.querySelector("input.weight-input");
             const repsInput = child.querySelector("input.reps-input");
             if (weightInput && repsInput) {
@@ -269,12 +295,13 @@ export function renumberSetRows(exerciseIndex, exercise) {
             if (child.classList.contains("set-header-row")) continue;
             position++;
             const label = `Set ${String(position).padStart(2, "0")}`;
+            const prev = exercise.previousSets[position - 1];
             const numEl = child.querySelector(".set-num, .set-input-num");
             if (numEl) numEl.textContent = label;
+            if (numEl) numEl.classList.toggle("has-hint", Boolean(prev));
             const weightInput = child.querySelector("input.weight-input");
             const repsInput = child.querySelector("input.reps-input");
             if (weightInput && repsInput) {
-                const prev = exercise.previousSets[position - 1];
                 weightInput.placeholder = prev ? prev.weight : "";
                 repsInput.placeholder = prev ? prev.reps : "";
             }

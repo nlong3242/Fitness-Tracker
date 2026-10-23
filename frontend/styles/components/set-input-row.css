@@ -23,6 +23,24 @@
     font-weight: bold;
     min-width: 62px;
     font-size: 1.2em;
+    transition: transform 0.1s, color 0.15s;
+}
+
+/* "Log last time" link (setInputRow.js numEl.onclick): green with a dotted
+   underline while the row has a last-time hint and an empty field; plain
+   text again once both fields have values. */
+.set-input-num.has-hint:not(.complete) {
+    cursor: pointer;
+    color: var(--action-text);
+    text-decoration: underline dotted;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.set-input-num.has-hint:not(.complete):active {
+    transform: scale(0.94);
 }
 
 .set-input {

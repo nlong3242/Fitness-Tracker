@@ -138,7 +138,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 7px;
-    min-height: 96px;
+    min-height: 64px;
     padding: 5px 5px 6px 5px;
     display: flex;
     flex-direction: column;

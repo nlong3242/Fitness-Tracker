@@ -46,15 +46,21 @@ export async function renderCalendarPage() {
         viewYear = today.getFullYear();
         viewMonth = today.getMonth();
     }
+    /* Callers like navigateToCalendarDay call setActiveTab("calendar") and
+       then immediately paint the day detail, which lands while this fetch
+       is still in flight. If any calendar view rendered in the meantime,
+       don't paint the month grid over it. */
+    const tokenAtStart = renderToken;
     await refreshWorkoutsCache();
+    if (renderToken !== tokenAtStart) return;
     renderMonth();
 }
 
 /* External callers (e.g., workoutDetail's Schedule button) use this to
    jump straight to a day's detail. Aligns viewYear/viewMonth so the
-   bottom-nav tap on Calendar lands on the right month grid; the
-   .then runs as a microtask before the next paint so renderCalendarPage's
-   month-grid HTML never reaches the screen. */
+   bottom-nav tap on Calendar lands on the right month grid.
+   renderCalendarPage (kicked off by setActiveTab) skips its month paint
+   when renderDayDetail has rendered first — see the token check there. */
 export async function navigateToCalendarDay(iso) {
     const [y, m] = iso.split("-").map(Number);
     viewYear = y;

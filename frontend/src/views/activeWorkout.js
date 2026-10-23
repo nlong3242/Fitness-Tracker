@@ -20,7 +20,7 @@ import {
 } from "../components/setInputRow.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { clearNavGuard, setNavVisible } from "../components/bottomNav.js";
-import { abandonSession } from "../session.js";
+import { abandonSession, markWorkoutStarted, clearStartedWorkout } from "../session.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary } from "./summary.js";
 import { escapeHtml } from "../utils/format.js";
@@ -75,8 +75,11 @@ export async function startWorkout(workoutId, options) {
         }
     }
 
-    // Otherwise the session is created lazily, when the first set is logged.
+    // Otherwise the session is created lazily, when the first set is logged;
+    // until then the workout is only "started" (remembered on the device).
     const resumeSessionId = state.currentSessionId;
+    if (resumeSessionId === null) markWorkoutStarted(workout.id);
+    else clearStartedWorkout();
 
     const exercises = await fetchWorkoutExercises(workout.id);
     exercises.forEach(ex => ex.sets = []);
@@ -194,6 +197,7 @@ export async function startWorkout(workoutId, options) {
                 return;
             }
         }
+        clearStartedWorkout();
         onComplete();
     };
 
@@ -325,6 +329,7 @@ export async function startWorkout(workoutId, options) {
 
     async function commitFinish() {
         if (state.currentSessionId === null) {
+            clearStartedWorkout();
             setNavVisible(true);
             onComplete();
             return;

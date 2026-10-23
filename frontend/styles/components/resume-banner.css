@@ -77,3 +77,9 @@
 .has-resume-banner #app-content {
     padding-bottom: calc(140px + env(safe-area-inset-bottom));
 }
+
+/* Started but nothing logged yet: hollow dot instead of the solid one. */
+#resume-banner.pending .resume-dot {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 2px #ffffff;
+}

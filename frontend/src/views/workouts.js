@@ -1,4 +1,5 @@
 import { state, clearCurrentSession } from "../state.js";
+import { getStartedWorkoutId, clearStartedWorkout } from "../session.js";
 import {
     createWorkout,
     deleteWorkout,
@@ -41,6 +42,7 @@ export function renderWorkouts() {
             await deleteWorkout(workout.id);
             // Its sessions go with it, including one still in progress.
             if (state.currentWorkoutId === workout.id) clearCurrentSession();
+            if (getStartedWorkoutId() === workout.id) clearStartedWorkout();
             state.workouts = state.workouts.filter(w => w.id !== workout.id);
             renderWorkouts();
         };

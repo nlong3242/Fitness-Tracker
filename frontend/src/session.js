@@ -1,6 +1,44 @@
 import { state, clearCurrentSession } from "./state.js";
 import { createSession, deleteSession, ApiError } from "./api.js";
 
+/* "Started" workout: opened with Start but nothing logged yet, so no
+   server session exists (sessions are created lazily on the first set).
+   Remembered on the device only, until local midnight, so the resume bar
+   can reopen it. Nothing is lost by dropping it, so it never prompts. */
+const STARTED_KEY = "fitness.startedWorkout";
+
+function localToday() {
+    return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local time
+}
+
+export function markWorkoutStarted(workoutId) {
+    try {
+        localStorage.setItem(STARTED_KEY, JSON.stringify({ workoutId, startedOn: localToday() }));
+    } catch (e) { /* storage unavailable: the bar just won't survive a reload */ }
+    startedInMemory = { workoutId, startedOn: localToday() };
+}
+
+export function clearStartedWorkout() {
+    startedInMemory = null;
+    try { localStorage.removeItem(STARTED_KEY); } catch (e) { /* ignore */ }
+}
+
+// The started workout's id, or null if none / it was from an earlier day.
+export function getStartedWorkoutId() {
+    let started = startedInMemory;
+    if (!started) {
+        try { started = JSON.parse(localStorage.getItem(STARTED_KEY)); } catch (e) { started = null; }
+    }
+    if (!started || started.startedOn !== localToday()) {
+        if (started) clearStartedWorkout();
+        return null;
+    }
+    startedInMemory = started;
+    return started.workoutId;
+}
+
+let startedInMemory = null;
+
 /* Two set rows can save at nearly the same moment (e.g. on a slow phone
    connection); both must land in one session. Callers arriving while the
    create is in flight share its promise instead of creating another. */
@@ -14,6 +52,7 @@ export async function ensureCurrentSession(workout) {
                 state.currentSessionId = session.id;
                 state.currentSessionDate = session.date;
                 state.currentWorkoutId = workout.id;
+                clearStartedWorkout(); // a real session supersedes it
                 return session.id;
             })
             .finally(function() { pendingSession = null; });
@@ -26,6 +65,8 @@ export async function maybeCleanupOrphanSession(workout) {
     if (!hasAnySets && state.currentSessionId !== null) {
         await deleteSession(state.currentSessionId);
         clearCurrentSession();
+        // Still on the workout, just with nothing logged again.
+        markWorkoutStarted(workout.id);
     }
 }
 

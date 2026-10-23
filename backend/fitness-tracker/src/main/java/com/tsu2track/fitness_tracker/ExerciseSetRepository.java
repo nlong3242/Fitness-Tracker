@@ -11,6 +11,8 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
     List<ExerciseSet> findByExercise_IdAndSession_Id(Long exerciseId, Long sessionId);
     List<ExerciseSet> findBySession_Id(Long sessionId);
 
+    // Ordered by id (= logging order): the live workout maps these onto
+    // set rows by position, so the order is part of the contract.
     @Query("""
         SELECT s FROM ExerciseSet s
         WHERE s.exercise.id = :exerciseId
@@ -28,6 +30,7 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
             ORDER BY s2.session.date DESC, s2.session.id DESC
             LIMIT 1
           )
+        ORDER BY s.id
         """)
     List<ExerciseSet> findLastSetsForExercise(
         @Param("workoutId") Long workoutId,

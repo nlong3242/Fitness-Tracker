@@ -42,7 +42,25 @@ class ExerciseSetRepositoryTest {
         ExerciseSet a = set(newer, bench, 65, 8);
         ExerciseSet b = set(newer, bench, 65, 6);
 
-        assertThat(ids(lastSets(bench, null))).containsExactlyInAnyOrder(a.getId(), b.getId());
+        assertThat(ids(lastSets(bench, null))).containsExactly(a.getId(), b.getId());
+    }
+
+    /* The frontend pairs previous sets with set rows by position, so the
+       result must come back in logging (id) order. H2 happens to return
+       rows in id order even without an ORDER BY, so this test alone can't
+       prove the clause is there — it pins the contract, and was checked
+       to fail against ORDER BY s.id DESC. */
+    @Test
+    void returnsSetsInTheOrderTheyWereLogged() {
+        Session s = session(workout, DAY1);
+        ExerciseSet first = set(s, bench, 60, 10);
+        ExerciseSet second = set(s, bench, 70, 8);
+        ExerciseSet third = set(s, bench, 80, 6);
+
+        List<ExerciseSet> result = lastSets(bench, null);
+
+        assertThat(ids(result)).containsExactly(first.getId(), second.getId(), third.getId());
+        assertThat(result).extracting(ExerciseSet::getWeight).containsExactly(60.0, 70.0, 80.0);
     }
 
     @Test

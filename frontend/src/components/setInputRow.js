@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { createSet, updateSet, deleteSet } from "../api.js";
 import { ensureCurrentSession, maybeCleanupOrphanSession } from "../session.js";
+import { saveExerciseDrafts } from "../drafts.js";
 
 /* savedSet (optional): an already-persisted set to show in the row, used
    when resuming an in-progress session. */
@@ -124,6 +125,22 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
 
     row._updateDeltas = updateDeltas;
 
+    // Unsaved typed values survive a reload (drafts.js); re-snapshotted on
+    // every change so saving or emptying a row drops its draft.
+    function saveDraft() {
+        const container = document.getElementById("sets-" + exerciseIndex);
+        if (container) saveExerciseDrafts(workout.id, exercise.id, container);
+    }
+
+    // Restore a draft into this (unsaved) row; a complete one was a failed
+    // save, so it is retried.
+    row._applyDraft = function(w, r) {
+        weightInput.value = w;
+        repsInput.value = r;
+        onInputChange();
+        if (w !== "" && r !== "") persist();
+    };
+
     function refreshSavedClass() {
         if (!row._savedSet) return;
         const w = parseFloat(weightInput.value);
@@ -136,13 +153,22 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         updateDeltas();
         refreshSavedClass();
         refreshTapState();
+        saveDraft();
     }
 
     weightInput.oninput = onInputChange;
     repsInput.oninput = onInputChange;
 
+    /* A saved set exists only while both fields are filled: emptying either
+       one deletes it (the remaining value stays on screen, unsaved), and
+       filling both again saves a new set. Without this, persist ignored
+       the incomplete row, so the set stayed logged and came back on reload. */
     async function persist() {
         if (persisting) return;
+        if (row._savedSet && (weightInput.value === "" || repsInput.value === "")) {
+            await unlogSavedSet();
+            return;
+        }
         const w = parseFloat(weightInput.value);
         const r = Number(repsInput.value);
         if (isNaN(w) || w < 0) return;
@@ -164,6 +190,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
                 row.classList.add("saved");
             }
             clearFailed();
+            saveDraft();
         } catch (e) {
             row.classList.remove("saved");
             setFailed("Not saved", persist);
@@ -174,6 +201,28 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
 
     weightInput.onchange = persist;
     repsInput.onchange = persist;
+
+    // Deletes the row's saved set but keeps the row and whatever it shows.
+    async function unlogSavedSet() {
+        const saved = row._savedSet;
+        // Detach first so refilling the row right after creates a new set
+        // instead of updating the one being deleted.
+        row._savedSet = null;
+        row.classList.remove("saved");
+        try {
+            await deleteSet(saved.id);
+            const idx = exercise.sets.indexOf(saved);
+            if (idx >= 0) exercise.sets.splice(idx, 1);
+            clearFailed();
+            await maybeCleanupOrphanSession(workout);
+        } catch (e) {
+            row._savedSet = saved;
+            // persist re-decides on retry: still incomplete → delete again,
+            // refilled meanwhile → update the set instead.
+            setFailed("Not deleted", persist);
+        }
+        onInputChange();
+    }
 
     /* Tap the "Set 01" label to log last time's values (the placeholder
        hints) in one go. Only empty fields are filled, so a stray tap never
@@ -199,6 +248,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     }
 
     async function afterRowsRemoved() {
+        saveDraft();
         await maybeCleanupOrphanSession(workout);
         updateHeaderVisibility(exerciseIndex);
         renumberSetRows(exerciseIndex, exercise);

@@ -20,7 +20,8 @@ import {
 } from "../components/setInputRow.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { clearNavGuard, setNavVisible } from "../components/bottomNav.js";
-import { abandonSession, markWorkoutStarted, clearStartedWorkout } from "../session.js";
+import { abandonSession, markWorkoutStarted, clearStartedWorkout, getStartedWorkoutId } from "../session.js";
+import { loadDrafts, clearDrafts, sideKey } from "../drafts.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary } from "./summary.js";
 import { escapeHtml } from "../utils/format.js";
@@ -78,6 +79,9 @@ export async function startWorkout(workoutId, options) {
     // Otherwise the session is created lazily, when the first set is logged;
     // until then the workout is only "started" (remembered on the device).
     const resumeSessionId = state.currentSessionId;
+    // Typed-but-unsaved values belong to the workout in progress; opening
+    // any other one (or this one afresh, e.g. the next day) drops them.
+    if (resumeSessionId === null && getStartedWorkoutId() !== workout.id) clearDrafts();
     if (resumeSessionId === null) markWorkoutStarted(workout.id);
     else clearStartedWorkout();
 
@@ -198,6 +202,7 @@ export async function startWorkout(workoutId, options) {
             }
         }
         clearStartedWorkout();
+        clearDrafts();
         onComplete();
     };
 
@@ -325,11 +330,41 @@ export async function startWorkout(workoutId, options) {
         renumberSetRows(i, exercise);
     }
 
+    restoreDrafts();
     setActive(0);
+
+    /* Typed-but-unsaved values from before a reload go into the first
+       unsaved rows of their exercise and side, adding rows if needed. */
+    function restoreDrafts() {
+        const drafts = loadDrafts(workout.id);
+        workout.exercises.forEach(function(exercise, i) {
+            const bySide = drafts[exercise.id];
+            if (!bySide) return;
+            const container = document.getElementById("sets-" + i);
+            const unsavedRows = key => Array.from(container.querySelectorAll(".set-input-row"))
+                .filter(r => !r._savedSet && sideKey(r.dataset.side) === key);
+            for (const key of Object.keys(bySide)) {
+                const list = bySide[key];
+                while (unsavedRows(key).length < list.length) {
+                    if (exercise.unilateral === true) {
+                        container.appendChild(createInputRow(workout, exercise, i, "LEFT"));
+                        container.appendChild(createInputRow(workout, exercise, i, "RIGHT"));
+                    } else {
+                        container.appendChild(createInputRow(workout, exercise, i, null));
+                    }
+                }
+                updateHeaderVisibility(i);
+                renumberSetRows(i, exercise);
+                const rows = unsavedRows(key);
+                list.forEach((d, k) => rows[k]._applyDraft(d.w, d.r));
+            }
+        });
+    }
 
     async function commitFinish() {
         if (state.currentSessionId === null) {
             clearStartedWorkout();
+            clearDrafts();
             setNavVisible(true);
             onComplete();
             return;
@@ -344,6 +379,7 @@ export async function startWorkout(workoutId, options) {
             return;
         }
         clearCurrentSession();
+        clearDrafts();
         setNavVisible(true);
         await syncCalendarOnFinish(workout.id, sessionId, sessionDate, scheduledWorkoutId);
         await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: onComplete });

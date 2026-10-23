@@ -25,9 +25,26 @@ async function request(method, path, body, _isRetry = false) {
     return response;
 }
 
+/* Thrown for non-2xx responses so an error envelope is never mistaken for
+   data (e.g. a 409 on createSet used to come back as if it were the set). */
+export class ApiError extends Error {
+    constructor(response) {
+        super(`${response.status} ${response.statusText}`);
+        this.status = response.status;
+    }
+}
+
 async function requestJson(method, path, body) {
     const response = await request(method, path, body);
+    if (!response.ok) throw new ApiError(response);
     return response.json();
+}
+
+// For endpoints whose callers only need success/failure.
+async function requestOk(method, path, body) {
+    const response = await request(method, path, body);
+    if (!response.ok) throw new ApiError(response);
+    return response;
 }
 
 // --- Workouts ---
@@ -137,7 +154,7 @@ export function updateSet(setId, body) {
 }
 
 export function deleteSet(setId) {
-    return request("DELETE", `/sets/${setId}`);
+    return requestOk("DELETE", `/sets/${setId}`);
 }
 
 // --- Exercises ---

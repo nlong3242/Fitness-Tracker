@@ -10,6 +10,7 @@
 
 .set-input-row {
     display: flex;
+    flex-wrap: wrap; /* lets .set-input-error take its own line */
     align-items: center;
     gap: 8px;
     padding: 8px 0;
@@ -124,4 +125,37 @@
     .set-input-cancel:hover {
         background-color: var(--danger-hover);
     }
+}
+
+/* Failed save/delete (setInputRow.js setFailed): red inputs, an error line
+   under the row, and a retry button shown next to the cancel button. */
+.set-input-retry,
+.set-input-error {
+    display: none;
+}
+
+.set-input-row.save-failed .set-input {
+    border-color: var(--danger);
+    border-width: 4px;
+    padding: 10px 12px;
+}
+
+.set-input-row.save-failed .set-input-retry {
+    display: block;
+    flex: 0 0 34px;
+    height: 34px;
+    padding: 0;
+    font-size: 1.1em;
+    background-color: var(--surface);
+    color: var(--danger);
+    border: 2px solid var(--danger);
+}
+
+.set-input-row.save-failed .set-input-error {
+    display: block;
+    flex-basis: 100%;
+    color: var(--danger);
+    font-size: 0.85em;
+    font-weight: 700;
+    margin-top: -2px;
 }

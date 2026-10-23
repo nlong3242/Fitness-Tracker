@@ -18,14 +18,33 @@ export function createInputRow(workout, exercise, exerciseIndex, side) {
             <input type="number" min="1" step="1" inputmode="numeric" class="set-input reps-input">
             <span class="set-input-delta reps-delta"></span>
         </div>
+        <button class="set-input-retry" aria-label="Retry">&#8635;</button>
         <button class="set-input-cancel">&#10005;</button>
+        <div class="set-input-error"></div>
     `;
     const weightInput = row.querySelector(".weight-input");
     const repsInput = row.querySelector(".reps-input");
     const weightDelta = row.querySelector(".weight-delta");
     const repsDelta = row.querySelector(".reps-delta");
     const cancelBtn = row.querySelector(".set-input-cancel");
+    const retryBtn = row.querySelector(".set-input-retry");
+    const errorEl = row.querySelector(".set-input-error");
     let persisting = false;
+
+    /* A failed save/delete must be obvious mid-set: the row turns red with
+       a message and a retry button. retry is what the button re-runs. */
+    function setFailed(message, retry) {
+        row.classList.add("save-failed");
+        errorEl.textContent = `${message} — tap ↻ to retry`;
+        retryBtn.onclick = retry;
+    }
+    function clearFailed() {
+        row.classList.remove("save-failed");
+        errorEl.textContent = "";
+        retryBtn.onclick = null;
+    }
+    row._setFailed = setFailed;
+    row._clearFailed = clearFailed;
 
     function disableWheelScroll(input) {
         input.addEventListener("wheel", function() { this.blur(); });
@@ -124,6 +143,10 @@ export function createInputRow(workout, exercise, exerciseIndex, side) {
                 exercise.sets.push(row._savedSet);
                 row.classList.add("saved");
             }
+            clearFailed();
+        } catch (e) {
+            row.classList.remove("saved");
+            setFailed("Not saved", persist);
         } finally {
             persisting = false;
         }
@@ -141,6 +164,25 @@ export function createInputRow(workout, exercise, exerciseIndex, side) {
         r.remove();
     }
 
+    async function afterRowsRemoved() {
+        await maybeCleanupOrphanSession(workout);
+        updateHeaderVisibility(exerciseIndex);
+        renumberSetRows(exerciseIndex, exercise);
+    }
+
+    // Deletes one row; on failure the row stays, flagged, retrying just itself.
+    async function deleteOrFlag(r) {
+        try {
+            await deleteRowSet(r);
+            return true;
+        } catch (e) {
+            r._setFailed("Not deleted", async function() {
+                if (await deleteOrFlag(r)) await afterRowsRemoved();
+            });
+            return false;
+        }
+    }
+
     cancelBtn.onclick = async function() {
         if (isUnilateral) {
             const container = document.getElementById("sets-" + exerciseIndex);
@@ -150,14 +192,12 @@ export function createInputRow(workout, exercise, exerciseIndex, side) {
             const otherSide = side === "LEFT" ? "RIGHT" : "LEFT";
             const otherSideRows = rows.filter(r => r.dataset.side === otherSide);
             const partnerRow = otherSideRows[position - 1] || null;
-            await deleteRowSet(row);
-            if (partnerRow) await deleteRowSet(partnerRow);
+            await deleteOrFlag(row);
+            if (partnerRow) await deleteOrFlag(partnerRow);
         } else {
-            await deleteRowSet(row);
+            await deleteOrFlag(row);
         }
-        await maybeCleanupOrphanSession(workout);
-        updateHeaderVisibility(exerciseIndex);
-        renumberSetRows(exerciseIndex, exercise);
+        await afterRowsRemoved();
     };
 
     return row;

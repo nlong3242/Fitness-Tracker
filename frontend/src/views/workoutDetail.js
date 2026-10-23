@@ -1,4 +1,4 @@
-import { state } from "../state.js";
+import { findWorkout } from "../state.js";
 import {
     fetchWorkoutExercises,
     updateWorkoutExercise,
@@ -20,9 +20,9 @@ import { viewPastSessions } from "./pastSessions.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { escapeHtml } from "../utils/format.js";
 
-export async function viewWorkout(workoutIndex) {
+export async function viewWorkout(workoutId) {
     clearNavGuard();
-    const workout = state.workouts[workoutIndex];
+    const workout = findWorkout(workoutId);
     workout.exercises = await fetchWorkoutExercises(workout.id);
 
     const container = document.getElementById("app-content");
@@ -43,12 +43,12 @@ export async function viewWorkout(workoutIndex) {
         </div>
     `;
 
-    document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutIndex); };
+    document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutId); };
     const startBtn = document.getElementById("workout-start-btn");
     if (workout.exercises.length === 0) {
         startBtn.disabled = true;
     } else {
-        startBtn.onclick = function() { startWorkout(workoutIndex); };
+        startBtn.onclick = function() { startWorkout(workoutId); };
     }
     document.getElementById("workout-schedule-btn").onclick = async function() {
         const todayIso = isoToday();
@@ -66,7 +66,7 @@ export async function viewWorkout(workoutIndex) {
         if (!result) return;
         await navigateToCalendarDay(result.schedule.date);
     };
-    document.getElementById("workout-past-sessions-btn").onclick = function() { viewPastSessions(workoutIndex); };
+    document.getElementById("workout-past-sessions-btn").onclick = function() { viewPastSessions(workoutId); };
     document.getElementById("workout-back-btn").onclick = renderWorkouts;
 
     const list = document.getElementById("exercise-list");
@@ -103,10 +103,10 @@ export async function viewWorkout(workoutIndex) {
                 if (!result) return;
                 if (result.action === "save") {
                     await updateWorkoutExercise(workout.id, exercise.id, result.data);
-                    viewWorkout(workoutIndex);
+                    viewWorkout(workoutId);
                 } else if (result.action === "delete") {
                     await removeWorkoutExercise(workout.id, exercise.id);
-                    viewWorkout(workoutIndex);
+                    viewWorkout(workoutId);
                 }
             };
             list.appendChild(item);

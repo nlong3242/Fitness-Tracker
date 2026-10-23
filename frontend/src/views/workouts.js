@@ -26,12 +26,11 @@ export function renderWorkouts() {
     document.getElementById("workouts-back-btn").onclick = function() { setActiveTab("home"); };
 
     const list = document.getElementById("workout-list");
-    for (let i = 0; i < state.workouts.length; i++) {
-        const workout = state.workouts[i];
+    for (const workout of state.workouts) {
         const item = document.createElement("li");
         const nameText = document.createTextNode(workout.name);
         item.style.cursor = "pointer";
-        item.onclick = function() { viewWorkout(i); };
+        item.onclick = function() { viewWorkout(workout.id); };
 
         const deleteBtn = document.createElement("button");
         deleteBtn.textContent = "Delete";
@@ -40,7 +39,7 @@ export function renderWorkouts() {
             const confirmed = await showConfirmModal(`Delete workout "${workout.name}"?`, "Delete");
             if (!confirmed) return;
             await deleteWorkout(workout.id);
-            state.workouts.splice(i, 1);
+            state.workouts = state.workouts.filter(w => w.id !== workout.id);
             renderWorkouts();
         };
 
@@ -157,7 +156,7 @@ export function renderCreateWorkoutPage(initialState, options) {
         if (options && options.onCreated) {
             options.onCreated(newWorkout);
         } else {
-            viewWorkout(state.workouts.length - 1);
+            viewWorkout(newWorkout.id);
         }
     };
 

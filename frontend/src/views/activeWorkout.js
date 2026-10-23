@@ -1,4 +1,4 @@
-import { state } from "../state.js";
+import { state, findWorkout } from "../state.js";
 import {
     fetchWorkoutExercises,
     fetchLastSets,
@@ -43,7 +43,7 @@ import { escapeHtml } from "../utils/format.js";
    - onComplete: where to navigate when the workout flow ends. Called both
      after the "no session logged" early exit AND from the Back button on
      the workout summary. Default is renderWorkouts. */
-export async function startWorkout(workoutIndex, options) {
+export async function startWorkout(workoutId, options) {
     const scheduledWorkoutId = options && options.scheduledWorkoutId
         ? options.scheduledWorkoutId
         : null;
@@ -51,7 +51,7 @@ export async function startWorkout(workoutIndex, options) {
         ? options.onComplete
         : renderWorkouts;
 
-    const workout = state.workouts[workoutIndex];
+    const workout = findWorkout(workoutId);
 
     const exercises = await fetchWorkoutExercises(workout.id);
     exercises.forEach(ex => ex.sets = []);

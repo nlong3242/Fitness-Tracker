@@ -4,7 +4,7 @@ import {
     createExercise,
     linkExerciseToWorkout
 } from "../api.js";
-import { state } from "../state.js";
+import { findWorkout } from "../state.js";
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 import { showExerciseFormModal } from "../components/modals.js";
 import {
@@ -127,20 +127,20 @@ export async function renderMultiSelectExercisePicker(opts) {
     };
 }
 
-export async function addExercise(workoutIndex) {
-    const workout = state.workouts[workoutIndex];
+export async function addExercise(workoutId) {
+    const workout = findWorkout(workoutId);
     const workoutExercises = await fetchWorkoutExercises(workout.id);
     const excludedIds = workoutExercises.map(e => e.id);
     await renderMultiSelectExercisePicker({
         title: `Add to ${workout.name}`,
         workoutLabel: workout.name,
         excludedIds: excludedIds,
-        onCancel: function() { viewWorkout(workoutIndex); },
+        onCancel: function() { viewWorkout(workoutId); },
         onConfirm: async function(selected) {
             for (const ex of selected) {
                 await linkExerciseToWorkout(workout.id, ex.id);
             }
-            viewWorkout(workoutIndex);
+            viewWorkout(workoutId);
         }
     });
 }

@@ -18,7 +18,7 @@ import {
     deleteSchedule,
     deleteSession
 } from "../api.js";
-import { state } from "../state.js";
+import { state, findWorkout } from "../state.js";
 
 /* state.workouts is loaded once at startup; exerciseCount goes stale
    whenever the user links or unlinks an exercise elsewhere. Refresh
@@ -354,14 +354,11 @@ function wireScheduleRowActions(listEl, schedules, dayIso) {
 }
 
 function openSessionSummaryFromSchedule(schedule, dayIso) {
-    const workoutIndex = state.workouts.findIndex(function(w) {
-        return w.id === schedule.workoutId;
-    });
-    if (workoutIndex < 0) {
+    if (!findWorkout(schedule.workoutId)) {
         showErrorBanner("Couldn't find this workout — it may have been deleted.");
         return;
     }
-    viewSessionSummary(workoutIndex, schedule.sessionId, schedule.date, function() {
+    viewSessionSummary(schedule.workoutId, schedule.sessionId, schedule.date, function() {
         setActiveTab("calendar");
         renderDayDetail(dayIso);
     });
@@ -372,26 +369,20 @@ function openSessionSummaryFromSchedule(schedule, dayIso) {
    is looking at workoutDetail). viewWorkout immediately overrides the
    default workouts-list paint, same trick navigateToCalendarDay uses. */
 async function openWorkoutDetailFromSchedule(schedule) {
-    const workoutIndex = state.workouts.findIndex(function(w) {
-        return w.id === schedule.workoutId;
-    });
-    if (workoutIndex < 0) {
+    if (!findWorkout(schedule.workoutId)) {
         showErrorBanner("Couldn't find this workout — it may have been deleted.");
         return;
     }
     await setActiveTab("workouts");
-    viewWorkout(workoutIndex);
+    viewWorkout(schedule.workoutId);
 }
 
 function startFromSchedule(schedule, dayIso) {
-    const workoutIndex = state.workouts.findIndex(function(w) {
-        return w.id === schedule.workoutId;
-    });
-    if (workoutIndex < 0) {
+    if (!findWorkout(schedule.workoutId)) {
         showErrorBanner("Couldn't find this workout — it may have been deleted.");
         return;
     }
-    startWorkout(workoutIndex, {
+    startWorkout(schedule.workoutId, {
         scheduledWorkoutId: schedule.id,
         onComplete: function() {
             setActiveTab("calendar");

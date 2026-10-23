@@ -1,4 +1,4 @@
-import { state } from "../state.js";
+import { findWorkout } from "../state.js";
 import { fetchSessionsPage, deleteSession } from "../api.js";
 import { formatSessionDate, escapeHtml } from "../utils/format.js";
 import { clearNavGuard } from "../components/bottomNav.js";
@@ -6,9 +6,9 @@ import { showConfirmModal } from "../components/modals.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { viewSessionSummary } from "./summary.js";
 
-export async function viewPastSessions(workoutIndex) {
+export async function viewPastSessions(workoutId) {
     clearNavGuard();
-    const workout = state.workouts[workoutIndex];
+    const workout = findWorkout(workoutId);
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
@@ -20,7 +20,7 @@ export async function viewPastSessions(workoutIndex) {
         </div>
     `;
 
-    document.getElementById("past-sessions-back-btn").onclick = function() { viewWorkout(workoutIndex); };
+    document.getElementById("past-sessions-back-btn").onclick = function() { viewWorkout(workoutId); };
 
     let nextPage = 0;
     let sessionIndex = 1;
@@ -38,7 +38,7 @@ export async function viewPastSessions(workoutIndex) {
             row.className = "session-row";
             row.innerHTML = `<span class="session-index">${sessionIndex}.</span> ${formatSessionDate(session.date)}`;
             row.onclick = function() {
-                viewSessionSummary(workoutIndex, session.id, session.date, function() { viewPastSessions(workoutIndex); });
+                viewSessionSummary(workoutId, session.id, session.date, function() { viewPastSessions(workoutId); });
             };
 
             const deleteBtn = document.createElement("button");
@@ -52,7 +52,7 @@ export async function viewPastSessions(workoutIndex) {
                 );
                 if (!confirmed) return;
                 await deleteSession(session.id);
-                viewPastSessions(workoutIndex);
+                viewPastSessions(workoutId);
             };
             row.appendChild(deleteBtn);
 

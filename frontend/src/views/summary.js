@@ -1,4 +1,4 @@
-import { state } from "../state.js";
+import { findWorkout } from "../state.js";
 import {
     fetchSessionExercises,
     fetchSessionSets,
@@ -11,9 +11,9 @@ import { createNotesPanel } from "../components/notesPanel.js";
 import { clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
 
-export async function viewSessionSummary(workoutIndex, sessionId, sessionDate, onBack) {
+export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBack) {
     clearNavGuard();
-    const workout = state.workouts[workoutIndex];
+    const workout = findWorkout(workoutId);
 
     const snapshotExercises = await fetchSessionExercises(sessionId);
     const sets = await fetchSessionSets(sessionId);
@@ -32,7 +32,7 @@ export async function viewSessionSummary(workoutIndex, sessionId, sessionDate, o
     }
     workout.exercises = snapshotExercises;
 
-    const back = onBack || function() { viewWorkout(workoutIndex); };
+    const back = onBack || function() { viewWorkout(workoutId); };
     await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: back });
 }
 

@@ -1,11 +1,23 @@
 /* Page-level layout primitives.
+   - #app-scroll: fixed full-screen frame and the app's only scroll
+     container (html/body don't scroll — see base/elements.css).
    - #app-content: the swappable view mount point declared in index.html
-     (sibling of #bottom-nav).
+     (inside #app-scroll, sibling of #bottom-nav).
    - .page-actions: flex wrapper used at the top of every view to host
      primary + secondary action buttons (see SESSION_NOTES "page-actions").
    - .empty-sessions: shared empty-state message used by workoutDetail
      ("No previous sessions yet"), libraryList ("No exercises yet"),
      and exercisePicker ("No exercises in <category>"). */
+
+#app-scroll {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Keep content clear of the notch / home indicator on iPhone. */
+    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+             20px max(20px, env(safe-area-inset-left));
+}
 
 #app-content {
     max-width: 500px;

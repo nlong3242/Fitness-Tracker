@@ -2,14 +2,21 @@
    Lists carry the cream "card row" treatment used everywhere
    (workout list, library list, create-workout pending rows). */
 
+/* The document itself never scrolls — #app-scroll does (layout/page.css).
+   If the body scrolled, iOS rubber-banding and toolbar resizing could
+   leave the page stuck offset, with the fixed nav floating mid-screen. */
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
 body {
     font-family: Arial, sans-serif;
     background-color: var(--bg);
     color: var(--text-on-dark);
     margin: 0;
-    /* Keep content clear of the notch / home indicator on iPhone. */
-    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
-             20px max(20px, env(safe-area-inset-left));
     -webkit-tap-highlight-color: transparent;
 }
 

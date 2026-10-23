@@ -107,5 +107,8 @@ export async function setActiveTab(name) {
     for (const cell of nav.querySelectorAll(".nav-tab")) {
         cell.classList.toggle("active", cell.dataset.tab === name);
     }
+    // Each tab starts at the top; otherwise the previous tab's scroll
+    // offset carries over and hides the top of the new page.
+    document.getElementById("app-scroll").scrollTo(0, 0);
     tab.render();
 }

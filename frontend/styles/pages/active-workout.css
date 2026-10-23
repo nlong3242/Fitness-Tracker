@@ -59,7 +59,8 @@
    omitted since the active card itself shows it. */
 #exercise-nav-row {
     position: fixed;
-    bottom: 60px;
+    /* Main nav height plus the home-indicator inset it pads itself with. */
+    bottom: calc(60px + env(safe-area-inset-bottom));
     left: 0;
     right: 0;
     max-width: 500px;
@@ -76,7 +77,7 @@
    the .page-actions row at the end of the active workout content can
    scroll above both fixed bars. */
 #app-content:has(#exercise-nav-row) {
-    padding-bottom: 160px;
+    padding-bottom: calc(160px + env(safe-area-inset-bottom));
 }
 
 .exercise-nav-btn {

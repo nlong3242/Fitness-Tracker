@@ -62,11 +62,13 @@
     transition: border-color 0.15s, transform 0.15s, background-color 0.15s, box-shadow 0.15s;
 }
 
-.summary-exercise-card.clickable:hover {
-    background-color: var(--surface-hover);
-    border-color: var(--accent-pink);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(247, 183, 195, 0.40);
+@media (hover: hover) {
+    .summary-exercise-card.clickable:hover {
+        background-color: var(--surface-hover);
+        border-color: var(--accent-pink);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(247, 183, 195, 0.40);
+    }
 }
 
 /* Top-of-preview Back link — replaces the fixed Prev arrow on the preview
@@ -86,10 +88,12 @@
     transition: color 0.15s;
 }
 
-.summary-back-link:hover {
-    color: var(--action-hover);
-    background: transparent;
-    transform: none;
+@media (hover: hover) {
+    .summary-back-link:hover {
+        color: var(--action-hover);
+        background: transparent;
+        transform: none;
+    }
 }
 
 .summary-back-glyph {
@@ -105,8 +109,10 @@
     color: var(--text-primary);
 }
 
-.summary-exercise-name:hover {
-    color: var(--accent-pink-hover);
+@media (hover: hover) {
+    .summary-exercise-name:hover {
+        color: var(--accent-pink-hover);
+    }
 }
 
 .summary-exercise-count {

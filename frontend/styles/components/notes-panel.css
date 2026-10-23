@@ -17,8 +17,10 @@
     border-radius: 6px;
 }
 
-.notes-toggle-btn:hover {
-    background-color: rgba(74, 44, 42, 0.10);
+@media (hover: hover) {
+    .notes-toggle-btn:hover {
+        background-color: rgba(74, 44, 42, 0.10);
+    }
 }
 
 .notes-box {
@@ -34,8 +36,10 @@
     transition: border-color 0.15s;
 }
 
-.notes-box:hover {
-    border-color: var(--accent-pink);
+@media (hover: hover) {
+    .notes-box:hover {
+        border-color: var(--accent-pink);
+    }
 }
 
 .notes-panel {
@@ -85,6 +89,8 @@
     color: var(--text-primary);
 }
 
-.notes-cancel:hover {
-    background-color: #BBA59C;
+@media (hover: hover) {
+    .notes-cancel:hover {
+        background-color: #BBA59C;
+    }
 }

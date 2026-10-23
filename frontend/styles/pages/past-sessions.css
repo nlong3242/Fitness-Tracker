@@ -21,11 +21,13 @@
     font-size: 0.9em;
 }
 
-.session-row:hover {
-    background-color: var(--surface-hover);
-    border-color: var(--accent-pink);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(247, 183, 195, 0.30);
+@media (hover: hover) {
+    .session-row:hover {
+        background-color: var(--surface-hover);
+        border-color: var(--accent-pink);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(247, 183, 195, 0.30);
+    }
 }
 
 .session-index {

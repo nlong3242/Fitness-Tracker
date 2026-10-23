@@ -22,9 +22,11 @@
     transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.filter-pill:hover {
-    border-color: var(--accent-pink-hover);
-    background-color: rgba(247, 183, 195, 0.12);
+@media (hover: hover) {
+    .filter-pill:hover {
+        border-color: var(--accent-pink-hover);
+        background-color: rgba(247, 183, 195, 0.12);
+    }
 }
 
 .filter-pill.selected {

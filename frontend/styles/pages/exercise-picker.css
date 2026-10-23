@@ -17,11 +17,13 @@
     box-shadow: 0 2px 4px rgba(247, 183, 195, 0.15);
 }
 
-.picker-select-row:hover {
-    background-color: var(--surface-hover);
-    border-color: var(--accent-pink);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(247, 183, 195, 0.30);
+@media (hover: hover) {
+    .picker-select-row:hover {
+        background-color: var(--surface-hover);
+        border-color: var(--accent-pink);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(247, 183, 195, 0.30);
+    }
 }
 
 .picker-checkbox {

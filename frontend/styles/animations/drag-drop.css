@@ -30,9 +30,11 @@
     pointer-events: none;
 }
 
-.drag-placeholder:hover {
-    transform: none !important;
-    background: transparent !important;
-    border-color: var(--accent-pink) !important;
-    box-shadow: none !important;
+@media (hover: hover) {
+    .drag-placeholder:hover {
+        transform: none !important;
+        background: transparent !important;
+        border-color: var(--accent-pink) !important;
+        box-shadow: none !important;
+    }
 }

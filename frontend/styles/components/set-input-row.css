@@ -120,6 +120,8 @@
     color: white;
 }
 
-.set-input-cancel:hover {
-    background-color: var(--danger-hover);
+@media (hover: hover) {
+    .set-input-cancel:hover {
+        background-color: var(--danger-hover);
+    }
 }

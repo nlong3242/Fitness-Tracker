@@ -15,8 +15,10 @@ button {
     transition: background-color 0.15s, transform 0.1s, box-shadow 0.15s;
 }
 
-button:hover {
-    background-color: var(--action-hover);
+@media (hover: hover) {
+    button:hover {
+        background-color: var(--action-hover);
+    }
 }
 
 button:active {
@@ -29,8 +31,10 @@ button:disabled {
     opacity: 0.65;
 }
 
-button:disabled:hover {
-    background-color: #A89186;
+@media (hover: hover) {
+    button:disabled:hover {
+        background-color: #A89186;
+    }
 }
 
 .btn-secondary {
@@ -40,8 +44,10 @@ button:disabled:hover {
     padding: 10px 18px;
 }
 
-.btn-secondary:hover {
-    background-color: #6E5550;
+@media (hover: hover) {
+    .btn-secondary:hover {
+        background-color: #6E5550;
+    }
 }
 
 .btn-danger {
@@ -49,6 +55,8 @@ button:disabled:hover {
     color: white;
 }
 
-.btn-danger:hover {
-    background-color: var(--danger-hover);
+@media (hover: hover) {
+    .btn-danger:hover {
+        background-color: var(--danger-hover);
+    }
 }

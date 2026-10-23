@@ -37,10 +37,12 @@
     transition: color 0.15s;
 }
 
-.nav-tab:hover {
-    color: var(--text-primary);
-    background: none;
-    transform: none;
+@media (hover: hover) {
+    .nav-tab:hover {
+        color: var(--text-primary);
+        background: none;
+        transform: none;
+    }
 }
 
 .nav-icon {

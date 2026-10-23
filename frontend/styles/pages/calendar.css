@@ -41,9 +41,11 @@
     cursor: pointer;
 }
 
-.cal-error-dismiss:hover {
-    background: transparent;
-    color: var(--danger);
+@media (hover: hover) {
+    .cal-error-dismiss:hover {
+        background: transparent;
+        color: var(--danger);
+    }
 }
 
 /* --- Header (prev / month label / next) --- */
@@ -80,9 +82,11 @@
     justify-content: center;
 }
 
-.calendar-nav-btn:hover {
-    background: var(--accent-pink);
-    color: var(--text-primary);
+@media (hover: hover) {
+    .calendar-nav-btn:hover {
+        background: var(--accent-pink);
+        color: var(--text-primary);
+    }
 }
 
 /* --- Toolbar (Today button) --- */
@@ -103,9 +107,11 @@
     font-weight: 600;
 }
 
-.calendar-today-btn:hover {
-    background: var(--text-on-dark-muted);
-    color: var(--bg);
+@media (hover: hover) {
+    .calendar-today-btn:hover {
+        background: var(--text-on-dark-muted);
+        color: var(--bg);
+    }
 }
 
 /* --- Weekday header row --- */
@@ -147,10 +153,12 @@
     overflow: hidden;
 }
 
-.calendar-cell:hover {
-    background: var(--surface-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+@media (hover: hover) {
+    .calendar-cell:hover {
+        background: var(--surface-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+    }
 }
 
 .calendar-cell.other-month {
@@ -278,11 +286,13 @@
     transition: border-color 0.15s, transform 0.15s, background-color 0.15s, box-shadow 0.15s;
 }
 
-.schedule-row.clickable:hover {
-    background-color: var(--surface-hover);
-    border-color: var(--accent-pink);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(247, 183, 195, 0.40);
+@media (hover: hover) {
+    .schedule-row.clickable:hover {
+        background-color: var(--surface-hover);
+        border-color: var(--accent-pink);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(247, 183, 195, 0.40);
+    }
 }
 
 .schedule-row-head {
@@ -346,7 +356,9 @@
     border-radius: 10px;
 }
 
-.day-detail-add-cta:hover {
-    background: var(--accent-pink-deep);
-    color: white;
+@media (hover: hover) {
+    .day-detail-add-cta:hover {
+        background: var(--accent-pink-deep);
+        color: white;
+    }
 }

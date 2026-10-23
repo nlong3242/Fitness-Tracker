@@ -40,10 +40,12 @@
     transition: border-color 0.15s, background-color 0.15s, color 0.15s;
 }
 
-.exercise-pill:hover:not(.active) {
-    background-color: var(--surface-hover);
-    border-color: var(--accent-pink);
-    transform: none;
+@media (hover: hover) {
+    .exercise-pill:hover:not(.active) {
+        background-color: var(--surface-hover);
+        border-color: var(--accent-pink);
+        transform: none;
+    }
 }
 
 .exercise-pill.active {
@@ -94,10 +96,12 @@
     transition: color 0.15s, opacity 0.15s;
 }
 
-.exercise-nav-btn:hover:not(:disabled) {
-    color: var(--action-hover);
-    background: transparent;
-    transform: none;
+@media (hover: hover) {
+    .exercise-nav-btn:hover:not(:disabled) {
+        color: var(--action-hover);
+        background: transparent;
+        transform: none;
+    }
 }
 
 .exercise-nav-btn:disabled {
@@ -147,8 +151,10 @@
     display: inline-block;
 }
 
-.exercise-card-title:hover {
-    color: var(--accent-pink-hover);
+@media (hover: hover) {
+    .exercise-card-title:hover {
+        color: var(--accent-pink-hover);
+    }
 }
 
 /* Preview summary lives inside #app-content alongside #exercise-cards so the

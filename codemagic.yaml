@@ -1,0 +1,35 @@
+# Builds an UNSIGNED Tsu2Track.ipa on Codemagic's Macs. Sign and install it
+# from Windows with Sideloadly using a free Apple ID (re-sign every 7 days).
+workflows:
+  ios-unsigned:
+    name: iOS unsigned ipa
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    working_directory: mobile
+    environment:
+      node: 24
+      xcode: latest
+    triggering:
+      events: []   # manual "Start new build" only
+    scripts:
+      - name: Install Capacitor
+        script: npm ci
+      - name: Copy ../frontend into the iOS project
+        script: npx cap sync ios
+      - name: Build App.app without signing
+        script: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+      - name: Package as .ipa
+        script: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qr /tmp/Tsu2Track.ipa Payload
+    artifacts:
+      - /tmp/Tsu2Track.ipa   # absolute, so working_directory doesn't matter

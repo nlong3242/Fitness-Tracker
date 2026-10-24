@@ -9,7 +9,8 @@ if (-not (Test-Path $tailscale)) { throw "Tailscale is not installed." }
 $ip = (& $tailscale ip -4 | Select-Object -First 1).Trim()
 if (-not $ip) { throw "Tailscale has no IP - is it logged in and connected?" }
 
-$origins = "http://127.0.0.1:5500,http://localhost:5500,http://${ip}:5500"
+# capacitor://localhost is the origin of the iOS app (mobile/).
+$origins = "http://127.0.0.1:5500,http://localhost:5500,http://${ip}:5500,capacitor://localhost"
 Write-Host "Phone URL: http://${ip}:5500" -ForegroundColor Green
 
 # Backend in its own window so its log stays readable.

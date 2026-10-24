@@ -1,11 +1,11 @@
 /* Resume bar — components/resumeBanner.js.
-   Fixed directly above the bottom nav (60px + the home-indicator inset the
-   nav pads itself with), same 500px column. While shown, body gets
-   .has-resume-banner so page content can scroll clear of it. */
+   Fixed directly above the bottom nav (--nav-height, variables.css),
+   same 500px column. While shown, body gets .has-resume-banner so page
+   content can scroll clear of it. */
 
 #resume-banner {
     position: fixed;
-    bottom: calc(60px + env(safe-area-inset-bottom));
+    bottom: var(--nav-height);
     left: 0;
     right: 0;
     max-width: 500px;
@@ -77,7 +77,7 @@
 }
 
 .has-resume-banner #app-content {
-    padding-bottom: calc(140px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--nav-height) + 80px);
 }
 
 /* Started but nothing logged yet: hollow dot instead of the solid one. */

@@ -14,8 +14,6 @@
     background-color: var(--surface);
     border-top: 3px solid var(--frame);
     box-shadow: 0 -3px 0 var(--shadow-hard);
-    /* Lift the tabs above the iPhone home indicator. */
-    padding-bottom: env(safe-area-inset-bottom);
     z-index: 100;
 }
 
@@ -24,12 +22,15 @@
     background: none;
     border: none;
     box-shadow: none;
-    padding: 10px 4px 8px 4px;
+    /* The home-indicator inset is padding on each tab, not on the bar, so
+       the active tab's fill runs down to the screen edge. Sizes add up to
+       --nav-height (variables.css). */
+    padding: 7px 4px var(--nav-bottom-pad) 4px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     color: var(--text-muted);
     font-size: 0.78em;
     font-weight: 600;
@@ -50,8 +51,8 @@
 
 .nav-icon {
     display: inline-flex;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
 }
 
 /* Square caps and mitred joins read more "pixel" than the round ones the
@@ -64,7 +65,8 @@
 }
 
 .nav-label {
-    line-height: 1;
+    height: 14px;
+    line-height: 14px;
 }
 
 /* Active tab: the whole cell fills rose, like a pressed pixel key. */

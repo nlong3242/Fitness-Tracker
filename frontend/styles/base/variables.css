@@ -57,4 +57,11 @@
         0 3px 0 var(--shadow-hard);
     /* Rows and cells: outline + drop shadow only. */
     --row-shadow: 0 3px 0 var(--shadow-hard);
+
+    /* Bottom nav: 3px border + 7px top pad + 22px icon + 3px gap + 14px
+       label, then the bottom pad. On iPhones the labels dip 4px into the
+       home-indicator inset; any more and they crowd the home line.
+       Fixed bars above the nav and page bottom paddings build on this. */
+    --nav-bottom-pad: max(6px, calc(env(safe-area-inset-bottom) - 4px));
+    --nav-height: calc(49px + var(--nav-bottom-pad));
 }

@@ -22,7 +22,7 @@
 #app-content {
     max-width: 500px;
     margin: 0 auto;
-    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--nav-height) + 20px);
 }
 
 .page-actions {

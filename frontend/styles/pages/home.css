@@ -35,6 +35,149 @@
     margin-bottom: 20px;
 }
 
+/* Bodyweight + Steps tiles — two square panels side by side at every
+   width (unlike the stat row, they don't stack on phones). Content that
+   outgrows the square makes that tile taller, so keep each tile short;
+   the steps chart takes up whatever height is left. */
+.home-tile-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.home-tile {
+    aspect-ratio: 1;
+    min-width: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--panel-shadow);
+    padding: 12px;
+    color: var(--text-primary);
+}
+
+.home-tile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.home-tile-title {
+    font-size: 1.1em;
+}
+
+.home-tile-badge {
+    flex-shrink: 0;
+    font-size: 0.72em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    border-radius: 2px;
+    background-color: var(--surface-sunk);
+    color: var(--text-muted);
+    border: 1px solid var(--frame-soft);
+}
+
+.home-tile-badge.logged {
+    background-color: var(--action);
+    color: var(--text-primary);
+    border-color: var(--frame);
+}
+
+.home-tile-badge.behind {
+    background-color: var(--accent-pink-deep);
+    color: #ffffff;
+    border-color: var(--frame);
+}
+
+.home-tile-body {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.home-tile-icon {
+    flex: 0 0 auto;
+    height: 30px;
+    width: auto;
+}
+
+.home-tile-value {
+    font-size: 1.35em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.home-tile-unit {
+    font-size: 0.6em;
+    color: var(--text-muted);
+}
+
+/* Pixel meter (steps): a sunk track with a rose fill. */
+.home-meter {
+    position: relative;
+    height: 10px;
+    background-color: var(--input-bg);
+    border: 2px solid var(--frame);
+    border-radius: 2px;
+}
+
+.home-meter-fill {
+    height: 100%;
+    background-color: var(--accent-pink-shade);
+}
+
+.home-tile-trend {
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.home-tile-trend.down {
+    color: var(--action-text);
+}
+
+.home-tile-btn {
+    margin-top: auto;
+    width: 100%;
+    padding: 8px 6px;
+    font-size: 0.95em;
+}
+
+/* 7-day steps chart: bars grow from the bottom, dashed line at the goal. */
+.home-steps-chart {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 36px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+}
+
+.home-steps-bar {
+    flex: 1 1 0;
+    background-color: #A9826F;
+    border-radius: 1px 1px 0 0;
+}
+
+.home-steps-bar:last-child {
+    background-color: var(--accent-pink-deep);
+}
+
+.home-steps-goal {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 2px dashed var(--text-muted);
+    pointer-events: none;
+}
+
 .home-stat-row {
     display: grid;
     grid-template-columns: 1fr 1fr;

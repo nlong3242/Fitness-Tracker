@@ -81,3 +81,34 @@ li button {
         background-color: var(--danger-hover);
     }
 }
+
+/* Live light: a round green light that keeps glowing while a workout is
+   open (bottom-nav .nav-live-dot, and ::before on the home Resume button).
+   Under reduced motion it stays lit without pulsing. */
+.nav-live-dot,
+.home-cta.live::before {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background-color: var(--live);
+    box-shadow: 0 0 0 2px var(--frame);
+    animation: live-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes live-glow {
+    0%, 100% {
+        background-color: var(--live);
+        box-shadow: 0 0 0 2px var(--frame), 0 0 0 2px var(--live-glow);
+    }
+    50% {
+        background-color: var(--live-bright);
+        box-shadow: 0 0 0 2px var(--frame), 0 0 0 7px var(--live-glow);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-live-dot,
+    .home-cta.live::before {
+        animation: none;
+    }
+}

@@ -20,7 +20,6 @@
 @import url("./components/library-list.css");
 @import url("./components/set-input-row.css");
 @import url("./components/bottom-nav.css");
-@import url("./components/resume-banner.css");
 
 /* 5. Pages — view-specific styling owned by frontend/src/views/. */
 @import url("./pages/home.css");

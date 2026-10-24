@@ -83,7 +83,7 @@ export function renderBottomNav() {
     const nav = document.getElementById("bottom-nav");
     nav.innerHTML = TABS.map(t => `
         <button class="nav-tab" data-tab="${t.name}">
-            <span class="nav-icon">${t.icon}</span>
+            <span class="nav-icon">${t.icon}${t.name === "home" ? '<span class="nav-live-dot" aria-hidden="true"></span>' : ""}</span>
             <span class="nav-label">${t.label}</span>
         </button>
     `).join("");

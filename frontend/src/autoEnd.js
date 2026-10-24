@@ -4,7 +4,7 @@ import { clearStartedWorkout } from "./session.js";
 import { clearDrafts } from "./drafts.js";
 import { syncCalendarOnFinish } from "./views/activeWorkout.js";
 import { setActiveTab } from "./components/bottomNav.js";
-import { updateResumeBanner } from "./components/resumeBanner.js";
+import { updateLiveIndicator } from "./components/liveWorkout.js";
 import { showConfirmModal } from "./components/modals.js";
 import { renderHomePage } from "./views/home.js";
 
@@ -42,7 +42,7 @@ export async function endIdleWorkout() {
     // Don't leave the user on a live workout that no longer exists.
     if (document.getElementById("exercise-cards") !== null) await setActiveTab("home");
     else if (document.getElementById("home-week-count") !== null) renderHomePage(); // stats changed
-    else updateResumeBanner();
+    else updateLiveIndicator();
 
     const workout = findWorkout(workoutId);
     const name = workout ? workout.name : "Your workout";

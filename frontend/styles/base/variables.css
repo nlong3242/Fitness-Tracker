@@ -58,6 +58,11 @@
     /* Rows and cells: outline + drop shadow only. */
     --row-shadow: 0 3px 0 var(--shadow-hard);
 
+    /* "Workout open" light: nav-tab dot + the home Resume button. */
+    --live: #6FCF5F;
+    --live-bright: #B6F2A6;
+    --live-glow: rgba(111, 207, 95, 0.55);
+
     /* Bottom nav: 3px border + 7px top pad + 22px icon + 3px gap + 14px
        label, then the bottom pad. On iPhones the labels dip 4px into the
        home-indicator inset; any more and they crowd the home line.

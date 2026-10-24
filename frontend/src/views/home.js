@@ -2,6 +2,7 @@ import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
 import { fetchOverview, fetchBodyWeightSummary, logBodyWeight } from "../api.js";
 import { findWorkout } from "../state.js";
 import { startWorkout } from "./activeWorkout.js";
+import { liveWorkout } from "../components/liveWorkout.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { pixelArt } from "../utils/pixelArt.js";
 
@@ -95,7 +96,7 @@ export function renderHomePage() {
         </div>
     `;
 
-    document.getElementById("home-start-btn").onclick = function() { setActiveTab("workouts"); };
+    wireStartButton();
     wireWeightLogging();
     loadStats();
     loadBodyWeight();
@@ -262,6 +263,23 @@ async function loadStats() {
     document.getElementById("home-last-when").textContent = last ? relativeDay(last.date, today) : "None yet";
 }
 
+/* The big button: "Resume <workout>" while one is open (in progress or
+   started), otherwise "Start a Workout" → the workout list. showNextUp()
+   may turn the latter into today's planned workout. */
+function wireStartButton() {
+    const btn = document.getElementById("home-start-btn");
+    const live = liveWorkout();
+    if (!live) {
+        btn.onclick = function() { setActiveTab("workouts"); };
+        return;
+    }
+    btn.textContent = `Resume ${live.name}`;
+    btn.classList.add("live");
+    btn.onclick = function() {
+        startWorkout(live.id, { onComplete: function() { setActiveTab("home"); } });
+    };
+}
+
 /* Next up card, plus the big button: with a plan for today it starts that
    workout (linked to the plan, so finishing marks it done on the calendar)
    instead of opening the workout list. Several plans on one day: the
@@ -284,9 +302,10 @@ function showNextUp(next, plannedThatDay, today) {
     card.onclick = function() { navigateToCalendarDay(next.date); };
     card.onkeydown = function(e) { if (e.key === "Enter") card.onclick(); };
 
-    // Same rule as the calendar's Start: the workout must have exercises.
+    // An open workout keeps the button on Resume. Same rule as the
+    // calendar's Start: the workout must have exercises.
     const workout = findWorkout(next.workoutId);
-    if (next.date !== today || !workout || !(workout.exerciseCount > 0)) return;
+    if (liveWorkout() || next.date !== today || !workout || !(workout.exerciseCount > 0)) return;
     const startBtn = document.getElementById("home-start-btn");
     startBtn.textContent = `Start ${workout.name}`;
     startBtn.onclick = function() {

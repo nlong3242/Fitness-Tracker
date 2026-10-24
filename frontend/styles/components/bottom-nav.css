@@ -50,6 +50,7 @@
 }
 
 .nav-icon {
+    position: relative;
     display: inline-flex;
     width: 22px;
     height: 22px;
@@ -62,6 +63,19 @@
     height: 100%;
     stroke-linecap: square;
     stroke-linejoin: miter;
+}
+
+/* Glowing green pixel on the Home icon while a workout is open
+   (components/liveWorkout.js), like a "recording" light. */
+.nav-live-dot {
+    display: none;
+    position: absolute;
+    top: -4px;
+    right: -11px;
+}
+
+.nav-tab.live .nav-live-dot {
+    display: block;
 }
 
 .nav-label {

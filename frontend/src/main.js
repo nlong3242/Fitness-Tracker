@@ -1,11 +1,11 @@
 import { state, findWorkout } from "./state.js";
 import { fetchWorkouts, fetchUnfinishedSession } from "./api.js";
 import { renderBottomNav, setActiveTab } from "./components/bottomNav.js";
-import { initResumeBanner } from "./components/resumeBanner.js";
+import { initLiveWorkout } from "./components/liveWorkout.js";
 import { startIdleWatch } from "./autoEnd.js";
 
 // Pick up a workout left in progress (page reloaded, iOS closed the app...)
-// so the resume bar can offer it. Best-effort: no bar if this fails.
+// so the home page can offer to resume it. Best-effort: skipped if this fails.
 async function restoreInProgressSession() {
     try {
         const session = await fetchUnfinishedSession();
@@ -38,7 +38,7 @@ async function bootstrap() {
     state.workouts = await fetchWorkouts();
     await restoreInProgressSession();
     renderBottomNav();
-    initResumeBanner();
+    initLiveWorkout();
     setActiveTab("home");
     startIdleWatch();
 }

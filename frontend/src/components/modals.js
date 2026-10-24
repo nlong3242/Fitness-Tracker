@@ -1,6 +1,7 @@
 import { CATEGORY_ORDER } from "../config.js";
 import { escapeHtml, formatCategoryLabel, formatSessionDate } from "../utils/format.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
+import { renderExerciseHistory } from "./exerciseHistory.js";
 
 export function showConfirmModal(message, confirmLabel) {
     return new Promise(function(resolve) {
@@ -692,6 +693,9 @@ export function showRescheduleModal(options) {
     });
 }
 
+/* Tapping an exercise in a live workout or a session summary: History
+   (PRs + past sessions, the default) and Details tabs. The tab body
+   scrolls on its own so Close stays in view. */
 export function showExerciseReadOnlyModal(exercise) {
     return new Promise(function(resolve) {
         const overlay = document.createElement("div");
@@ -718,14 +722,30 @@ export function showExerciseReadOnlyModal(exercise) {
         }
         overlay.innerHTML = `
             <div class="modal-form-box">
-                <div class="modal-form-title">Exercise Details</div>
-                ${rowsHtml}
+                <div class="modal-form-title">${escapeHtml(exercise.name)}</div>
+                <div class="modal-tab-row" role="tablist">
+                    <button type="button" class="filter-pill selected" data-tab="history" role="tab">History</button>
+                    <button type="button" class="filter-pill" data-tab="details" role="tab">Details</button>
+                </div>
+                <div class="modal-tab-body" data-body="history"></div>
+                <div class="modal-tab-body" data-body="details" hidden>${rowsHtml}</div>
                 <div class="modal-actions">
                     <button class="modal-cancel">Close</button>
                 </div>
             </div>
         `;
         document.body.appendChild(overlay);
+        renderExerciseHistory(overlay.querySelector('[data-body="history"]'), exercise.id);
+        for (const tab of overlay.querySelectorAll(".modal-tab-row .filter-pill")) {
+            tab.onclick = function() {
+                for (const t of overlay.querySelectorAll(".modal-tab-row .filter-pill")) {
+                    t.classList.toggle("selected", t === tab);
+                }
+                for (const body of overlay.querySelectorAll(".modal-tab-body")) {
+                    body.hidden = body.dataset.body !== tab.dataset.tab;
+                }
+            };
+        }
         overlay.querySelector(".modal-cancel").onclick = function() {
             document.body.removeChild(overlay);
             resolve();

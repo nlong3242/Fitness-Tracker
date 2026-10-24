@@ -114,6 +114,15 @@ export function fetchOverview(weekStart, today) {
     return requestJson("GET", `/sessions/overview?weekStart=${weekStart}&today=${today}`);
 }
 
+// --- Exercise history ---
+
+// { records: { heaviest, bestSet } (each { weight, reps, date } | null),
+//   sessions: [{ sessionId, date, workoutId, sets: [{ weight, reps, side, pr }] }],
+//   hasMore } — finished sessions only, newest first.
+export function fetchExerciseHistory(exerciseId, page, size) {
+    return requestJson("GET", `/exercises/${exerciseId}/history?page=${page}&size=${size}`);
+}
+
 // --- Bodyweight ---
 
 // { latest: { date, weightKg } | null, weekChange: number | null } as of

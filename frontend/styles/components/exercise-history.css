@@ -1,0 +1,120 @@
+/* Exercise history — components/exerciseHistory.js, shown in the exercise
+   popup's History tab (modals.js) and on the Exercise History page.
+   Two PR cards, then one framed block per past session with its sets as
+   small chips; ★ chips are PR sets. */
+
+/* Popup tabs (History / Details). The body scrolls on its own so the
+   Close button stays on screen however long the history gets. */
+.modal-tab-row {
+    display: flex;
+    gap: 6px;
+    margin: -6px 0 14px;
+}
+
+.modal-tab-body {
+    max-height: min(58vh, 480px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0 -6px 16px;
+    padding: 0 6px 4px;
+}
+
+.exh-empty {
+    color: var(--text-muted);
+    margin: 4px 0 8px;
+}
+
+.exh-records {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.exh-record {
+    background-color: var(--surface-sunk);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
+    padding: 8px 10px;
+    min-width: 0;
+}
+
+.exh-record-label {
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.exh-record-value {
+    font-size: 1.3em;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.exh-unit {
+    font-size: 0.65em;
+    color: var(--text-muted);
+}
+
+.exh-record-sub {
+    color: var(--text-muted);
+    font-size: 0.8em;
+}
+
+.exh-session {
+    border-top: 2px dashed var(--frame-soft);
+    padding: 10px 0;
+}
+
+.exh-session-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.exh-session-date {
+    white-space: nowrap;
+}
+
+.exh-session-workout {
+    color: var(--text-muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.exh-set-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.exh-set {
+    background-color: var(--input-bg);
+    border: 2px solid var(--frame-soft);
+    border-radius: 3px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.exh-set.pr {
+    background-color: var(--accent-pink-light);
+    border-color: var(--frame);
+}
+
+.exh-star {
+    color: var(--accent-pink-deep);
+    margin-right: 4px;
+}
+
+.exh-side {
+    color: var(--text-muted);
+    margin-right: 4px;
+}
+
+.exh-more {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+}

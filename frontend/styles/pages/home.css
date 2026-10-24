@@ -1,5 +1,5 @@
 /* Home page — views/home.js.
-   Dashboard layout: greeting hero + primary CTA + stat strip (this week's
+   Dashboard layout: app-name title + primary CTA + tiles + stat strip (this week's
    finished sessions, last session; filled from GET /sessions/overview).
    On phones (<=480px) the stat row collapses to a single column. */
 
@@ -8,24 +8,19 @@
     margin: 30px 0 24px 0;
 }
 
-/* Sign-board title: rose letters with a hard 2px dark outline (eight
+/* Sign-board title: rose letters with a hard 3px dark outline (eight
    zero-blur text-shadows) and a drop shadow, like the pixel logos. */
 .home-title {
-    font-size: 2.1em;
-    margin: 0 0 10px 0;
+    font-size: 3.4em;
+    line-height: 1;
+    margin: 0;
     color: var(--accent-pink-light);
     text-shadow:
-        2px 0 0 var(--frame), -2px 0 0 var(--frame),
-        0 2px 0 var(--frame), 0 -2px 0 var(--frame),
-        2px 2px 0 var(--frame), -2px -2px 0 var(--frame),
-        2px -2px 0 var(--frame), -2px 2px 0 var(--frame),
-        0 5px 0 var(--shadow-hard);
-}
-
-.home-tagline {
-    color: var(--text-on-bg-muted);
-    margin: 0;
-    font-size: 1.05em;
+        3px 0 0 var(--frame), -3px 0 0 var(--frame),
+        0 3px 0 var(--frame), 0 -3px 0 var(--frame),
+        3px 3px 0 var(--frame), -3px -3px 0 var(--frame),
+        3px -3px 0 var(--frame), -3px 3px 0 var(--frame),
+        0 7px 0 var(--shadow-hard);
 }
 
 .home-cta {

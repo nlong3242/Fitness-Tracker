@@ -40,8 +40,7 @@ export function renderHomePage() {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="home-hero">
-            <h2 class="home-title">Welcome to Tsu2Track</h2>
-            <p class="home-tagline">Your personal fitness companion</p>
+            <h1 class="home-title">Tsu2Track</h1>
         </div>
 
         <button class="home-cta" id="home-start-btn">Start a Workout</button>

@@ -305,7 +305,8 @@ export function showExerciseDetailsModal(exercise, options) {
             });
         };
 
-        nameInput.focus();
+        // No autofocus: on iPhone it pops the keyboard over the details you
+        // usually just came to read. Tap a field to edit it.
     });
 }
 
@@ -860,6 +861,5 @@ export function showWeighInModal(options) {
             };
         }
 
-        if (entry) kgInput.focus();
     });
 }

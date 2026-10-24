@@ -17,7 +17,8 @@
     padding: 10px 14px;
     background-color: var(--accent-pink-deep);
     color: #ffffff;
-    box-shadow: 0 -4px 14px rgba(42, 31, 30, 0.35);
+    border-top: 2px solid var(--frame);
+    box-shadow: 0 -3px 0 var(--shadow-hard);
     z-index: 99;
     cursor: pointer;
     transition: filter 0.15s;
@@ -35,7 +36,7 @@
 .resume-dot {
     flex: 0 0 10px;
     height: 10px;
-    border-radius: 50%;
+    border-radius: 1px;
     background-color: var(--action);
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
 }
@@ -63,7 +64,8 @@
     background-color: #ffffff;
     color: var(--accent-pink-deep);
     padding: 8px 14px;
-    border-radius: 8px;
+    border: 2px solid var(--frame);
+    border-radius: 3px;
     font-size: 0.95em;
     font-weight: 700;
 }

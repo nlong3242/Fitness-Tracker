@@ -44,10 +44,10 @@
 }
 
 .set-input {
-    background-color: #F0D9D3;
+    background-color: var(--input-bg);
     color: var(--text-primary);
-    border: 2px solid var(--border);
-    border-radius: 8px;
+    border: 2px solid var(--frame-soft);
+    border-radius: 3px;
     padding: 12px 14px;
     width: 100%;
     box-sizing: border-box;
@@ -60,7 +60,7 @@
 
 .set-input:focus {
     outline: none;
-    border-color: var(--accent-pink);
+    border-color: var(--accent-pink-deep);
     border-width: 4px;
     padding: 10px 12px;
 }
@@ -93,7 +93,7 @@
 }
 
 .set-input-delta.pos {
-    color: #4D9967;
+    color: var(--action-text);
 }
 
 .set-input-delta.neg {
@@ -137,6 +137,10 @@
     font-size: 0.9em;
     background-color: var(--danger);
     color: white;
+    box-shadow:
+        inset -2px -2px 0 rgba(0, 0, 0, 0.2),
+        inset 2px 2px 0 rgba(255, 255, 255, 0.25),
+        0 2px 0 var(--frame);
 }
 
 @media (hover: hover) {
@@ -167,6 +171,7 @@
     background-color: var(--surface);
     color: var(--danger);
     border: 2px solid var(--danger);
+    box-shadow: none;
 }
 
 .set-input-row.save-failed .set-input-error {

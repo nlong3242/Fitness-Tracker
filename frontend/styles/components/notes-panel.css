@@ -11,10 +11,11 @@
 .notes-toggle-btn {
     background-color: transparent;
     color: var(--text-primary);
-    border: 3px solid var(--text-primary);
+    border: 2px solid var(--frame);
     font-size: 0.9em;
     padding: 4px 10px;
-    border-radius: 6px;
+    border-radius: 3px;
+    box-shadow: 0 2px 0 var(--shadow-hard);
 }
 
 @media (hover: hover) {
@@ -25,10 +26,10 @@
 
 .notes-box {
     margin-top: 8px;
-    background-color: #FFF7F5;
+    background-color: var(--input-bg);
     padding: 10px 12px;
-    border-radius: 8px;
-    border: 2px solid var(--border);
+    border-radius: 3px;
+    border: 2px solid var(--frame-soft);
     cursor: pointer;
     white-space: pre-wrap;
     font-size: 0.95em;
@@ -44,19 +45,19 @@
 
 .notes-panel {
     margin-top: 8px;
-    background-color: #FFF7F5;
+    background-color: var(--surface-sunk);
     padding: 10px;
-    border-radius: 8px;
-    border: 2px solid var(--border);
+    border-radius: 3px;
+    border: 2px solid var(--frame-soft);
 }
 
 .notes-textarea {
     width: 100%;
     min-height: 80px;
-    background-color: #FFFFFF;
+    background-color: var(--input-bg);
     color: var(--text-primary);
-    border: 2px solid var(--border);
-    border-radius: 6px;
+    border: 2px solid var(--frame);
+    border-radius: 3px;
     padding: 8px;
     font-family: inherit;
     font-size: 0.95em;
@@ -67,7 +68,7 @@
 
 .notes-textarea:focus {
     outline: none;
-    border-color: var(--accent-pink);
+    border-color: var(--accent-pink-deep);
     border-width: 4px;
     padding: 6px;
 }
@@ -85,12 +86,16 @@
 }
 
 .notes-cancel {
-    background-color: #C9B0A8;
+    background-color: var(--surface-sunk);
     color: var(--text-primary);
+    box-shadow:
+        inset -2px -2px 0 var(--frame-soft),
+        inset 2px 2px 0 var(--surface),
+        0 2px 0 var(--frame);
 }
 
 @media (hover: hover) {
     .notes-cancel:hover {
-        background-color: #BBA59C;
+        background-color: #E9D9C4;
     }
 }

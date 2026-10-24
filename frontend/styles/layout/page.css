@@ -33,6 +33,6 @@
 }
 
 .empty-sessions {
-    color: var(--text-on-dark-muted);
+    color: var(--text-on-bg-muted);
     padding: 8px 0;
 }

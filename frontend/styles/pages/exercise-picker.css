@@ -10,26 +10,24 @@
     color: var(--text-primary);
     padding: 14px 18px;
     margin: 8px 0;
-    border: 2px solid var(--border);
-    border-radius: 12px;
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--row-shadow);
     cursor: pointer;
-    transition: border-color 0.15s, background-color 0.15s, transform 0.15s, box-shadow 0.15s;
-    box-shadow: 0 2px 4px rgba(247, 183, 195, 0.15);
+    transition: background-color 0.15s, transform 0.1s;
 }
 
 @media (hover: hover) {
     .picker-select-row:hover {
         background-color: var(--surface-hover);
-        border-color: var(--accent-pink);
         transform: translateY(-1px);
-        box-shadow: 0 4px 10px rgba(247, 183, 195, 0.30);
     }
 }
 
 .picker-checkbox {
     width: 18px;
     height: 18px;
-    accent-color: var(--accent-pink);
+    accent-color: var(--accent-pink-deep);
     cursor: pointer;
     margin: 0;
 }
@@ -45,5 +43,5 @@
     justify-content: flex-end;
     margin-top: 20px;
     padding-top: 16px;
-    border-top: 1px solid rgba(247, 183, 195, 0.25);
+    border-top: 2px dashed var(--frame-soft);
 }

@@ -8,8 +8,8 @@
 }
 
 .library-group-heading {
-    color: var(--text-on-dark-muted);
-    border-bottom: 1px solid rgba(247, 183, 195, 0.25);
+    color: var(--text-on-bg-muted);
+    border-bottom: 2px dashed var(--frame-soft);
     padding-bottom: 6px;
     margin: 16px 0 8px 0;
     font-size: 1.1em;

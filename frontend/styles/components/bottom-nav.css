@@ -12,8 +12,8 @@
     margin: 0 auto;
     display: flex;
     background-color: var(--surface);
-    border-top: 3px solid var(--text-primary);
-    box-shadow: 0 -4px 14px rgba(42, 31, 30, 0.35);
+    border-top: 3px solid var(--frame);
+    box-shadow: 0 -3px 0 var(--shadow-hard);
     /* Lift the tabs above the iPhone home indicator. */
     padding-bottom: env(safe-area-inset-bottom);
     z-index: 100;
@@ -23,6 +23,7 @@
     flex: 1;
     background: none;
     border: none;
+    box-shadow: none;
     padding: 10px 4px 8px 4px;
     cursor: pointer;
     display: flex;
@@ -30,8 +31,10 @@
     align-items: center;
     gap: 4px;
     color: var(--text-muted);
-    font-size: 0.75em;
+    font-size: 0.78em;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     border-radius: 0;
     position: relative;
     transition: color 0.15s;
@@ -51,47 +54,35 @@
     height: 24px;
 }
 
+/* Square caps and mitred joins read more "pixel" than the round ones the
+   SVGs ship with (CSS beats the presentation attributes). */
 .nav-icon svg {
     width: 100%;
     height: 100%;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
 }
 
 .nav-label {
     line-height: 1;
 }
 
+/* Active tab: the whole cell fills rose, like a pressed pixel key. */
 .nav-tab.active {
-    color: var(--accent-pink-deep);
+    color: var(--text-primary);
+    background-color: var(--accent-pink);
+    box-shadow: inset 2px 0 0 var(--frame), inset -2px 0 0 var(--frame);
 }
 
-/* Active state — the icon strokes stay pink (currentColor), with a 1px
-   white outline traced around them via four hard-edged drop-shadows.
-   Classic CSS trick: each drop-shadow offsets the silhouette by 1px in
-   one cardinal direction with zero blur, which together approximate a
-   crisp outline on a stroke-only SVG. */
-.nav-tab.active .nav-icon svg {
-    filter:
-        drop-shadow(1px 0 0 #ffffff)
-        drop-shadow(-1px 0 0 #ffffff)
-        drop-shadow(0 1px 0 #ffffff)
-        drop-shadow(0 -1px 0 #ffffff);
+.nav-tab:first-child.active {
+    box-shadow: inset -2px 0 0 var(--frame);
 }
 
-.nav-tab.active .nav-label {
-    text-shadow:
-        1px 0 0 #ffffff,
-        -1px 0 0 #ffffff,
-        0 1px 0 #ffffff,
-        0 -1px 0 #ffffff;
+.nav-tab:last-child.active {
+    box-shadow: inset 2px 0 0 var(--frame);
 }
 
-.nav-tab.active::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 20%;
-    right: 20%;
-    height: 3px;
-    border-radius: 0 0 3px 3px;
-    background-color: var(--action);
+.nav-tab:active {
+    transform: none;
 }
+

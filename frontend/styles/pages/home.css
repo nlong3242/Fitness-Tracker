@@ -8,14 +8,22 @@
     margin: 30px 0 24px 0;
 }
 
+/* Sign-board title: rose letters with a hard 2px dark outline (eight
+   zero-blur text-shadows) and a drop shadow, like the pixel logos. */
 .home-title {
-    font-size: 2em;
-    margin: 0 0 8px 0;
-    color: var(--text-on-dark);
+    font-size: 2.1em;
+    margin: 0 0 10px 0;
+    color: var(--accent-pink-light);
+    text-shadow:
+        2px 0 0 var(--frame), -2px 0 0 var(--frame),
+        0 2px 0 var(--frame), 0 -2px 0 var(--frame),
+        2px 2px 0 var(--frame), -2px -2px 0 var(--frame),
+        2px -2px 0 var(--frame), -2px 2px 0 var(--frame),
+        0 5px 0 var(--shadow-hard);
 }
 
 .home-tagline {
-    color: var(--text-on-dark-muted);
+    color: var(--text-on-bg-muted);
     margin: 0;
     font-size: 1.05em;
 }
@@ -36,10 +44,10 @@
 
 .home-stat {
     background-color: var(--surface);
-    border: 2px solid var(--border);
-    border-radius: 14px;
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--panel-shadow);
     padding: 16px 14px;
-    box-shadow: 0 2px 6px rgba(247, 183, 195, 0.18);
 }
 
 .home-stat-value {

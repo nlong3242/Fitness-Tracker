@@ -12,16 +12,34 @@ body {
     overscroll-behavior: none;
 }
 
+/* Grid-paper page. #app-scroll is transparent, so the grid stays put
+   while content scrolls over it. */
 body {
-    font-family: Arial, sans-serif;
+    font-family: var(--font-pixel);
+    /* The pixel face runs small; 18px reads like 16px of a normal font. */
+    font-size: 18px;
+    /* No faux bold/italic: smeared pixels look worse than regular weight. */
+    font-synthesis: none;
     background-color: var(--bg);
-    color: var(--text-on-dark);
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--text-on-bg);
     margin: 0;
     -webkit-tap-highlight-color: transparent;
 }
 
 h1 {
     text-align: center;
+}
+
+h1, h2, h3 {
+    letter-spacing: 0.03em;
+}
+
+input, textarea, select {
+    font-family: inherit;
 }
 
 ul {
@@ -33,22 +51,20 @@ li {
     background-color: var(--surface);
     color: var(--text-primary);
     padding: 14px 18px;
-    margin: 8px 0;
-    border: 2px solid var(--border);
-    border-radius: 12px;
+    margin: 10px 0;
+    border: 2px solid var(--frame);
+    border-radius: 4px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: border-color 0.15s, background-color 0.15s, transform 0.15s, box-shadow 0.15s;
-    box-shadow: 0 2px 4px rgba(247, 183, 195, 0.15);
+    transition: background-color 0.15s, transform 0.1s;
+    box-shadow: var(--row-shadow);
 }
 
 @media (hover: hover) {
     li:hover {
         background-color: var(--surface-hover);
-        border-color: var(--accent-pink);
         transform: translateY(-1px);
-        box-shadow: 0 4px 10px rgba(247, 183, 195, 0.30);
     }
 }
 
@@ -56,11 +72,8 @@ li button {
     background-color: var(--danger);
     color: white;
     padding: 6px 12px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
     font-size: 0.9em;
-    font-weight: 700;
+    box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.2), inset 2px 2px 0 rgba(255, 255, 255, 0.25);
 }
 
 @media (hover: hover) {

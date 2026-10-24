@@ -1,24 +1,60 @@
-/* Design tokens — palette, surfaces, and semantic colors.
-   Mirrors the "Palette tokens" section of SESSION_NOTES.md. */
+/* Design tokens — palette, surfaces, fonts and the pixel frame.
+   Cozy pixel look: cream grid-paper page, cream panels outlined in dark
+   brown with a tan inner line, rose-beige buttons. */
+
+/* Jersey 10 (OFL, fonts/OFL.txt): a pixel face whose digits stay
+   unambiguous at small sizes (5 vs S, 2 vs 8 matter for weights).
+   Single weight — bold is turned off in elements.css rather than faked. */
+@font-face {
+    font-family: "Jersey 10";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../../fonts/jersey10-latin.woff2") format("woff2");
+}
 
 :root {
-    --bg: #2A1F1E;
-    --surface: #E0CAC5;
-    --surface-hover: #E7D1CC;
-    --accent-pink: #F7B7C3;
-    --accent-pink-hover: #E89AA8;
-    --accent-pink-deep: #C75B71;
-    --text-primary: #4A2C2A;
-    --text-muted: #8B6B6B;
-    --text-on-dark: #F0DDD4;
-    --text-on-dark-muted: #C9B5AC;
-    --border: #E8D0CC;
-    --action: #6FBF8E;
-    --action-hover: #57A675;
-    /* Green for bold/large text on the cream surface: 3.35:1 on --surface,
-       above the 3:1 large-text minimum (--action is only 1.41:1). For
-       small regular text, go darker (#276140 = 4.68:1). */
-    --action-text: #2F7A4C;
-    --danger: #DC5947;
-    --danger-hover: #BF4232;
+    --font-pixel: "Jersey 10", "Courier New", monospace;
+
+    /* Page */
+    --bg: #F4E9D8;
+    --grid-line: #E6D6C1;
+    --text-on-bg: #3B2723;
+    --text-on-bg-muted: #7E6359;
+
+    /* Panels */
+    --surface: #FBF5EA;
+    --surface-hover: #FFFAF2;
+    --surface-sunk: #F1E4D2;
+    --input-bg: #FFFDF8;
+    --text-primary: #3B2723;
+    --text-muted: #8C6F64;
+    --border: #E3CFC0;          /* soft separators inside panels */
+    --frame: #3B2723;           /* dark pixel outline */
+    --frame-soft: #CDAE9E;      /* tan inner line */
+    --shadow-hard: rgba(59, 39, 35, 0.22);
+
+    /* Rose — buttons, selection, planned */
+    --accent-pink: #EFC4B6;
+    --accent-pink-hover: #E8B4A4;
+    --accent-pink-light: #F8E0D7;
+    --accent-pink-shade: #D29C8B;
+    --accent-pink-deep: #B8665A;
+
+    /* Sage — saved / completed / today */
+    --action: #8DB27A;
+    --action-hover: #79A065;
+    /* Green for text on cream: 4.9:1 on --surface. */
+    --action-text: #3F6E38;
+
+    --danger: #C4513F;
+    --danger-hover: #A8402F;
+
+    /* Panel = 2px outline, 2px cream gap, 2px tan line, hard drop shadow. */
+    --panel-shadow:
+        inset 0 0 0 2px var(--surface),
+        inset 0 0 0 4px var(--frame-soft),
+        0 3px 0 var(--shadow-hard);
+    /* Rows and cells: outline + drop shadow only. */
+    --row-shadow: 0 3px 0 var(--shadow-hard);
 }

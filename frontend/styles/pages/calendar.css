@@ -14,9 +14,9 @@
     justify-content: space-between;
     gap: 12px;
     background-color: rgba(220, 89, 71, 0.14);
-    color: var(--text-on-dark);
-    border: 1px solid var(--danger);
-    border-radius: 8px;
+    color: var(--text-on-bg);
+    border: 2px solid var(--danger);
+    border-radius: 3px;
     padding: 10px 12px;
     margin: 10px 0;
     font-size: 0.92em;
@@ -32,7 +32,7 @@
 
 .cal-error-dismiss {
     background: transparent;
-    color: var(--text-on-dark);
+    color: var(--text-on-bg);
     border: none;
     padding: 0 6px;
     font-size: 1.4em;
@@ -59,7 +59,7 @@
 }
 
 .calendar-month-label {
-    color: var(--text-on-dark);
+    color: var(--text-on-bg);
     margin: 0;
     min-width: 170px;
     text-align: center;
@@ -67,10 +67,11 @@
 }
 
 .calendar-nav-btn {
-    background: transparent;
-    color: var(--text-on-dark);
-    border: 2px solid var(--accent-pink);
-    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text-on-bg);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
+    box-shadow: 0 2px 0 var(--frame);
     width: 36px;
     height: 36px;
     padding: 0;
@@ -98,19 +99,20 @@
 }
 
 .calendar-today-btn {
-    background: transparent;
-    color: var(--text-on-dark-muted);
-    border: 1px solid var(--text-on-dark-muted);
-    border-radius: 14px;
+    background: var(--surface);
+    color: var(--text-on-bg);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
     padding: 3px 14px;
-    font-size: 0.8em;
+    font-size: 0.85em;
+    box-shadow: 0 2px 0 var(--frame);
     font-weight: 600;
 }
 
 @media (hover: hover) {
     .calendar-today-btn:hover {
-        background: var(--text-on-dark-muted);
-        color: var(--bg);
+        background: var(--accent-pink);
+        color: var(--text-primary);
     }
 }
 
@@ -125,8 +127,8 @@
 
 .calendar-weekdays > div {
     text-align: center;
-    color: var(--text-on-dark-muted);
-    font-size: 0.7em;
+    color: var(--text-on-bg-muted);
+    font-size: 0.75em;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -142,8 +144,8 @@
 
 .calendar-cell {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 7px;
+    border: 2px solid var(--frame);
+    border-radius: 3px;
     min-height: 64px;
     padding: 5px 5px 6px 5px;
     display: flex;
@@ -157,7 +159,6 @@
     .calendar-cell:hover {
         background: var(--surface-hover);
         transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
     }
 }
 
@@ -166,6 +167,7 @@
 }
 
 .calendar-cell.today {
+    background: var(--accent-pink-light);
     box-shadow: inset 0 0 0 3px var(--action);
 }
 
@@ -187,10 +189,11 @@
     align-items: center;
 }
 
+/* Square "pixel" dots. */
 .schedule-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+    width: 9px;
+    height: 9px;
+    border-radius: 1px;
     flex-shrink: 0;
 }
 
@@ -220,14 +223,14 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    color: var(--text-on-dark-muted);
+    color: var(--text-on-bg-muted);
     font-size: 0.78em;
 }
 
 .legend-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+    width: 9px;
+    height: 9px;
+    border-radius: 1px;
     display: inline-block;
 }
 
@@ -238,7 +241,7 @@
 /* --- Day detail page --- */
 
 .day-detail-date {
-    color: var(--text-on-dark);
+    color: var(--text-on-bg);
     text-align: center;
     margin: 8px 0 18px 0;
     font-size: 1.15em;
@@ -252,7 +255,7 @@
     font-size: 0.65em;
     font-weight: 700;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: 2px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     vertical-align: middle;
@@ -268,7 +271,7 @@
 
 .day-detail-empty {
     text-align: center;
-    color: var(--text-on-dark-muted);
+    color: var(--text-on-bg-muted);
     font-style: italic;
     padding: 28px 0;
     margin: 0;
@@ -276,22 +279,21 @@
 
 .schedule-row {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--panel-shadow);
+    padding: 14px 16px;
 }
 
 .schedule-row.clickable {
     cursor: pointer;
-    transition: border-color 0.15s, transform 0.15s, background-color 0.15s, box-shadow 0.15s;
+    transition: transform 0.1s, background-color 0.15s;
 }
 
 @media (hover: hover) {
     .schedule-row.clickable:hover {
         background-color: var(--surface-hover);
-        border-color: var(--accent-pink);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 14px rgba(247, 183, 195, 0.40);
+        transform: translateY(-1px);
     }
 }
 
@@ -322,7 +324,7 @@
     font-size: 0.68em;
     font-weight: 700;
     padding: 3px 9px;
-    border-radius: 10px;
+    border-radius: 2px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: white;
@@ -361,9 +363,10 @@
     font-size: 0.95em;
     font-weight: 700;
     background: transparent;
-    color: var(--text-on-dark);
+    color: var(--text-on-bg);
     border: 2px dashed var(--accent-pink-deep);
-    border-radius: 10px;
+    border-radius: 4px;
+    box-shadow: none;
 }
 
 @media (hover: hover) {

@@ -8,16 +8,16 @@
 
 .create-workout-form label {
     display: block;
-    color: var(--text-on-dark);
+    color: var(--text-on-bg);
     font-weight: bold;
     margin-bottom: 8px;
 }
 
 .create-workout-form input[type="text"] {
-    background-color: #FFFFFF;
+    background-color: var(--input-bg);
     color: var(--text-primary);
-    border: 2px solid var(--border);
-    border-radius: 8px;
+    border: 2px solid var(--frame);
+    border-radius: 3px;
     padding: 10px 12px;
     font-size: 1em;
     box-sizing: border-box;
@@ -28,7 +28,7 @@
 
 .create-workout-form input[type="text"]:focus {
     outline: none;
-    border-color: var(--accent-pink);
+    border-color: var(--accent-pink-deep);
     border-width: 4px;
     padding: 8px 10px;
 }

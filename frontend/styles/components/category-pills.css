@@ -11,11 +11,12 @@
 }
 
 .filter-pill {
-    background-color: transparent;
-    color: var(--text-on-dark);
-    border: 3px solid var(--accent-pink);
+    background-color: var(--surface);
+    color: var(--text-on-bg);
+    border: 2px solid var(--frame);
     padding: 5px 13px;
-    border-radius: 18px;
+    border-radius: 3px;
+    box-shadow: 0 2px 0 var(--shadow-hard);
     cursor: pointer;
     font-size: 0.95em;
     font-weight: 600;
@@ -24,13 +25,12 @@
 
 @media (hover: hover) {
     .filter-pill:hover {
-        border-color: var(--accent-pink-hover);
-        background-color: rgba(247, 183, 195, 0.12);
+        background-color: var(--accent-pink-light);
     }
 }
 
 .filter-pill.selected {
     background-color: var(--accent-pink);
-    border-color: var(--accent-pink);
-    color: #1F0E0C;
+    color: var(--text-primary);
+    box-shadow: inset -2px -2px 0 var(--accent-pink-shade), inset 2px 2px 0 var(--accent-pink-light);
 }

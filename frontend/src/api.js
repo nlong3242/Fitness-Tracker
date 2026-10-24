@@ -112,6 +112,19 @@ export function fetchOverview(weekStart) {
     return requestJson("GET", `/sessions/overview?weekStart=${weekStart}`);
 }
 
+// --- Bodyweight ---
+
+// { latest: { date, weightKg } | null, weekChange: number | null } as of
+// `today` (local YYYY-MM-DD).
+export function fetchBodyWeightSummary(today) {
+    return requestJson("GET", `/bodyweight/summary?today=${today}`);
+}
+
+// Saves (or replaces) the weigh-in for a date. Throws ApiError on failure.
+export function logBodyWeight(date, weightKg) {
+    return requestJson("PUT", `/bodyweight/${date}`, { weightKg });
+}
+
 // The started-but-not-finished session to offer for resume, or null.
 export async function fetchUnfinishedSession() {
     const response = await requestOk("GET", "/sessions/unfinished");

@@ -1,5 +1,5 @@
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
-import { fetchOverview } from "../api.js";
+import { fetchOverview, fetchBodyWeightSummary, logBodyWeight } from "../api.js";
 import { findWorkout } from "../state.js";
 import { pixelArt } from "../utils/pixelArt.js";
 
@@ -35,9 +35,6 @@ const SNEAKER = pixelArt([
 const SAMPLE_STEPS = [5200, 6100, 7400, 11800, 5900, 4800, 6379];
 const STEP_GOAL = 10000;
 
-// Placeholder bodyweight: latest weigh-in and change over the week.
-const SAMPLE_WEIGHT = { kg: 72.4, weekChange: -0.6 };
-
 export function renderHomePage() {
     clearNavGuard();
     const container = document.getElementById("app-content");
@@ -49,21 +46,21 @@ export function renderHomePage() {
 
         <button class="home-cta" id="home-start-btn">Start a Workout</button>
 
-        <!-- Placeholder tiles: static sample content, no data behind them yet. -->
+        <!-- Bodyweight is filled by loadBodyWeight(); Steps is still sample data. -->
         <div class="home-tile-row">
             <div class="home-tile">
                 <div class="home-tile-head">
                     <span class="home-tile-title">Bodyweight</span>
-                    <span class="home-tile-badge logged">Today</span>
+                    <span class="home-tile-badge" id="home-weight-badge" hidden></span>
                 </div>
                 <div class="home-tile-body">
                     ${SCALE}
-                    <div class="home-tile-value">${SAMPLE_WEIGHT.kg.toFixed(1)}<span class="home-tile-unit"> kg</span></div>
+                    <div class="home-tile-value"><span id="home-weight-value">–</span><input id="home-weight-input" class="home-weight-input" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Today's weight in kg" hidden><span class="home-tile-unit"> kg</span></div>
                 </div>
-                <div class="home-tile-trend ${SAMPLE_WEIGHT.weekChange < 0 ? "down" : "up"}">
-                    ${SAMPLE_WEIGHT.weekChange < 0 ? "▼" : "▲"} ${Math.abs(SAMPLE_WEIGHT.weekChange).toFixed(1)} kg this week
-                </div>
-                <button class="home-tile-btn" type="button">Log Weight</button>
+                <div class="home-tile-trend" id="home-weight-trend" hidden></div>
+                <div class="home-tile-note" id="home-weight-note" hidden></div>
+                <button class="home-tile-error" type="button" id="home-weight-error" hidden>Not saved — tap to retry</button>
+                <button class="home-tile-btn" type="button" id="home-log-weight-btn">Log Weight</button>
             </div>
             <div class="home-tile">
                 <div class="home-tile-head">
@@ -87,7 +84,140 @@ export function renderHomePage() {
     `;
 
     document.getElementById("home-start-btn").onclick = function() { setActiveTab("workouts"); };
+    wireWeightLogging();
     loadStats();
+    loadBodyWeight();
+}
+
+// Latest summary, kept for the input's "last time" hint.
+let weightSummary = null;
+
+/* Inline logging, today only. Log Weight swaps the number for an empty
+   input (last weight as a grey hint) with the keyboard up; tapping out or
+   Return saves. Empty or not above 0 cancels, so a stray tap never logs
+   anything. A failed save shows a retry line under the weight. */
+function wireWeightLogging() {
+    const valueEl = document.getElementById("home-weight-value");
+    const input = document.getElementById("home-weight-input");
+    const btn = document.getElementById("home-log-weight-btn");
+    const errorBtn = document.getElementById("home-weight-error");
+    let editing = false;
+    let endedAt = 0;   // when editing last ended (see btn.onclick)
+    let pendingKg = null;
+
+    function startEditing() {
+        editing = true;
+        const last = weightSummary && weightSummary.latest;
+        input.value = "";
+        input.placeholder = last ? last.weightKg.toFixed(1) : "0.0";
+        valueEl.hidden = true;
+        input.hidden = false;
+        btn.textContent = "Save";
+        input.focus();   // inside the tap, so iOS opens the keyboard
+    }
+
+    function stopEditing() {
+        editing = false;
+        endedAt = Date.now();
+        input.hidden = true;
+        valueEl.hidden = false;
+        btn.textContent = "Log Weight";
+    }
+
+    async function save(kg) {
+        pendingKg = kg;
+        valueEl.textContent = kg.toFixed(1);
+        errorBtn.hidden = true;
+        // The week's change belonged to the old number; it comes back with
+        // the refreshed summary once this saves.
+        document.getElementById("home-weight-trend").hidden = true;
+        try {
+            await logBodyWeight(localIso(new Date()), kg);
+        } catch (e) {
+            errorBtn.hidden = false;
+            return;
+        }
+        pendingKg = null;
+        loadBodyWeight();
+    }
+
+    btn.onclick = function() {
+        // Tapping Save blurs the input first, which already saved; ignore the
+        // click that follows rather than reopening the input.
+        if (editing) { input.blur(); return; }
+        if (Date.now() - endedAt < 400) return;
+        startEditing();
+    };
+
+    input.onkeydown = function(e) {
+        if (e.key === "Enter") input.blur();
+        if (e.key === "Escape") { input.value = ""; input.blur(); }
+    };
+
+    input.onblur = function() {
+        if (!editing) return;
+        const kg = Number(input.value.trim().replace(",", "."));
+        stopEditing();
+        if (input.value.trim() && Number.isFinite(kg) && kg > 0) save(kg);
+    };
+
+    errorBtn.onclick = function() {
+        if (pendingKg !== null) save(pendingKg);
+    };
+}
+
+/* Fills the Bodyweight tile. Badge: TODAY / YESTERDAY / 2–3 DAYS AGO; from
+   4 days old it's replaced by a "Last logged 24th Oct" note. Leaves the
+   placeholders if the request fails or the tile is gone. */
+async function loadBodyWeight() {
+    let summary;
+    try {
+        summary = await fetchBodyWeightSummary(localIso(new Date()));
+    } catch (e) {
+        return;
+    }
+    const valueEl = document.getElementById("home-weight-value");
+    if (!valueEl) return;
+    weightSummary = summary;
+
+    const badge = document.getElementById("home-weight-badge");
+    const trend = document.getElementById("home-weight-trend");
+    const note = document.getElementById("home-weight-note");
+    badge.className = "home-tile-badge";
+    badge.hidden = false;
+    note.hidden = true;
+    trend.hidden = true;
+
+    const latest = summary.latest;
+    if (!latest) {
+        valueEl.textContent = "–";
+        badge.textContent = "No log";
+        return;
+    }
+    valueEl.textContent = latest.weightKg.toFixed(1);
+
+    const days = daysBetween(latest.date, localIso(new Date()));
+    if (days === 0) {
+        badge.textContent = "Today";
+        badge.classList.add("logged");
+    } else if (days === 1) {
+        badge.textContent = "Yesterday";
+    } else if (days <= 3) {
+        badge.textContent = `${days} days ago`;
+    } else {
+        badge.hidden = true;
+        note.textContent = `Last logged ${ordinalDate(latest.date)}`;
+        note.hidden = false;
+    }
+
+    const change = summary.weekChange;
+    if (change !== null) {
+        trend.className = "home-tile-trend" + (change < 0 ? " down" : "");
+        trend.textContent = change === 0
+            ? "No change this week"
+            : `${change < 0 ? "▼" : "▲"} ${Math.abs(change).toFixed(1)} kg this week`;
+        trend.hidden = false;
+    }
 }
 
 /* Fills the stat cards. Leaves the "–" placeholders if the request fails or
@@ -146,6 +276,22 @@ function mondayOf(d) {
     const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
     return monday;
+}
+
+// Whole calendar days from one YYYY-MM-DD to another.
+function daysBetween(fromIso, toIso) {
+    const [fy, fm, fd] = fromIso.split("-").map(Number);
+    const [ty, tm, td] = toIso.split("-").map(Number);
+    return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
+}
+
+// "24th Oct", with the year added when it isn't this year ("24th Oct 2025").
+function ordinalDate(yyyyMmDd) {
+    const [y, m, d] = yyyyMmDd.split("-").map(Number);
+    const teen = d % 100 >= 11 && d % 100 <= 13;
+    const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[d % 10] || "th");
+    const month = new Date(y, m - 1, d).toLocaleDateString("en-GB", { month: "short" });
+    return `${d}${suffix} ${month}` + (y !== new Date().getFullYear() ? ` ${y}` : "");
 }
 
 function localIso(d) {

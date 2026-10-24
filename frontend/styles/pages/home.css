@@ -28,6 +28,10 @@
     padding: 16px;
     font-size: 1.1em;
     margin-bottom: 20px;
+    /* "Start <workout>" when one is planned today; long names cut off. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Bodyweight + Steps tiles — two square panels side by side at every
@@ -260,8 +264,24 @@
     font-size: 0.85em;
     line-height: 1.1;
     margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .home-stat-sub:empty {
     display: none;
+}
+
+/* Next up opens that day in the calendar. */
+.home-stat.tappable {
+    cursor: pointer;
+}
+
+.home-stat.tappable:active {
+    transform: translateY(2px);
+    box-shadow:
+        inset 0 0 0 2px var(--surface),
+        inset 0 0 0 4px var(--frame-soft),
+        0 1px 0 var(--shadow-hard);
 }

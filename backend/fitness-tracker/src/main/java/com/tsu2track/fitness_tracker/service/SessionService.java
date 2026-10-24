@@ -107,6 +107,11 @@ public class SessionService {
             .findFirstByStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(ScheduleStatus.PLANNED, today);
     }
 
+    // Plans still to do on a day (the next one included).
+    public long countPlannedOn(LocalDate date) {
+        return scheduledWorkoutRepository.countByStatusAndDate(ScheduleStatus.PLANNED, date);
+    }
+
     public Session createSession(Long workoutId) {
         Optional<Workout> workout = workoutRepository.findById(workoutId);
         if (!workout.isPresent()) {

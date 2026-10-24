@@ -171,6 +171,7 @@ class WebLayerTest {
         plan.setWorkout(w);
         plan.setDate(java.time.LocalDate.of(2026, 10, 24));
         when(sessionService.findNextPlanned(java.time.LocalDate.of(2026, 10, 23))).thenReturn(java.util.Optional.of(plan));
+        when(sessionService.countPlannedOn(java.time.LocalDate.of(2026, 10, 24))).thenReturn(2L);
 
         mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").param("today", "2026-10-23")
                 .header("X-API-Key", KEY))
@@ -180,7 +181,8 @@ class WebLayerTest {
             .andExpect(jsonPath("$.lastSession.date").value("2026-10-22"))
             .andExpect(jsonPath("$.weekStreak").value(5))
             .andExpect(jsonPath("$.nextPlanned.workoutId").value(4))
-            .andExpect(jsonPath("$.nextPlanned.date").value("2026-10-24"));
+            .andExpect(jsonPath("$.nextPlanned.date").value("2026-10-24"))
+            .andExpect(jsonPath("$.plannedThatDay").value(2));
     }
 
     @Test
@@ -193,7 +195,8 @@ class WebLayerTest {
             .andExpect(jsonPath("$.sessionsThisWeek").value(0))
             .andExpect(jsonPath("$.lastSession").isEmpty())
             .andExpect(jsonPath("$.weekStreak").value(0))
-            .andExpect(jsonPath("$.nextPlanned").isEmpty());
+            .andExpect(jsonPath("$.nextPlanned").isEmpty())
+            .andExpect(jsonPath("$.plannedThatDay").value(0));
     }
 
     @Test

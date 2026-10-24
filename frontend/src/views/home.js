@@ -1,6 +1,8 @@
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
 import { fetchOverview, fetchBodyWeightSummary, logBodyWeight } from "../api.js";
 import { findWorkout } from "../state.js";
+import { startWorkout } from "./activeWorkout.js";
+import { navigateToCalendarDay } from "./calendar.js";
 import { pixelArt } from "../utils/pixelArt.js";
 
 // Bathroom scale: rose platform, readout window with a needle, feet.
@@ -71,7 +73,7 @@ export function renderHomePage() {
         </div>
 
         <div class="home-stat-row">
-            <div class="home-stat">
+            <div class="home-stat" id="home-next-card">
                 <div class="home-stat-label">Next up</div>
                 <div class="home-stat-value" id="home-next-name">–</div>
                 <div class="home-stat-sub" id="home-next-when"></div>
@@ -253,15 +255,46 @@ async function loadStats() {
         document.getElementById("home-streak-note").textContent =
             n > 0 ? "This week done" : weeks > 0 ? "Train to keep it" : "Train to start one";
     }
-    if (overview.nextPlanned !== undefined) {
-        const next = overview.nextPlanned;
-        document.getElementById("home-next-name").textContent = next ? workoutName(next.workoutId) : "–";
-        document.getElementById("home-next-when").textContent = next ? relativeDay(next.date, today) : "Nothing planned";
-    }
+    if (overview.nextPlanned !== undefined) showNextUp(overview.nextPlanned, overview.plannedThatDay || 0, today);
 
     const last = overview.lastSession;
     document.getElementById("home-last-name").textContent = last ? workoutName(last.workoutId) : "–";
     document.getElementById("home-last-when").textContent = last ? relativeDay(last.date, today) : "None yet";
+}
+
+/* Next up card, plus the big button: with a plan for today it starts that
+   workout (linked to the plan, so finishing marks it done on the calendar)
+   instead of opening the workout list. Several plans on one day: the
+   earliest-added comes first, with "+N more"; tapping the card opens that
+   day in the calendar to pick another. */
+function showNextUp(next, plannedThatDay, today) {
+    const card = document.getElementById("home-next-card");
+    const when = document.getElementById("home-next-when");
+    if (!next) {
+        document.getElementById("home-next-name").textContent = "–";
+        when.textContent = "Nothing planned";
+        return;
+    }
+    document.getElementById("home-next-name").textContent = workoutName(next.workoutId);
+    const more = plannedThatDay - 1;
+    when.textContent = relativeDay(next.date, today) + (more > 0 ? ` · +${more} more` : "");
+    card.classList.add("tappable");
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+    card.onclick = function() { navigateToCalendarDay(next.date); };
+    card.onkeydown = function(e) { if (e.key === "Enter") card.onclick(); };
+
+    // Same rule as the calendar's Start: the workout must have exercises.
+    const workout = findWorkout(next.workoutId);
+    if (next.date !== today || !workout || !(workout.exerciseCount > 0)) return;
+    const startBtn = document.getElementById("home-start-btn");
+    startBtn.textContent = `Start ${workout.name}`;
+    startBtn.onclick = function() {
+        startWorkout(workout.id, {
+            scheduledWorkoutId: next.id,
+            onComplete: function() { setActiveTab("home"); }
+        });
+    };
 }
 
 function workoutName(workoutId) {

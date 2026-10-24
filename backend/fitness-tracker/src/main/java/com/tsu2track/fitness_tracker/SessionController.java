@@ -48,19 +48,24 @@ public class SessionController {
             .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    // Home page stats. lastSession / nextPlanned are null when there's none.
+    /* Home page stats. lastSession / nextPlanned are null when there's none;
+       plannedThatDay counts nextPlanned's day's plans still to do, itself
+       included (0 with no nextPlanned). */
     public record HomeOverview(long sessionsThisWeek, Session lastSession,
-                               int weekStreak, ScheduledWorkout nextPlanned) {}
+                               int weekStreak, ScheduledWorkout nextPlanned,
+                               long plannedThatDay) {}
 
     // today defaults to the server's date for pages cached before it was sent.
     @GetMapping("/sessions/overview")
     public HomeOverview getOverview(@RequestParam LocalDate weekStart,
                                     @RequestParam(required = false) LocalDate today) {
+        ScheduledWorkout next = sessionService.findNextPlanned(today != null ? today : LocalDate.now()).orElse(null);
         return new HomeOverview(
             sessionService.countFinishedInWeek(weekStart),
             sessionService.findLastFinishedSession().orElse(null),
             sessionService.countWeekStreak(weekStart),
-            sessionService.findNextPlanned(today != null ? today : LocalDate.now()).orElse(null));
+            next,
+            next != null ? sessionService.countPlannedOn(next.getDate()) : 0);
     }
 
     @PostMapping("/workouts/{workoutId}/sessions")

@@ -12,6 +12,7 @@ public interface ScheduledWorkoutRepository extends JpaRepository<ScheduledWorko
     List<ScheduledWorkout> findByWorkout_Id(Long workoutId);
     Optional<ScheduledWorkout> findBySession_Id(Long sessionId);
     Optional<ScheduledWorkout> findFirstByStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(ScheduleStatus status, LocalDate from);
+    long countByStatusAndDate(ScheduleStatus status, LocalDate date);
 
     // Plans (PLANNED/SKIPPED) are unique per date+workout; COMPLETED rows repeat.
     boolean existsByDateAndWorkout_IdAndStatusNot(LocalDate date, Long workoutId, ScheduleStatus status);

@@ -148,6 +148,16 @@ class HomeOverviewTest {
         assertThat(sessionService.findNextPlanned(MONDAY)).isEmpty();
     }
 
+    @Test
+    void countsOnlyThatDaysPlansStillToDo() {
+        plan(upper, MONDAY, ScheduleStatus.PLANNED);
+        plan(legs, MONDAY, ScheduleStatus.PLANNED);
+        plan(upper, MONDAY, ScheduleStatus.COMPLETED);   // done: not counted
+        plan(legs, MONDAY.plusDays(1), ScheduleStatus.PLANNED);  // other day
+
+        assertThat(sessionService.countPlannedOn(MONDAY)).isEqualTo(2);
+    }
+
     private ScheduledWorkout plan(Workout w, LocalDate date, ScheduleStatus status) {
         ScheduledWorkout sw = new ScheduledWorkout();
         sw.setWorkout(w);

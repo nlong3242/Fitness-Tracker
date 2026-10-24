@@ -38,13 +38,15 @@ class ExerciseHistoryWebTest {
     @Test
     void returnsRecordsAndOnePageOfSessions() throws Exception {
         Record top = new Record(80, 5, DAY);
-        when(service.history(3L, 0, 10)).thenReturn(new History(new Records(top, top),
+        when(service.history(3L, 0, 10)).thenReturn(new History(new Records(top, top, null, top),
             List.of(new HistorySession(7L, DAY, 2L, List.of(new HistorySet(80, 5, null, true)))), true));
 
         mvc.perform(get("/exercises/3/history").header("X-API-Key", KEY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.records.heaviest.weight").value(80.0))
             .andExpect(jsonPath("$.records.bestSet.date").value("2026-10-20"))
+            .andExpect(jsonPath("$.records.bestLeft").isEmpty())
+            .andExpect(jsonPath("$.records.bestRight.reps").value(5))
             .andExpect(jsonPath("$.sessions[0].workoutId").value(2))
             .andExpect(jsonPath("$.sessions[0].sets[0].reps").value(5))
             .andExpect(jsonPath("$.sessions[0].sets[0].pr").value(true))

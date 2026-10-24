@@ -99,10 +99,12 @@ class ExerciseHistoryTest {
 
         assertThat(r.heaviest()).extracting("weight", "reps", "date").containsExactly(80.0, 4, DAY.plusDays(7));
         assertThat(r.bestSet()).extracting("weight", "reps", "date").containsExactly(70.0, 10, DAY);
+        assertThat(r.bestLeft()).isNull();
+        assertThat(r.bestRight()).isNull();
     }
 
     @Test
-    void unilateralStillHasOneStar() {
+    void unilateralHasABestSetAndStarPerSide() {
         Exercise curl = exercise("DB Curl", true);
         Session first = session(upper, DAY, true);
         set(first, curl, 12, 10, Side.LEFT);
@@ -113,9 +115,14 @@ class ExerciseHistoryTest {
 
         History h = service.history(curl.getId(), 0, 10);
 
+        // LEFT's best is 12 × 10 (first session), RIGHT's is 11 × 10 (second).
         assertThat(h.sessions().get(0).sets()).extracting(HistorySet::side).containsExactly(Side.LEFT, Side.RIGHT);
-        assertThat(h.sessions()).flatExtracting(HistorySession::sets).filteredOn(HistorySet::pr)
-            .singleElement().extracting(HistorySet::weight, HistorySet::side).containsExactly(12.0, Side.LEFT);
+        assertThat(h.sessions().get(1).sets()).extracting(HistorySet::pr).containsExactly(true, false);
+        assertThat(h.sessions().get(0).sets()).extracting(HistorySet::pr).containsExactly(false, true);
+        assertThat(h.records().bestLeft()).extracting("weight", "date").containsExactly(12.0, DAY);
+        assertThat(h.records().bestRight()).extracting("weight", "date").containsExactly(11.0, DAY.plusDays(7));
+        assertThat(h.records().bestSet()).isNull();                     // no two-sided sets
+        assertThat(h.records().heaviest().weight()).isEqualTo(12.0);    // one number, either side
     }
 
     @Test

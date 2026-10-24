@@ -5,8 +5,8 @@ import { escapeHtml } from "../utils/format.js";
 /* An exercise's PRs and past sessions, rendered into `container`. Used by
    the History tab of the exercise popup in a live workout (and the
    Exercise History page). Sessions come 10 at a time with "Load more".
-   The one ★ marks the set shown in the Best set card (the backend
-   decides; see ExerciseHistoryService). */
+   ★ marks the set shown in the Best set card, one per side for a
+   unilateral exercise (the backend decides; see ExerciseHistoryService). */
 
 const PAGE_SIZE = 10;
 
@@ -62,14 +62,38 @@ function recordsHtml(records) {
             <div class="exh-record-value">${value}</div>
             <div class="exh-record-sub">${sub}</div>
         </div>`;
+    const max = r => `≈ ${Math.round(r.weight * (1 + r.reps / 30))} kg max`;
     // Heaviest weight leads with the weight alone; its reps stay as small
     // print so 87.5 × 1 and 87.5 × 9 can still be told apart.
-    const h = records.heaviest, b = records.bestSet;
-    const oneRm = Math.round(b.weight * (1 + b.reps / 30));
+    const h = records.heaviest;
+    const heaviest = card("Heaviest weight", `${kg(h.weight)}<span class="exh-unit"> kg</span>`, `× ${h.reps} · ${shortDate(h.date)}`);
+
+    const sides = [["L", records.bestLeft], ["R", records.bestRight]].filter(([, r]) => r);
+    if (sides.length === 0) {
+        const b = records.bestSet;
+        return `
+            <div class="exh-records">
+                ${heaviest}
+                ${card("Best set", `${kg(b.weight)}<span class="exh-unit"> kg</span> × ${b.reps}`, `${max(b)} · ${shortDate(b.date)}`)}
+            </div>`;
+    }
+
+    // Unilateral: a best set (and ★) per side, too much for a half-width
+    // card, so Best set gets its own full-width card with a line per side.
+    // "Both" only appears if the exercise also has two-sided sets (it was
+    // switched to unilateral later).
+    if (records.bestSet) sides.unshift(["Both", records.bestSet]);
+    const lines = sides.map(([label, r]) => `
+        <div class="exh-side-best">
+            <span class="exh-side">${label}</span>
+            <span class="exh-side-best-set">${kg(r.weight)}<span class="exh-unit"> kg</span> × ${r.reps}</span>
+            <span class="exh-record-sub">${max(r)} · ${shortDate(r.date)}</span>
+        </div>`).join("");
     return `
-        <div class="exh-records">
-            ${card("Heaviest weight", `${kg(h.weight)}<span class="exh-unit"> kg</span>`, `× ${h.reps} · ${shortDate(h.date)}`)}
-            ${card("Best set", `${kg(b.weight)}<span class="exh-unit"> kg</span> × ${b.reps}`, `≈ ${oneRm} kg max · ${shortDate(b.date)}`)}
+        <div class="exh-records">${heaviest}</div>
+        <div class="exh-record exh-record-wide">
+            <div class="exh-record-label">Best set</div>
+            ${lines}
         </div>`;
 }
 

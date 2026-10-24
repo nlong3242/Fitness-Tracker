@@ -60,6 +60,34 @@
     font-size: 0.8em;
 }
 
+/* Unilateral Best set: full width under Heaviest weight, one line per
+   side: side | set | max and date (wraps under on a narrow screen). */
+.exh-record-wide {
+    margin: -4px 0 14px;
+}
+
+.exh-side-best {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    margin-top: 2px;
+}
+
+.exh-side-best .exh-side {
+    min-width: 1.2em;
+}
+
+.exh-side-best-set {
+    font-size: 1.15em;
+    white-space: nowrap;
+}
+
+.exh-side-best .exh-record-sub {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
 .exh-session {
     border-top: 2px dashed var(--frame-soft);
     padding: 10px 0;
@@ -117,6 +145,11 @@
     display: block;
     width: 100%;
     margin-top: 4px;
+}
+
+/* display: block above would otherwise beat the hidden attribute. */
+.exh-more[hidden] {
+    display: none;
 }
 
 /* Exercise History page (views/exerciseHistoryPage.js). */

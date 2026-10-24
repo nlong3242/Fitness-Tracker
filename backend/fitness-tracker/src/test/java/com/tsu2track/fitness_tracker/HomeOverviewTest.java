@@ -13,8 +13,8 @@ import org.springframework.context.annotation.Import;
 
 import com.tsu2track.fitness_tracker.service.SessionService;
 
-/* Home page stats: finished sessions in a Monday–Sunday week, and the
-   most recent finished session. */
+/* Home page stats: finished sessions in a Monday–Sunday week, the
+   most recent finished session, the week streak and the next plan. */
 @DataJpaTest
 @Import(SessionService.class)
 class HomeOverviewTest {
@@ -85,6 +85,77 @@ class HomeOverviewTest {
 
         assertThat(sessionService.findLastFinishedSession()).isEmpty();
         assertThat(sessionService.countFinishedInWeek(MONDAY)).isZero();
+    }
+
+    @Test
+    void streakCountsWeeksInARowIncludingThisOne() {
+        session(upper, MONDAY.plusDays(2), true);         // this week
+        session(upper, MONDAY.minusDays(1), true);        // last week (Sunday)
+        session(legs, MONDAY.minusDays(1), true);         // same day twice: still one week
+        session(upper, MONDAY.minusWeeks(2), true);       // two weeks back
+        session(upper, MONDAY.minusWeeks(4), true);       // after a gap: not counted
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(3);
+    }
+
+    @Test
+    void emptyCurrentWeekKeepsLastWeeksStreak() {
+        session(upper, MONDAY.minusDays(3), true);
+        session(upper, MONDAY.minusWeeks(2), true);
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(2);
+    }
+
+    @Test
+    void streakIgnoresUnfinishedAndFutureSessions() {
+        session(upper, MONDAY.minusWeeks(1), false);      // in progress: not a training week
+        session(upper, MONDAY.plusWeeks(1), true);        // next week: ignored
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isZero();
+    }
+
+    @Test
+    void streakIsBrokenByAMissedWeek() {
+        session(upper, MONDAY.minusWeeks(2), true);
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isZero();
+    }
+
+    @Test
+    void nextPlannedIsTheEarliestPlanFromToday() {
+        LocalDate today = MONDAY.plusDays(2);
+        plan(upper, today.minusDays(1), ScheduleStatus.PLANNED);   // missed yesterday: past
+        plan(upper, today, ScheduleStatus.COMPLETED);              // done today
+        ScheduledWorkout next = plan(legs, today.plusDays(1), ScheduleStatus.PLANNED);
+        plan(upper, today.plusDays(3), ScheduleStatus.PLANNED);
+
+        assertThat(sessionService.findNextPlanned(today)).get()
+            .extracting(ScheduledWorkout::getId).isEqualTo(next.getId());
+    }
+
+    @Test
+    void planForTodayCountsAsNext() {
+        ScheduledWorkout todays = plan(upper, MONDAY, ScheduleStatus.PLANNED);
+
+        assertThat(sessionService.findNextPlanned(MONDAY)).get()
+            .extracting(ScheduledWorkout::getId).isEqualTo(todays.getId());
+    }
+
+    @Test
+    void nothingPlanned() {
+        plan(upper, MONDAY.plusDays(1), ScheduleStatus.SKIPPED);
+
+        assertThat(sessionService.findNextPlanned(MONDAY)).isEmpty();
+    }
+
+    private ScheduledWorkout plan(Workout w, LocalDate date, ScheduleStatus status) {
+        ScheduledWorkout sw = new ScheduledWorkout();
+        sw.setWorkout(w);
+        sw.setDate(date);
+        sw.setStatus(status);
+        ScheduledWorkout saved = em.persist(sw);
+        em.flush();
+        return saved;
     }
 
     private Session session(Workout w, LocalDate date, boolean finished) {

@@ -107,9 +107,11 @@ export function finishSession(sessionId, orderedExerciseIds) {
 }
 
 // Home page stats for the week starting weekStart (local Monday, YYYY-MM-DD):
-// { sessionsThisWeek, lastSession: { id, workoutId, date, ... } | null }.
-export function fetchOverview(weekStart) {
-    return requestJson("GET", `/sessions/overview?weekStart=${weekStart}`);
+// { sessionsThisWeek, lastSession: { id, workoutId, date, ... } | null,
+//   weekStreak, nextPlanned: { id, workoutId, date, ... } | null }; today
+//   (local YYYY-MM-DD) decides which plans still count as upcoming.
+export function fetchOverview(weekStart, today) {
+    return requestJson("GET", `/sessions/overview?weekStart=${weekStart}&today=${today}`);
 }
 
 // --- Bodyweight ---

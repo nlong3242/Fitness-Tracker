@@ -31,7 +31,7 @@
 }
 
 /* Bodyweight + Steps tiles — two square panels side by side at every
-   width (unlike the stat row, they don't stack on phones). Content that
+   width (like the stat cards below). Content that
    outgrows the square makes that tile taller, so keep each tile short;
    the steps chart takes up whatever height is left. */
 .home-tile-row {
@@ -219,6 +219,8 @@
     pointer-events: none;
 }
 
+/* Four small stat cards in a 2×2 grid at every width, kept short so the
+   home page fits on one phone screen without scrolling. */
 .home-stat-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -227,30 +229,39 @@
 }
 
 .home-stat {
+    min-width: 0;   /* lets long workout names ellipsize instead of widening the column */
     background-color: var(--surface);
     border: 2px solid var(--frame);
     border-radius: 4px;
     box-shadow: var(--panel-shadow);
-    padding: 16px 14px;
-}
-
-.home-stat-value {
-    font-size: 1.6em;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1.1;
+    padding: 10px 12px;
 }
 
 /* Label on top and nearly body size, so a glance says what the number is. */
 .home-stat-label {
     color: var(--text-muted);
-    font-size: 1.1em;
+    font-size: 1.05em;
     line-height: 1.1;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
-@media (max-width: 480px) {
-    .home-stat-row {
-        grid-template-columns: 1fr;
-    }
+.home-stat-value {
+    font-size: 1.45em;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-stat-sub {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    line-height: 1.1;
+    margin-top: 2px;
+}
+
+.home-stat-sub:empty {
+    display: none;
 }

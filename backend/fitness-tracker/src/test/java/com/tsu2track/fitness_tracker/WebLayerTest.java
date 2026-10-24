@@ -166,12 +166,21 @@ class WebLayerTest {
         s.setFinished(true);
         when(sessionService.countFinishedInWeek(java.time.LocalDate.of(2026, 10, 19))).thenReturn(3L);
         when(sessionService.findLastFinishedSession()).thenReturn(java.util.Optional.of(s));
+        when(sessionService.countWeekStreak(java.time.LocalDate.of(2026, 10, 19))).thenReturn(5);
+        ScheduledWorkout plan = new ScheduledWorkout();
+        plan.setWorkout(w);
+        plan.setDate(java.time.LocalDate.of(2026, 10, 24));
+        when(sessionService.findNextPlanned(java.time.LocalDate.of(2026, 10, 23))).thenReturn(java.util.Optional.of(plan));
 
-        mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").header("X-API-Key", KEY))
+        mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").param("today", "2026-10-23")
+                .header("X-API-Key", KEY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessionsThisWeek").value(3))
             .andExpect(jsonPath("$.lastSession.workoutId").value(4))
-            .andExpect(jsonPath("$.lastSession.date").value("2026-10-22"));
+            .andExpect(jsonPath("$.lastSession.date").value("2026-10-22"))
+            .andExpect(jsonPath("$.weekStreak").value(5))
+            .andExpect(jsonPath("$.nextPlanned.workoutId").value(4))
+            .andExpect(jsonPath("$.nextPlanned.date").value("2026-10-24"));
     }
 
     @Test
@@ -182,7 +191,9 @@ class WebLayerTest {
         mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").header("X-API-Key", KEY))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessionsThisWeek").value(0))
-            .andExpect(jsonPath("$.lastSession").isEmpty());
+            .andExpect(jsonPath("$.lastSession").isEmpty())
+            .andExpect(jsonPath("$.weekStreak").value(0))
+            .andExpect(jsonPath("$.nextPlanned").isEmpty());
     }
 
     @Test

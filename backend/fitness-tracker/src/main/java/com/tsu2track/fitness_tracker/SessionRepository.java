@@ -17,6 +17,9 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     Optional<Session> findFirstByFinishedTrueOrderByDateDescIdDesc();
     long countByFinishedTrueAndDateBetween(LocalDate from, LocalDate to);
 
+    @Query("SELECT DISTINCT s.date FROM Session s WHERE s.finished = true AND s.date <= :until ORDER BY s.date DESC")
+    List<LocalDate> findFinishedDatesUpTo(@Param("until") LocalDate until);
+
     @Query("""
         SELECT s FROM Session s
         WHERE s.workout.id = :workoutId

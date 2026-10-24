@@ -20,6 +20,8 @@ import com.tsu2track.fitness_tracker.Exercise;
 import com.tsu2track.fitness_tracker.ExerciseRepository;
 import com.tsu2track.fitness_tracker.ExerciseSet;
 import com.tsu2track.fitness_tracker.ExerciseSetRepository;
+import com.tsu2track.fitness_tracker.ScheduleStatus;
+import com.tsu2track.fitness_tracker.ScheduledWorkout;
 import com.tsu2track.fitness_tracker.ScheduledWorkoutRepository;
 import com.tsu2track.fitness_tracker.Session;
 import com.tsu2track.fitness_tracker.SessionController;
@@ -77,6 +79,32 @@ public class SessionService {
 
     public Optional<Session> findLastFinishedSession() {
         return sessionRepository.findFirstByFinishedTrueOrderByDateDescIdDesc();
+    }
+
+    /* Weeks in a row (Monday start) with at least one finished session,
+       counting back from weekStart. A week with nothing yet doesn't break
+       the streak while it's still the current one: it starts from last week. */
+    public int countWeekStreak(LocalDate weekStart) {
+        // Newest first, so each week's dates come in one run.
+        List<LocalDate> dates = sessionRepository.findFinishedDatesUpTo(weekStart.plusDays(6));
+        LocalDate week = weekStart;
+        if (dates.isEmpty() || dates.get(0).isBefore(week)) {
+            week = week.minusWeeks(1);
+        }
+        int streak = 0;
+        int i = 0;
+        while (i < dates.size() && !dates.get(i).isBefore(week)) {
+            streak++;
+            while (i < dates.size() && !dates.get(i).isBefore(week)) i++;
+            week = week.minusWeeks(1);
+        }
+        return streak;
+    }
+
+    // The earliest workout still planned for today or later.
+    public Optional<ScheduledWorkout> findNextPlanned(LocalDate today) {
+        return scheduledWorkoutRepository
+            .findFirstByStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(ScheduleStatus.PLANNED, today);
     }
 
     public Session createSession(Long workoutId) {

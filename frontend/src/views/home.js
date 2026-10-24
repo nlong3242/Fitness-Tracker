@@ -72,12 +72,23 @@ export function renderHomePage() {
 
         <div class="home-stat-row">
             <div class="home-stat">
-                <div class="home-stat-label" id="home-week-label">Sessions this week</div>
+                <div class="home-stat-label">Next up</div>
+                <div class="home-stat-value" id="home-next-name">–</div>
+                <div class="home-stat-sub" id="home-next-when"></div>
+            </div>
+            <div class="home-stat">
+                <div class="home-stat-label">Streak</div>
+                <div class="home-stat-value" id="home-streak">–</div>
+                <div class="home-stat-sub" id="home-streak-note"></div>
+            </div>
+            <div class="home-stat">
+                <div class="home-stat-label">This week</div>
                 <div class="home-stat-value" id="home-week-count">–</div>
             </div>
             <div class="home-stat">
-                <div class="home-stat-label" id="home-last-label">Last session</div>
+                <div class="home-stat-label">Last session</div>
                 <div class="home-stat-value" id="home-last-name">–</div>
+                <div class="home-stat-sub" id="home-last-when"></div>
             </div>
         </div>
     `;
@@ -222,9 +233,10 @@ async function loadBodyWeight() {
 /* Fills the stat cards. Leaves the "–" placeholders if the request fails or
    the user has already navigated away (the cards are no longer in the DOM). */
 async function loadStats() {
+    const today = localIso(new Date());
     let overview;
     try {
-        overview = await fetchOverview(localIso(mondayOf(new Date())));
+        overview = await fetchOverview(localIso(mondayOf(new Date())), today);
     } catch (e) {
         return;
     }
@@ -232,21 +244,46 @@ async function loadStats() {
     if (!countEl) return;
 
     const n = overview.sessionsThisWeek;
-    countEl.textContent = String(n);
-    document.getElementById("home-week-label").textContent =
-        n === 1 ? "Session this week" : "Sessions this week";
+    countEl.innerHTML = withUnit(n, n === 1 ? "session" : "sessions");
+
+    // Older backends don't send these; leave the placeholders.
+    if (overview.weekStreak !== undefined) {
+        const weeks = overview.weekStreak;
+        document.getElementById("home-streak").innerHTML = withUnit(weeks, weeks === 1 ? "week" : "weeks");
+        document.getElementById("home-streak-note").textContent =
+            n > 0 ? "This week done" : weeks > 0 ? "Train to keep it" : "Train to start one";
+    }
+    if (overview.nextPlanned !== undefined) {
+        const next = overview.nextPlanned;
+        document.getElementById("home-next-name").textContent = next ? workoutName(next.workoutId) : "–";
+        document.getElementById("home-next-when").textContent = next ? relativeDay(next.date, today) : "Nothing planned";
+    }
 
     const last = overview.lastSession;
-    const nameEl = document.getElementById("home-last-name");
-    const labelEl = document.getElementById("home-last-label");
-    if (!last) {
-        nameEl.textContent = "–";
-        labelEl.textContent = "No sessions yet";
-        return;
-    }
-    const workout = findWorkout(last.workoutId);
-    nameEl.textContent = workout ? workout.name : "Workout";
-    labelEl.textContent = `Last session · ${shortDate(last.date)}`;
+    document.getElementById("home-last-name").textContent = last ? workoutName(last.workoutId) : "–";
+    document.getElementById("home-last-when").textContent = last ? relativeDay(last.date, today) : "None yet";
+}
+
+function workoutName(workoutId) {
+    const workout = findWorkout(workoutId);
+    return workout ? workout.name : "Workout";
+}
+
+// "3" big with a small "weeks" after it, like the tiles' kg.
+function withUnit(n, unit) {
+    return `${n}<span class="home-tile-unit"> ${unit}</span>`;
+}
+
+// "Today" / "Tomorrow" / "Yesterday", else "Thu 29 Oct" ahead or "25 Oct" back.
+function relativeDay(yyyyMmDd, todayIso) {
+    const days = daysBetween(todayIso, yyyyMmDd);
+    if (days === 0) return "Today";
+    if (days === 1) return "Tomorrow";
+    if (days === -1) return "Yesterday";
+    if (days < 0) return shortDate(yyyyMmDd);
+    const [y, m, d] = yyyyMmDd.split("-").map(Number);
+    const weekday = new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short" });
+    return `${weekday} ${shortDate(yyyyMmDd)}`;
 }
 
 // Steps tile: today's progress bar, today's count, and a 7-day bar chart

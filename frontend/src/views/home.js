@@ -3,6 +3,7 @@ import { fetchOverview, fetchBodyWeightSummary, logBodyWeight } from "../api.js"
 import { findWorkout } from "../state.js";
 import { startWorkout } from "./activeWorkout.js";
 import { liveWorkout } from "../components/liveWorkout.js";
+import { renderBodyWeightPage } from "./bodyweight.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { pixelArt } from "../utils/pixelArt.js";
 
@@ -50,7 +51,7 @@ export function renderHomePage() {
 
         <!-- Bodyweight is filled by loadBodyWeight(); Steps is still sample data. -->
         <div class="home-tile-row">
-            <div class="home-tile">
+            <div class="home-tile tappable" id="home-weight-tile" role="button" tabindex="0" aria-label="Bodyweight history">
                 <div class="home-tile-head">
                     <span class="home-tile-title">Bodyweight</span>
                     <span class="home-tile-badge" id="home-weight-badge" hidden></span>
@@ -176,6 +177,18 @@ function wireWeightLogging() {
 
     errorBtn.onclick = function() {
         if (pendingKg !== null) save(pendingKg);
+    };
+
+    // The rest of the tile opens the history page. Its own buttons and the
+    // input keep their jobs, and a tap that just ended editing is ignored.
+    const tile = document.getElementById("home-weight-tile");
+    tile.onclick = function(e) {
+        if (editing || e.target.closest("button, input")) return;
+        if (Date.now() - endedAt < 400) return;
+        renderBodyWeightPage();
+    };
+    tile.onkeydown = function(e) {
+        if (e.target === tile && e.key === "Enter") renderBodyWeightPage();
     };
 }
 

@@ -23,6 +23,7 @@
 
 /* 5. Pages — view-specific styling owned by frontend/src/views/. */
 @import url("./pages/home.css");
+@import url("./pages/bodyweight.css");
 @import url("./pages/calendar.css");
 @import url("./pages/workouts.css");
 @import url("./pages/workout-detail.css");

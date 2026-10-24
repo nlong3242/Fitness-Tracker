@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -44,6 +45,17 @@ class BodyWeightWebTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.date").value("2026-10-25"))
             .andExpect(jsonPath("$.weightKg").value(72.4));
+    }
+
+    @Test
+    void listsTheHistory() throws Exception {
+        when(service.history()).thenReturn(java.util.List.of(
+            new BodyWeight(DAY.minusDays(1), 72.6), new BodyWeight(DAY, 72.4)));
+
+        mvc.perform(get("/bodyweight").header("X-API-Key", KEY))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].date").value("2026-10-24"))
+            .andExpect(jsonPath("$[1].weightKg").value(72.4));
     }
 
     @Test

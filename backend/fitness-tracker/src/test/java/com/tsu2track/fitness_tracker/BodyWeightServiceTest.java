@@ -35,6 +35,16 @@ class BodyWeightServiceTest {
     }
 
     @Test
+    void historyIsEveryWeighInOldestFirst() {
+        service.log(TODAY, 72.0);
+        service.log(TODAY.minusDays(9), 73.1);
+        service.log(TODAY.minusDays(2), 72.6);
+
+        assertThat(service.history()).extracting(BodyWeight::getDate)
+            .containsExactly(TODAY.minusDays(9), TODAY.minusDays(2), TODAY);
+    }
+
+    @Test
     void storesOneDecimalPlace() {
         assertThat(service.log(TODAY, 72.46).getWeightKg()).isEqualTo(72.5);
     }

@@ -735,3 +735,131 @@ export function showExerciseReadOnlyModal(exercise) {
 
 
 
+
+export function showWeighInModal(options) {
+    /* Add a weigh-in for any past day, or edit/delete an existing one.
+       options:
+       - entry:    { date, weightKg } to edit; omit to add (date picker shown)
+       - byDate:   Map of YYYY-MM-DD → weightKg already logged, so adding
+                   onto a logged day warns that it replaces that weight
+       - todayIso: latest pickable date (no future weigh-ins)
+       - onSave(date, kg) / onDelete(date): async; throw on failure, which
+                   shows an inline error and keeps the modal open
+       Resolves to true when something was saved or deleted, null on Cancel. */
+    const entry = options.entry || null;
+    const byDate = options.byDate;
+    const todayIso = options.todayIso;
+
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-form-box">
+                <div class="modal-form-title">${entry ? "Edit Weigh-in" : "Add Weigh-in"}</div>
+                ${entry ? `<div class="modal-form-subtitle">${escapeHtml(formatSessionDate(entry.date))}</div>` : ""}
+
+                <div class="modal-inline-error" id="weighin-error" hidden></div>
+
+                ${entry ? "" : `
+                <div class="modal-field">
+                    <label class="modal-field-label">Date <span class="required">*</span></label>
+                    <input type="date" id="weighin-date">
+                    <div class="modal-field-note" id="weighin-replaces" hidden></div>
+                </div>`}
+
+                <div class="modal-field">
+                    <label class="modal-field-label">Weight (kg) <span class="required">*</span></label>
+                    <input type="text" inputmode="decimal" autocomplete="off" id="weighin-kg">
+                </div>
+
+                <div class="modal-actions">
+                    <button class="modal-cancel">Cancel</button>
+                    ${entry ? `<button class="modal-delete" id="weighin-delete">Delete</button>` : ""}
+                    <button class="modal-add" id="weighin-save" disabled>Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const dateInput = overlay.querySelector("#weighin-date");
+        const kgInput = overlay.querySelector("#weighin-kg");
+        const saveBtn = overlay.querySelector("#weighin-save");
+        const deleteBtn = overlay.querySelector("#weighin-delete");
+        const errorEl = overlay.querySelector("#weighin-error");
+        const replacesEl = overlay.querySelector("#weighin-replaces");
+
+        if (entry) {
+            kgInput.value = entry.weightKg.toFixed(1);
+        } else {
+            dateInput.max = todayIso;
+            // Yesterday by default: today is usually logged from the home tile.
+            const [y, m, d] = todayIso.split("-").map(Number);
+            dateInput.value = new Date(y, m - 1, d - 1).toLocaleDateString("en-CA");
+        }
+
+        function chosenDate() { return entry ? entry.date : dateInput.value; }
+        function chosenKg() { return Number(kgInput.value.trim().replace(",", ".")); }
+
+        function update() {
+            errorEl.hidden = true;
+            const date = chosenDate();
+            const kg = chosenKg();
+            saveBtn.disabled = !date || date > todayIso
+                || !kgInput.value.trim() || !Number.isFinite(kg) || kg <= 0;
+            if (replacesEl) {
+                const existing = byDate.get(date);
+                replacesEl.hidden = existing === undefined;
+                if (existing !== undefined) replacesEl.textContent = `Replaces the ${existing.toFixed(1)} kg already logged that day.`;
+            }
+        }
+        kgInput.oninput = update;
+        if (dateInput) dateInput.oninput = update;
+        update();
+
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+
+        async function run(btn, busyLabel, action) {
+            const label = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = busyLabel;
+            try {
+                await action();
+            } catch (e) {
+                errorEl.textContent = "Couldn't save. Check your connection and try again.";
+                errorEl.hidden = false;
+                btn.disabled = false;
+                btn.textContent = label;
+                return;
+            }
+            close(true);
+        }
+
+        overlay.querySelector(".modal-cancel").onclick = function() { close(null); };
+
+        saveBtn.onclick = function() {
+            if (saveBtn.disabled) return;
+            run(saveBtn, "Saving…", function() { return options.onSave(chosenDate(), chosenKg()); });
+        };
+
+        kgInput.onkeydown = function(e) {
+            if (e.key === "Enter") saveBtn.onclick();
+        };
+
+        // Two taps: the first asks, the second deletes.
+        if (deleteBtn) {
+            deleteBtn.onclick = function() {
+                if (deleteBtn.dataset.armed !== "yes") {
+                    deleteBtn.dataset.armed = "yes";
+                    deleteBtn.textContent = "Tap to confirm";
+                    return;
+                }
+                run(deleteBtn, "Deleting…", function() { return options.onDelete(entry.date); });
+            };
+        }
+
+        if (entry) kgInput.focus();
+    });
+}

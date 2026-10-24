@@ -281,12 +281,15 @@
     display: none;
 }
 
-/* Next up opens that day in the calendar. */
-.home-stat.tappable {
+/* Next up opens that day in the calendar; the Bodyweight tile opens its
+   history page (but not when the press is on its own button or input). */
+.home-stat.tappable,
+.home-tile.tappable {
     cursor: pointer;
 }
 
-.home-stat.tappable:active {
+.home-stat.tappable:active,
+.home-tile.tappable:active:not(:has(button:active, input:not([hidden]))) {
     transform: translateY(2px);
     box-shadow:
         inset 0 0 0 2px var(--surface),

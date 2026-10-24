@@ -122,6 +122,15 @@ export function fetchBodyWeightSummary(today) {
     return requestJson("GET", `/bodyweight/summary?today=${today}`);
 }
 
+// Every weigh-in, oldest first: [{ date, weightKg }, ...].
+export function fetchBodyWeightHistory() {
+    return requestJson("GET", "/bodyweight");
+}
+
+export function deleteBodyWeight(date) {
+    return requestOk("DELETE", `/bodyweight/${date}`);
+}
+
 // Saves (or replaces) the weigh-in for a date. Throws ApiError on failure.
 export function logBodyWeight(date, weightKg) {
     return requestJson("PUT", `/bodyweight/${date}`, { weightKg });

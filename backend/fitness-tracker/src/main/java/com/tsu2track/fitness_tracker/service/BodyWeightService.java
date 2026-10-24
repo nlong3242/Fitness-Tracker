@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker.service;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,11 @@ public class BodyWeightService {
             .orElseGet(() -> new BodyWeight(date, null));
         entry.setWeightKg(roundToTenth(weightKg));
         return bodyWeightRepository.save(entry);
+    }
+
+    // Every weigh-in, oldest first (one a day at most, so this stays small).
+    public List<BodyWeight> history() {
+        return bodyWeightRepository.findAllByOrderByDateAsc();
     }
 
     public Summary summary(LocalDate today) {

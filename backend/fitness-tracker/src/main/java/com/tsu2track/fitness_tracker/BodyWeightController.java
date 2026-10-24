@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +31,12 @@ public class BodyWeightController {
     @PutMapping("/{date}")
     public BodyWeight log(@PathVariable LocalDate date, @Valid @RequestBody LogBodyWeightRequest body) {
         return bodyWeightService.log(date, body.weightKg());
+    }
+
+    // The history page: every weigh-in, oldest first.
+    @GetMapping
+    public List<BodyWeight> history() {
+        return bodyWeightService.history();
     }
 
     // `today` comes from the client so "latest" follows the phone's local date.

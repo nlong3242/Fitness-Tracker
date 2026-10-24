@@ -138,6 +138,8 @@ export function showExerciseDetailsModal(exercise, options) {
     options = options || {};
     const deleteLabel = options.deleteLabel || "Delete";
     const deleteConfirmMessage = options.deleteConfirmMessage || `Delete exercise "${exercise.name}"?`;
+    // options.history: show a "View History" button; resolves { action: "history" }.
+    const withHistory = options.history === true;
     return new Promise(function(resolve) {
         const original = {
             name: exercise.name || "",
@@ -153,6 +155,7 @@ export function showExerciseDetailsModal(exercise, options) {
         overlay.innerHTML = `
             <div class="modal-form-box">
                 <div class="modal-form-title">Exercise Details</div>
+                ${withHistory ? `<button type="button" class="btn-secondary modal-history-btn" id="ex-edit-history">View History &#8250;</button>` : ""}
                 <div class="modal-field">
                     <label class="modal-field-label">Name <span class="required">*</span></label>
                     <input type="text" id="ex-edit-name" placeholder="Enter exercise name">
@@ -281,6 +284,14 @@ export function showExerciseDetailsModal(exercise, options) {
             const confirmed = await showConfirmModal(message, "Discard");
             if (confirmed) close(null);
         };
+
+        const historyBtn = overlay.querySelector("#ex-edit-history");
+        if (historyBtn) {
+            historyBtn.onclick = async function() {
+                if (isDirty() && !(await showConfirmModal("Discard unsaved changes?", "Discard"))) return;
+                close({ action: "history" });
+            };
+        }
 
         deleteBtn.onclick = async function() {
             const confirmed = await showConfirmModal(deleteConfirmMessage, deleteLabel);

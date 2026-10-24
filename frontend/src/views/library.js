@@ -11,6 +11,7 @@ import {
 import { renderCategoryPillRow } from "../components/categoryPills.js";
 import { renderLibraryList } from "../components/libraryList.js";
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
+import { renderExerciseHistoryPage } from "./exerciseHistoryPage.js";
 
 export async function renderExerciseLibrary(initialCategory) {
     clearNavGuard();
@@ -42,10 +43,13 @@ export async function renderExerciseLibrary(initialCategory) {
     async function onRowClick(exercise) {
         const result = await showExerciseDetailsModal(exercise, {
             deleteLabel: "Delete",
-            deleteConfirmMessage: `Delete "${exercise.name}" permanently?`
+            deleteConfirmMessage: `Delete "${exercise.name}" permanently?`,
+            history: true
         });
         if (!result) return;
-        if (result.action === "save") {
+        if (result.action === "history") {
+            renderExerciseHistoryPage(exercise, function() { renderExerciseLibrary(selectedCategory); });
+        } else if (result.action === "save") {
             await updateExercise(exercise.id, result.data);
             renderExerciseLibrary(result.data.category);
         } else if (result.action === "delete") {

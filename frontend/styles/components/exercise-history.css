@@ -118,3 +118,29 @@
     width: 100%;
     margin-top: 4px;
 }
+
+/* Exercise History page (views/exerciseHistoryPage.js). */
+.exh-page-title {
+    margin-bottom: 2px;
+}
+
+.exh-page-sub {
+    color: var(--text-on-bg-muted);
+    margin-bottom: 12px;
+}
+
+.exh-page-panel {
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--panel-shadow);
+    padding: 14px 16px 10px;
+    margin-bottom: 20px;
+}
+
+/* "View History" in the exercise edit popup. */
+.modal-history-btn {
+    display: block;
+    width: 100%;
+    margin: -4px 0 16px;
+}

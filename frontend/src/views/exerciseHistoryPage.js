@@ -3,9 +3,9 @@ import { renderExerciseHistory } from "../components/exerciseHistory.js";
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 
 /* Full-page exercise history (PRs + past sessions), opened from an
-   exercise's edit popup outside a live workout. Same content as the live
-   workout popup's History tab, with the whole page to scroll. onBack
-   returns to wherever it was opened from. */
+   exercise's edit popup in the Exercises tab or on a workout's page.
+   Same content as the live workout popup's History tab, with the whole
+   page to scroll. onBack returns to wherever it was opened from. */
 export function renderExerciseHistoryPage(exercise, onBack) {
     clearNavGuard();
     const container = document.getElementById("app-content");

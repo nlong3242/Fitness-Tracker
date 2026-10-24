@@ -20,8 +20,7 @@ import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySessi
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySet;
 
 /* Exercise history: finished sessions of an exercise across workouts,
-   newest first and paged, its PRs, and the ★ on sets whose weight × reps
-   beat every earlier set. */
+   newest first and paged, its PRs, and the single ★ on the Best set. */
 @DataJpaTest
 @Import(ExerciseHistoryService.class)
 class ExerciseHistoryTest {
@@ -61,19 +60,31 @@ class ExerciseHistoryTest {
     }
 
     @Test
-    void starsSetsThatBeatEveryEarlierWeightTimesReps() {
-        Session first = session(upper, DAY, true);
-        set(first, bench, 60, 8, null);      // 480: first ever, no star
-        set(first, bench, 60, 10, null);     // 600: beats 480 ★
-        Session second = session(upper, DAY.plusDays(7), true);
-        set(second, bench, 80, 5, null);     // 400: no
-        set(second, bench, 50, 12, null);    // 600: ties, no
-        set(second, bench, 40, 20, null);    // 800 ★
+    void theOnlyStarIsOnTheBestSet() {
+        // 30 × 13 has the most weight × reps (390), but 40 × 8 is the
+        // stronger set (≈ 51 kg vs ≈ 43 kg one-rep max): it is Best set
+        // and carries the one star.
+        for (int reps = 10; reps <= 13; reps++) set(session(upper, DAY.plusDays(reps), true), bench, 30, reps, null);
+        set(session(upper, DAY.plusDays(20), true), bench, 40, 8, null);
 
         History h = service.history(bench.getId(), 0, 10);
 
-        assertThat(h.sessions().get(1).sets()).extracting(HistorySet::pr).containsExactly(false, true);
-        assertThat(h.sessions().get(0).sets()).extracting(HistorySet::pr).containsExactly(false, false, true);
+        assertThat(h.sessions()).flatExtracting(HistorySession::sets).filteredOn(HistorySet::pr)
+            .singleElement().extracting(HistorySet::weight, HistorySet::reps).containsExactly(40.0, 8);
+        assertThat(h.records().bestSet()).extracting("weight", "reps").containsExactly(40.0, 8);
+    }
+
+    @Test
+    void aTiedBestSetKeepsTheStarOnTheEarlierOne() {
+        Session first = session(upper, DAY, true);
+        set(first, bench, 60, 8, null);
+        Session second = session(upper, DAY.plusDays(7), true);
+        set(second, bench, 60, 8, null);
+
+        History h = service.history(bench.getId(), 0, 10);
+
+        assertThat(h.sessions().get(1).sets().get(0).pr()).isTrue();    // first session (older)
+        assertThat(h.sessions().get(0).sets().get(0).pr()).isFalse();
     }
 
     @Test
@@ -91,30 +102,31 @@ class ExerciseHistoryTest {
     }
 
     @Test
-    void sidesAreComparedSeparately() {
+    void unilateralStillHasOneStar() {
         Exercise curl = exercise("DB Curl", true);
         Session first = session(upper, DAY, true);
         set(first, curl, 12, 10, Side.LEFT);
         set(first, curl, 10, 10, Side.RIGHT);
         Session second = session(upper, DAY.plusDays(7), true);
-        set(second, curl, 11, 10, Side.LEFT);    // below LEFT's best: no
-        set(second, curl, 11, 10, Side.RIGHT);   // beats RIGHT's best ★
+        set(second, curl, 11, 10, Side.LEFT);
+        set(second, curl, 11, 10, Side.RIGHT);
 
-        List<HistorySet> latest = service.history(curl.getId(), 0, 10).sessions().get(0).sets();
+        History h = service.history(curl.getId(), 0, 10);
 
-        assertThat(latest).extracting(HistorySet::side).containsExactly(Side.LEFT, Side.RIGHT);
-        assertThat(latest).extracting(HistorySet::pr).containsExactly(false, true);
+        assertThat(h.sessions().get(0).sets()).extracting(HistorySet::side).containsExactly(Side.LEFT, Side.RIGHT);
+        assertThat(h.sessions()).flatExtracting(HistorySession::sets).filteredOn(HistorySet::pr)
+            .singleElement().extracting(HistorySet::weight, HistorySet::side).containsExactly(12.0, Side.LEFT);
     }
 
     @Test
-    void bodyweightSetsCompareByRepsAndHaveNoRecords() {
+    void bodyweightOnlyHasNoRecordsAndNoStar() {
         Exercise pullUp = exercise("Pull-up", false);
         set(session(upper, DAY, true), pullUp, 0, 8, null);
         set(session(upper, DAY.plusDays(7), true), pullUp, 0, 10, null);
 
         History h = service.history(pullUp.getId(), 0, 10);
 
-        assertThat(h.sessions().get(0).sets().get(0).pr()).isTrue();
+        assertThat(h.sessions()).flatExtracting(HistorySession::sets).noneMatch(HistorySet::pr);
         assertThat(h.records().heaviest()).isNull();
         assertThat(h.records().bestSet()).isNull();
     }

@@ -17,6 +17,7 @@ import { renderWorkouts } from "./workouts.js";
 import { addExercise } from "./exercisePicker.js";
 import { startWorkout } from "./activeWorkout.js";
 import { viewPastSessions } from "./pastSessions.js";
+import { renderExerciseHistoryPage } from "./exerciseHistoryPage.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { escapeHtml } from "../utils/format.js";
 
@@ -98,10 +99,13 @@ export async function viewWorkout(workoutId) {
             item.onclick = async function() {
                 const result = await showExerciseDetailsModal(exercise, {
                     deleteLabel: "Remove",
-                    deleteConfirmMessage: `Remove "${exercise.name}" from "${workout.name}"?`
+                    deleteConfirmMessage: `Remove "${exercise.name}" from "${workout.name}"?`,
+                    history: true
                 });
                 if (!result) return;
-                if (result.action === "save") {
+                if (result.action === "history") {
+                    renderExerciseHistoryPage(exercise, function() { viewWorkout(workoutId); });
+                } else if (result.action === "save") {
                     await updateWorkoutExercise(workout.id, exercise.id, result.data);
                     viewWorkout(workoutId);
                 } else if (result.action === "delete") {

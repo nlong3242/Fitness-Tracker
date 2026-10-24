@@ -3,7 +3,6 @@ package com.tsu2track.fitness_tracker.service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,10 +22,9 @@ import com.tsu2track.fitness_tracker.Side;
    its finished sessions newest first, a page at a time. Unfinished
    sessions (the one in progress) never count.
 
-   ★ (pr): a set whose weight × reps beats every earlier set of the
-   exercise, so the very first session gets none. Sides of a unilateral
-   exercise are compared separately, and 0 kg (bodyweight) sets compare
-   by reps among themselves. */
+   ★ (pr): exactly one set, the one shown as bestSet, so the star always
+   matches the Best set card. None while the exercise has no set above
+   0 kg (no Best set either). */
 @Service
 public class ExerciseHistoryService {
     private final ExerciseRepository exerciseRepository;
@@ -54,31 +52,29 @@ public class ExerciseHistoryService {
         }
         List<ExerciseSet> sets = exerciseSetRepository.findFinishedSetsOldestFirst(exerciseId);
 
-        Map<String, Double> bestScore = new HashMap<>();
-        Map<Long, HistorySession> sessions = new LinkedHashMap<>();
         Record heaviest = null;
         Record bestSet = null;
+        Long bestSetId = null;
         for (ExerciseSet set : sets) {
-            Session session = set.getSession();
-            String key = (set.getWeight() > 0 ? "kg" : "bw") + "/" + set.getSide();
-            double score = set.getWeight() > 0 ? set.getWeight() * set.getReps() : set.getReps();
-            Double best = bestScore.get(key);
-            boolean pr = best != null && score > best;
-            if (best == null || score > best) bestScore.put(key, score);
-
-            sessions.computeIfAbsent(session.getId(), id ->
-                    new HistorySession(id, session.getDate(), session.getWorkoutId(), new ArrayList<>()))
-                .sets().add(new HistorySet(set.getWeight(), set.getReps(), set.getSide(), pr));
-
             if (set.getWeight() <= 0) continue;
-            Record here = new Record(set.getWeight(), set.getReps(), session.getDate());
+            Record here = new Record(set.getWeight(), set.getReps(), set.getSession().getDate());
             if (heaviest == null || set.getWeight() > heaviest.weight()
                     || (set.getWeight() == heaviest.weight() && set.getReps() > heaviest.reps())) {
                 heaviest = here;
             }
             if (bestSet == null || oneRepMax(here) > oneRepMax(bestSet)) {
                 bestSet = here;
+                bestSetId = set.getId();
             }
+        }
+
+        Map<Long, HistorySession> sessions = new LinkedHashMap<>();
+        for (ExerciseSet set : sets) {
+            Session session = set.getSession();
+            sessions.computeIfAbsent(session.getId(), id ->
+                    new HistorySession(id, session.getDate(), session.getWorkoutId(), new ArrayList<>()))
+                .sets().add(new HistorySet(set.getWeight(), set.getReps(), set.getSide(),
+                    set.getId().equals(bestSetId)));
         }
 
         List<HistorySession> newestFirst = new ArrayList<>(sessions.values());

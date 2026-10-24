@@ -5,7 +5,7 @@ import { escapeHtml } from "../utils/format.js";
 /* An exercise's PRs and past sessions, rendered into `container`. Used by
    the History tab of the exercise popup in a live workout (and the
    Exercise History page). Sessions come 10 at a time with "Load more".
-   ★ marks a set whose weight × reps beat every earlier set (the backend
+   The one ★ marks the set shown in the Best set card (the backend
    decides; see ExerciseHistoryService). */
 
 const PAGE_SIZE = 10;

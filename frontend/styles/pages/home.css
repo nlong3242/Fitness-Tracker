@@ -238,13 +238,15 @@
     font-size: 1.6em;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 4px;
     line-height: 1.1;
 }
 
+/* Label on top and nearly body size, so a glance says what the number is. */
 .home-stat-label {
     color: var(--text-muted);
-    font-size: 0.85em;
+    font-size: 1.1em;
+    line-height: 1.1;
+    margin-bottom: 6px;
 }
 
 @media (max-width: 480px) {

@@ -72,12 +72,12 @@ export function renderHomePage() {
 
         <div class="home-stat-row">
             <div class="home-stat">
-                <div class="home-stat-value" id="home-week-count">–</div>
                 <div class="home-stat-label" id="home-week-label">Sessions this week</div>
+                <div class="home-stat-value" id="home-week-count">–</div>
             </div>
             <div class="home-stat">
-                <div class="home-stat-value" id="home-last-name">–</div>
                 <div class="home-stat-label" id="home-last-label">Last session</div>
+                <div class="home-stat-value" id="home-last-name">–</div>
             </div>
         </div>
     `;

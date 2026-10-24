@@ -99,17 +99,25 @@ function recordsHtml(records) {
 
 function sessionHtml(s) {
     const workout = findWorkout(s.workoutId);
-    const sets = s.sets.map(set => `
+    // "80 kg × 4" so weight and reps can't be mixed up; 0 kg → "10 reps".
+    const chip = set => `
         <span class="exh-set${set.pr ? " pr" : ""}">${set.pr ? `<span class="exh-star" aria-label="PR">★</span>` : ""}${
-            set.side ? `<span class="exh-side">${set.side === "LEFT" ? "L" : "R"}</span>` : ""}${
-            set.weight > 0 ? `${kg(set.weight)} × ${set.reps}` : `${set.reps} reps`}</span>`).join("");
+            set.weight > 0 ? `${kg(set.weight)}<span class="exh-unit"> kg</span> × ${set.reps}` : `${set.reps} reps`}</span>`;
+    // Unilateral: one row per side, labelled once (L, then R).
+    const rows = [[null, "", s.sets.filter(x => !x.side)],
+                  ["LEFT", "L", s.sets.filter(x => x.side === "LEFT")],
+                  ["RIGHT", "R", s.sets.filter(x => x.side === "RIGHT")]]
+        .filter(([, , sets]) => sets.length > 0)
+        .map(([side, label, sets]) => `
+            <div class="exh-set-row">${side ? `<span class="exh-side exh-row-side">${label}</span>` : ""}${sets.map(chip).join("")}</div>`)
+        .join("");
     return `
         <div class="exh-session">
             <div class="exh-session-head">
                 <span class="exh-session-date">${shortDate(s.date)}</span>
                 <span class="exh-session-workout">${escapeHtml(workout ? workout.name : "Workout")}</span>
             </div>
-            <div class="exh-set-row">${sets}</div>
+            ${rows}
         </div>`;
 }
 

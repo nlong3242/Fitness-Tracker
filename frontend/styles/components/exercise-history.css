@@ -115,7 +115,17 @@
 .exh-set-row {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 6px;
+}
+
+/* L and R sets of a unilateral exercise sit on their own rows. */
+.exh-set-row + .exh-set-row {
+    margin-top: 6px;
+}
+
+.exh-row-side {
+    min-width: 1em;
 }
 
 .exh-set {

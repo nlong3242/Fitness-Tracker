@@ -19,7 +19,7 @@ import {
     renumberSetRows
 } from "../components/setInputRow.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
-import { clearNavGuard, setNavVisible } from "../components/bottomNav.js";
+import { clearNavGuard, setNavVisible, highlightTab } from "../components/bottomNav.js";
 import { abandonSession, markWorkoutStarted, clearStartedWorkout, getStartedWorkoutId } from "../session.js";
 import { loadDrafts, clearDrafts, sideKey } from "../drafts.js";
 import { renderWorkouts } from "./workouts.js";
@@ -117,6 +117,9 @@ export async function startWorkout(workoutId, options) {
 
     // Leaving is safe now (the resume bar brings you back), so no guard.
     clearNavGuard();
+    // A live workout always lights Workouts, whether it was started from
+    // there, Home (Resume / today's plan) or a calendar day.
+    highlightTab("workouts");
 
     const cards = document.getElementById("exercise-cards");
     const previewArea = document.getElementById("preview-summary");

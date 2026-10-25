@@ -107,7 +107,6 @@ async function openRoute(parts, params) {
 async function openLive(params) {
     const live = liveWorkout();
     if (!live) return false;
-    highlightTab("home");
     await startWorkout(live.id, {
         exerciseId: id(params.get("exercise")),
         onComplete: function() { setActiveTab("home"); }

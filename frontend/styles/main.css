@@ -21,6 +21,7 @@
 @import url("./components/set-input-row.css");
 @import url("./components/bottom-nav.css");
 @import url("./components/exercise-history.css");
+@import url("./components/exercise-overview.css");
 
 /* 5. Pages — view-specific styling owned by frontend/src/views/. */
 @import url("./pages/auth.css");

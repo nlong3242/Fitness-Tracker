@@ -38,6 +38,12 @@ public class ExerciseController {
         return exerciseService.findById(id);
     }
 
+    // A Custom copy of a built-in exercise that takes over from it (see ExerciseService).
+    @PostMapping("/exercises/{id}/copy")
+    public Exercise copyBuiltInExercise(@PathVariable Long id) {
+        return exerciseService.copyBuiltIn(id);
+    }
+
     @PostMapping("/exercises")
     public Exercise createLibraryExercise(@RequestBody @Valid CreateExerciseRequest req) {
         return exerciseService.create(req);

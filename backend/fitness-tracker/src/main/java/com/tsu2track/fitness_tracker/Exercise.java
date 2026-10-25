@@ -14,6 +14,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Transient;
 
 @Entity
 public class Exercise extends Owned {
@@ -28,7 +29,7 @@ public class Exercise extends Owned {
     private String primaryMuscleGroups;
     private String exerciseType;
 
-    @Column(length = 1000)
+    @Column(length = 4000)
     private String cues;
 
     @Column(length = 5000)
@@ -37,6 +38,22 @@ public class Exercise extends Owned {
     private Boolean unilateral;
 
     private boolean deleted = false;
+
+    /* Built-in (V9): shared by every account, read-only, no owner. Loaded
+       from the dataset by BuiltInExercises; sourceId is the dataset's id. */
+    private boolean builtIn = false;
+
+    @JsonIgnore
+    private String sourceId;
+
+    private String equipment;
+    private String level;
+
+    // A built-in exercise's note is the viewer's own (exercise_note), put
+    // here by ExerciseNotes before the exercise is sent.
+    @Transient
+    @JsonIgnore
+    private String viewerNote;
 
     @JsonIgnore
     @OneToMany(mappedBy="exercise", cascade = CascadeType.ALL)
@@ -97,7 +114,11 @@ public class Exercise extends Owned {
     }
 
     public String getNotes() {
-        return notes;
+        return builtIn ? viewerNote : notes;
+    }
+
+    public void setViewerNote(String viewerNote) {
+        this.viewerNote = viewerNote;
     }
 
     public void setNotes(String notes) {
@@ -118,5 +139,20 @@ public class Exercise extends Owned {
 
     public void setDeleted(boolean deleted) {
         this.deleted = deleted;
+    }
+
+    public boolean isBuiltIn() { return builtIn; }
+    public void setBuiltIn(boolean builtIn) { this.builtIn = builtIn; }
+    public String getSourceId() { return sourceId; }
+    public void setSourceId(String sourceId) { this.sourceId = sourceId; }
+    public String getEquipment() { return equipment; }
+    public void setEquipment(String equipment) { this.equipment = equipment; }
+    public String getLevel() { return level; }
+    public void setLevel(String level) { this.level = level; }
+
+    // Built-ins belong to no account (Owned).
+    @Override
+    protected boolean isShared() {
+        return builtIn;
     }
 }

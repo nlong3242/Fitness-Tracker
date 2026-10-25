@@ -54,10 +54,10 @@ public class ExerciseHistoryService {
 
     @Transactional(readOnly = true)
     public History history(Long exerciseId, int page, int size) {
-        if (exerciseRepository.findByIdAndUserId(exerciseId, CurrentUser.id()).isEmpty()) {
+        if (exerciseRepository.findUsable(exerciseId, CurrentUser.id()).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
-        List<ExerciseSet> sets = exerciseSetRepository.findFinishedSetsOldestFirst(exerciseId);
+        List<ExerciseSet> sets = exerciseSetRepository.findFinishedSetsOldestFirst(exerciseId, CurrentUser.id());
 
         Record heaviest = null;
         // Best set per side; the null key is two-sided sets. Their ids get the ★.

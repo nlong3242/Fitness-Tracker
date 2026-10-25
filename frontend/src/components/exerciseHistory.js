@@ -4,7 +4,7 @@ import { escapeHtml } from "../utils/format.js";
 
 /* An exercise's PRs and past sessions, rendered into `container`. Used by
    the History tab of the exercise popup in a live workout (and the
-   Exercise History page). Sessions come 10 at a time with "Load more".
+   exercise page's History tab). Sessions come 10 at a time with "Load more".
    ★ marks the set shown in the Best set card, one per side for a
    unilateral exercise (the backend decides; see ExerciseHistoryService). */
 

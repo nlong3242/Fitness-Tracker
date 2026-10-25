@@ -11,6 +11,7 @@ import {
     renderCategoryPillRow,
     groupExercisesByCategory
 } from "../components/categoryPills.js";
+import { filterExercises, exerciseNameHtml, emptyListMessage } from "../components/libraryList.js";
 import { viewWorkout } from "./workoutDetail.js";
 
 export async function renderMultiSelectExercisePicker(opts) {
@@ -21,6 +22,8 @@ export async function renderMultiSelectExercisePicker(opts) {
             <button id="picker-create-btn">Create Exercise</button>
             <button class="btn-secondary" id="picker-cancel-btn">Cancel</button>
         </div>
+        <input type="search" id="picker-search" class="library-search" placeholder="Search exercises"
+               autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         <div id="picker-pill-row" class="library-pill-row"></div>
         <div id="picker-list"></div>
         <div class="picker-action-bar">
@@ -58,7 +61,7 @@ export async function renderMultiSelectExercisePicker(opts) {
         };
         const nameSpan = document.createElement("span");
         nameSpan.className = "picker-select-name";
-        nameSpan.textContent = exercise.name;
+        nameSpan.innerHTML = exerciseNameHtml(exercise);
         row.appendChild(checkbox);
         row.appendChild(nameSpan);
         return row;
@@ -70,8 +73,13 @@ export async function renderMultiSelectExercisePicker(opts) {
             listContainer.innerHTML = `<div class="empty-sessions">${allExercises.length === 0 ? 'No exercises in your library yet. Click "Create Exercise" to add one.' : 'Every library exercise is already in this workout.'}</div>`;
             return;
         }
-        if (selectedCategory === "ALL") {
-            const grouped = groupExercisesByCategory(available);
+        const shown = filterExercises(available, selectedCategory, search.value);
+        if (shown.length === 0) {
+            listContainer.innerHTML = `<div class="empty-sessions">${emptyListMessage(selectedCategory, search.value)}</div>`;
+            return;
+        }
+        if (selectedCategory === "ALL" || selectedCategory === "CUSTOM") {
+            const grouped = groupExercisesByCategory(shown);
             for (const [category, list] of grouped) {
                 if (list.length === 0) continue;
                 const heading = document.createElement("h3");
@@ -83,16 +91,15 @@ export async function renderMultiSelectExercisePicker(opts) {
                 }
             }
         } else {
-            const filtered = available.filter(e => (e.category || "CHEST") === selectedCategory);
-            if (filtered.length === 0) {
-                listContainer.innerHTML = `<div class="empty-sessions">No exercises in ${formatCategoryLabel(selectedCategory)}.</div>`;
-                return;
-            }
-            for (const exercise of filtered) {
+            for (const exercise of shown) {
                 listContainer.appendChild(buildSelectableRow(exercise));
             }
         }
     }
+
+    const search = document.getElementById("picker-search");
+    search.oninput = renderList;
+    search.onkeydown = function(e) { if (e.key === "Enter") search.blur(); };
 
     function rerender() {
         renderCategoryPillRow(pillContainer, selectedCategory, function(cat) {
@@ -111,6 +118,7 @@ export async function renderMultiSelectExercisePicker(opts) {
         available.push(created);
         selectedIds.add(created.id);
         selectedCategory = created.category || "CHEST";
+        search.value = "";   // so the new one shows
         rerender();
         updateAddBtn();
     };

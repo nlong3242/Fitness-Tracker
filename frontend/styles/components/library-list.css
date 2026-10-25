@@ -14,3 +14,41 @@
     margin: 16px 0 8px 0;
     font-size: 1.1em;
 }
+
+/* Search box above the pills (library and exercise picker). */
+.library-search {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 12px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
+    padding: 10px 12px;
+    font-size: 1em;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.library-search:focus {
+    outline: none;
+    border-color: var(--accent-pink-deep);
+}
+
+/* "Custom" on the user's own exercises; built-in ones have no tag. */
+.library-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.library-tag {
+    flex: none;
+    margin-left: 10px;
+    background-color: var(--accent-pink-light);
+    border: 2px solid var(--accent-pink-shade);
+    border-radius: 3px;
+    padding: 0 6px;
+    font-size: 0.85em;
+}

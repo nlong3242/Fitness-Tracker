@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,26 +24,52 @@ import com.tsu2track.fitness_tracker.dto.CreateExerciseRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateExerciseRequest;
 import com.tsu2track.fitness_tracker.security.CurrentUser;
 
+import jakarta.persistence.EntityManager;
+
+/* Exercises are the account's own (Custom) or built-in (shared by every
+   account, read-only). Either can be used: added to workouts, logged,
+   looked at. Only Custom ones can be changed; a built-in one is copied
+   first (copyBuiltIn), and "deleting" it hides it for this account. */
 @Service
 public class ExerciseService {
     private final ExerciseRepository exerciseRepository;
     private final WorkoutRepository workoutRepository;
     private final WorkoutExerciseRepository workoutExerciseRepository;
+    private final ExerciseNotes notes;
+    private final HiddenExercises hidden;
+    private final EntityManager entityManager;
 
     public ExerciseService(ExerciseRepository exerciseRepository,
                            WorkoutRepository workoutRepository,
-                           WorkoutExerciseRepository workoutExerciseRepository) {
+                           WorkoutExerciseRepository workoutExerciseRepository,
+                           ExerciseNotes notes,
+                           HiddenExercises hidden,
+                           EntityManager entityManager) {
         this.exerciseRepository = exerciseRepository;
         this.workoutRepository = workoutRepository;
         this.workoutExerciseRepository = workoutExerciseRepository;
+        this.notes = notes;
+        this.hidden = hidden;
+        this.entityManager = entityManager;
     }
 
+    // The library: Custom and built-in together (less the hidden ones), A-Z.
     public List<Exercise> findAll() {
-        return exerciseRepository.findByUserIdAndDeletedFalseOrderByNameAsc(CurrentUser.id());
+        Long userId = CurrentUser.id();
+        Set<Long> hiddenIds = hidden.ids(userId);
+        List<Exercise> all = new ArrayList<>(exerciseRepository.findByUserIdAndDeletedFalseOrderByNameAsc(userId));
+        for (Exercise builtIn : exerciseRepository.findByBuiltInTrueAndDeletedFalseOrderByNameAsc()) {
+            if (!hiddenIds.contains(builtIn.getId())) all.add(builtIn);
+        }
+        all.sort(Comparator.comparing(Exercise::getName, String.CASE_INSENSITIVE_ORDER));
+        notes.show(userId, all);
+        return all;
     }
 
     public Exercise findById(Long id) {
-        return ownedExercise(id);
+        Exercise exercise = usableExercise(id);
+        notes.show(CurrentUser.id(), exercise);
+        return exercise;
     }
 
     public Exercise create(CreateExerciseRequest req) {
@@ -50,7 +77,7 @@ public class ExerciseService {
     }
 
     public Exercise update(Long id, UpdateExerciseRequest body) {
-        Exercise existing = ownedExercise(id);
+        Exercise existing = changeableExercise(id);
         if (existing.isDeleted()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
@@ -64,18 +91,72 @@ public class ExerciseService {
     }
 
     public void softDelete(Long id) {
-        Optional<Exercise> existing = exerciseRepository.findByIdAndUserId(id, CurrentUser.id());
-        if (existing.isPresent()) {
-            Exercise exercise = existing.get();
-            exercise.setDeleted(true);
-            exerciseRepository.save(exercise);
+        Long userId = CurrentUser.id();
+        Optional<Exercise> existing = exerciseRepository.findUsable(id, userId);
+        if (existing.isEmpty()) return;
+        Exercise exercise = existing.get();
+        if (exercise.isBuiltIn()) {
+            hidden.hide(userId, id);
+            return;
         }
+        exercise.setDeleted(true);
+        exerciseRepository.save(exercise);
     }
 
     public Exercise updateNote(Long id, String content) {
-        Exercise exercise = ownedExercise(id);
-        exercise.setNotes(content == null || content.isEmpty() ? null : content);
+        Long userId = CurrentUser.id();
+        Exercise exercise = usableExercise(id);
+        String note = content == null || content.isEmpty() ? null : content;
+        if (exercise.isBuiltIn()) {
+            notes.set(userId, id, note);
+            exercise.setViewerNote(note);
+            return exercise;
+        }
+        exercise.setNotes(note);
         return exerciseRepository.save(exercise);
+    }
+
+    /* A Custom copy of a built-in exercise, to change as the user likes. It
+       takes over from the built-in one for this account: their workouts,
+       logged sets, past-session entries and note move to the copy. The
+       built-in one stays in their list, unused. */
+    @Transactional
+    public Exercise copyBuiltIn(Long id) {
+        Long userId = CurrentUser.id();
+        Exercise original = usableExercise(id);
+        if (!original.isBuiltIn()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only built-in exercises are copied");
+        }
+        Exercise copy = new Exercise();
+        copy.setName(original.getName());
+        copy.setCategory(original.getCategory());
+        copy.setPrimaryMuscleGroups(original.getPrimaryMuscleGroups());
+        copy.setExerciseType(original.getExerciseType());
+        copy.setCues(original.getCues());
+        copy.setUnilateral(original.getUnilateral());
+        copy.setEquipment(original.getEquipment());
+        copy.setLevel(original.getLevel());
+        copy.setNotes(notes.get(userId, id));
+        copy = exerciseRepository.saveAndFlush(copy);
+        notes.set(userId, id, null);
+
+        moveToCopy("update workout_exercise set exercise_id = ?1 where exercise_id = ?2"
+            + " and workout_id in (select id from workout where user_id = ?3)", copy.getId(), id, userId);
+        moveToCopy("update exercise_set set exercise_id = ?1 where exercise_id = ?2"
+            + " and session_id in (select id from session where user_id = ?3)", copy.getId(), id, userId);
+        moveToCopy("update session_exercise set exercise_id = ?1 where exercise_id = ?2"
+            + " and session_id in (select id from session where user_id = ?3)", copy.getId(), id, userId);
+        // Rows already loaded in this request still point at the built-in one.
+        entityManager.clear();
+        return copy;
+    }
+
+    private void moveToCopy(String sql, Long copyId, Long originalId, Long userId) {
+        entityManager.createNativeQuery(sql)
+            .setParameter(1, copyId)
+            .setParameter(2, originalId)
+            .setParameter(3, userId)
+            .executeUpdate();
     }
 
     public List<Exercise> findByWorkout(Long workoutId) {
@@ -85,6 +166,7 @@ public class ExerciseService {
         for (WorkoutExercise we : joins) {
             result.add(we.getExercise());
         }
+        notes.show(CurrentUser.id(), result);
         return result;
     }
 
@@ -98,7 +180,7 @@ public class ExerciseService {
 
     public Exercise linkToWorkout(Long workoutId, Long exerciseId) {
         Workout workout = ownedWorkout(workoutId);
-        Exercise exercise = ownedExercise(exerciseId);
+        Exercise exercise = usableExercise(exerciseId);
         if (exercise.isDeleted()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
@@ -108,6 +190,7 @@ public class ExerciseService {
         }
         int nextPosition = workoutExerciseRepository.findMaxPositionForWorkout(workoutId) + 1;
         workoutExerciseRepository.save(new WorkoutExercise(workout, exercise, nextPosition));
+        notes.show(CurrentUser.id(), exercise);
         return exercise;
     }
 
@@ -146,9 +229,18 @@ public class ExerciseService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
     }
 
-    private Exercise ownedExercise(Long exerciseId) {
-        return exerciseRepository.findByIdAndUserId(exerciseId, CurrentUser.id())
+    private Exercise usableExercise(Long exerciseId) {
+        return exerciseRepository.findUsable(exerciseId, CurrentUser.id())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+    }
+
+    // Only Custom exercises change; a built-in one says so (the app offers a copy).
+    private Exercise changeableExercise(Long exerciseId) {
+        Exercise exercise = usableExercise(exerciseId);
+        if (exercise.isBuiltIn()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Built-in exercises can't be changed");
+        }
+        return exercise;
     }
 
     private Exercise buildExercise(CreateExerciseRequest req) {

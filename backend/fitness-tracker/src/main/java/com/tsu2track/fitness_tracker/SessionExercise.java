@@ -38,7 +38,7 @@ public class SessionExercise {
     private String primaryMuscleGroups;
     private String exerciseType;
 
-    @Column(length = 1000)
+    @Column(length = 4000)
     private String cues;
 
     private Boolean unilateral;

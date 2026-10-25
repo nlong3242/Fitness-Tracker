@@ -10,7 +10,7 @@ import { viewWorkout } from "./views/workoutDetail.js";
 import { viewPastSessions } from "./views/pastSessions.js";
 import { viewSessionSummary } from "./views/summary.js";
 import { navigateToCalendarDay, navigateToCalendarMonth } from "./views/calendar.js";
-import { renderExerciseHistoryPage } from "./views/exerciseHistoryPage.js";
+import { renderExercisePage } from "./views/exercisePage.js";
 
 /* Hash routes, so a reload (or iOS restarting the Home Screen app) comes
    back to the same page instead of Home. Each page records where it is
@@ -23,10 +23,10 @@ import { renderExerciseHistoryPage } from "./views/exerciseHistoryPage.js";
      #/settings/profile
      #/workouts                              #/workouts/12
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
-     #/workouts/12/exercises/7/history
+     #/workouts/12/exercises/7               #/workouts/12/exercises/7/history
      #/calendar/2026-10                      #/calendar/2026-10-25
      #/calendar/2026-10-25/sessions/345?workout=12
-     #/exercises                             #/exercises/7/history
+     #/exercises            #/exercises/7    #/exercises/7/history
      #/live?exercise=55
 
    Pages holding unsaved state in memory (create workout, exercise picker,
@@ -143,11 +143,16 @@ async function openWorkouts(parts, params) {
         await viewPastSessions(workoutId);
         return true;
     }
-    if (parts[2] === "exercises" && parts[4] === "history" && id(parts[3]) !== null) {
-        const route = `#/workouts/${workoutId}/exercises/${parts[3]}/history`;
+    if (parts[2] === "exercises" && id(parts[3]) !== null) {
         try {
             const exercise = await fetchExercise(id(parts[3]));
-            renderExerciseHistoryPage(exercise, function() { viewWorkout(workoutId); }, route);
+            const workout = findWorkout(workoutId);
+            renderExercisePage(exercise, {
+                routeFor: eid => `#/workouts/${workoutId}/exercises/${eid}`,
+                tab: parts[4],
+                onBack: function() { viewWorkout(workoutId); },
+                workout: { id: workout.id, name: workout.name }
+            });
             return true;
         } catch (e) { /* exercise gone: show the workout instead */ }
     }
@@ -183,12 +188,15 @@ async function openCalendar(parts, params) {
 
 async function openExercises(parts) {
     const exerciseId = id(parts[1]);
-    if (exerciseId !== null && parts[2] === "history") {
+    if (exerciseId !== null) {
         highlightTab("exercises");
         try {
             const exercise = await fetchExercise(exerciseId);
-            renderExerciseHistoryPage(exercise, function() { setActiveTab("exercises"); },
-                `#/exercises/${exerciseId}/history`);
+            renderExercisePage(exercise, {
+                routeFor: eid => `#/exercises/${eid}`,
+                tab: parts[2],
+                onBack: function() { setActiveTab("exercises"); }
+            });
             return true;
         } catch (e) { /* exercise gone: show the library instead */ }
     }

@@ -34,6 +34,9 @@
 
 .picker-select-name {
     flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     font-size: 1em;
     color: var(--text-primary);
 }

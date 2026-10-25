@@ -1,14 +1,11 @@
 import { findWorkout } from "../state.js";
 import {
     fetchWorkoutExercises,
-    updateWorkoutExercise,
-    removeWorkoutExercise,
     reorderWorkoutExercises,
     createSchedule
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import {
-    showExerciseDetailsModal,
     showConfirmModal,
     showScheduleForWorkoutModal
 } from "../components/modals.js";
@@ -17,7 +14,7 @@ import { renderWorkouts } from "./workouts.js";
 import { addExercise } from "./exercisePicker.js";
 import { startWorkout } from "./activeWorkout.js";
 import { viewPastSessions } from "./pastSessions.js";
-import { renderExerciseHistoryPage } from "./exerciseHistoryPage.js";
+import { renderExercisePage } from "./exercisePage.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { escapeHtml } from "../utils/format.js";
 import { setRoute } from "../router.js";
@@ -98,23 +95,12 @@ export async function viewWorkout(workoutId) {
             item.className = "exercise-row draggable-row";
             item.style.cursor = "pointer";
             item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
-            item.onclick = async function() {
-                const result = await showExerciseDetailsModal(exercise, {
-                    deleteLabel: "Remove",
-                    deleteConfirmMessage: `Remove "${exercise.name}" from "${workout.name}"?`,
-                    history: true
+            item.onclick = function() {
+                renderExercisePage(exercise, {
+                    routeFor: id => `#/workouts/${workoutId}/exercises/${id}`,
+                    onBack: function() { viewWorkout(workoutId); },
+                    workout: { id: workout.id, name: workout.name }
                 });
-                if (!result) return;
-                if (result.action === "history") {
-                    renderExerciseHistoryPage(exercise, function() { viewWorkout(workoutId); },
-                        `#/workouts/${workoutId}/exercises/${exercise.id}/history`);
-                } else if (result.action === "save") {
-                    await updateWorkoutExercise(workout.id, exercise.id, result.data);
-                    viewWorkout(workoutId);
-                } else if (result.action === "delete") {
-                    await removeWorkoutExercise(workout.id, exercise.id);
-                    viewWorkout(workoutId);
-                }
             };
             list.appendChild(item);
             if (workout.exercises.length > 1) {

@@ -2,6 +2,7 @@ package com.tsu2track.fitness_tracker.service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -45,6 +46,7 @@ public class SessionService {
     private final SessionExerciseRepository sessionExerciseRepository;
     private final WorkoutExerciseRepository workoutExerciseRepository;
     private final ScheduledWorkoutRepository scheduledWorkoutRepository;
+    private final ExerciseNotes exerciseNotes;
 
     public SessionService(SessionRepository sessionRepository,
                           WorkoutRepository workoutRepository,
@@ -52,7 +54,8 @@ public class SessionService {
                           ExerciseSetRepository exerciseSetRepository,
                           SessionExerciseRepository sessionExerciseRepository,
                           WorkoutExerciseRepository workoutExerciseRepository,
-                          ScheduledWorkoutRepository scheduledWorkoutRepository) {
+                          ScheduledWorkoutRepository scheduledWorkoutRepository,
+                          ExerciseNotes exerciseNotes) {
         this.sessionRepository = sessionRepository;
         this.workoutRepository = workoutRepository;
         this.exerciseRepository = exerciseRepository;
@@ -60,6 +63,7 @@ public class SessionService {
         this.sessionExerciseRepository = sessionExerciseRepository;
         this.workoutExerciseRepository = workoutExerciseRepository;
         this.scheduledWorkoutRepository = scheduledWorkoutRepository;
+        this.exerciseNotes = exerciseNotes;
     }
 
     public Page<Session> findSessions(Long workoutId, Pageable pageable) {
@@ -202,7 +206,14 @@ public class SessionService {
 
     public List<SessionExercise> findSessionExercises(Long sessionId) {
         ownedSession(sessionId);
-        return sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+        List<SessionExercise> entries = sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+        // Notes on built-in exercises are per account.
+        List<Exercise> exercises = new ArrayList<>();
+        for (SessionExercise entry : entries) {
+            if (entry.getExercise() != null) exercises.add(entry.getExercise());
+        }
+        exerciseNotes.show(CurrentUser.id(), exercises);
+        return entries;
     }
 
     public Optional<SessionController.SessionTotals> findPreviousTotals(Long workoutId, Long sessionId) {
@@ -253,7 +264,7 @@ public class SessionService {
 
     public ExerciseSet createSet(Long sessionId, Long exerciseId, CreateSetRequest req) {
         Optional<Session> session = sessionRepository.findByIdAndUserId(sessionId, CurrentUser.id());
-        Optional<Exercise> exercise = exerciseRepository.findByIdAndUserId(exerciseId, CurrentUser.id());
+        Optional<Exercise> exercise = exerciseRepository.findUsable(exerciseId, CurrentUser.id());
         if (session.isPresent() && exercise.isPresent()) {
             if (session.get().isFinished()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");

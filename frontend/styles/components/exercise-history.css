@@ -1,5 +1,5 @@
 /* Exercise history — components/exerciseHistory.js, shown in the exercise
-   popup's History tab (modals.js) and on the Exercise History page.
+   popup's History tab (modals.js) and the exercise page's (exercisePage.js).
    Two PR cards, then one framed block per past session with its sets as
    small chips; ★ chips are PR sets. */
 
@@ -162,7 +162,7 @@
     display: none;
 }
 
-/* Exercise History page (views/exerciseHistoryPage.js). */
+/* Exercise page (views/exercisePage.js): title and the panel the tabs show in. */
 .exh-page-title {
     margin-bottom: 2px;
 }
@@ -181,9 +181,19 @@
     margin-bottom: 20px;
 }
 
-/* "View History" in the exercise edit popup. */
-.modal-history-btn {
-    display: block;
-    width: 100%;
-    margin: -4px 0 16px;
+/* Exercise page (views/exercisePage.js): Back, then Edit on the right;
+   Overview / History tabs side by side. */
+.exp-actions #exp-edit-btn {
+    margin-left: auto;
+}
+
+.exp-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 4px 0 14px;
+}
+
+.exp-tabs .filter-pill {
+    padding: 8px 0;
 }

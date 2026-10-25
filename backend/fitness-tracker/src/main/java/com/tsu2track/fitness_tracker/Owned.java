@@ -19,7 +19,12 @@ public abstract class Owned {
 
     @PrePersist
     protected void assignOwner() {
-        if (userId == null) userId = CurrentUser.id();
+        if (userId == null && !isShared()) userId = CurrentUser.id();
+    }
+
+    // A row shared by every account (a built-in exercise) has no owner.
+    protected boolean isShared() {
+        return false;
     }
 
     public Long getUserId() { return userId; }

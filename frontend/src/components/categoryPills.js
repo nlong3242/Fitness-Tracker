@@ -14,13 +14,14 @@ export function groupExercisesByCategory(exercises) {
 
 export function renderCategoryPillRow(container, selectedCategory, onSelect) {
     container.innerHTML = "";
-    const pills = ["ALL", ...CATEGORY_ORDER];
+    // CUSTOM: only the user's own exercises (libraryList.js filterExercises).
+    const pills = ["ALL", ...CATEGORY_ORDER, "CUSTOM"];
     for (const cat of pills) {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "filter-pill";
         if (cat === selectedCategory) btn.classList.add("selected");
-        btn.textContent = cat === "ALL" ? "All" : formatCategoryLabel(cat);
+        btn.textContent = cat === "ALL" ? "All" : cat === "CUSTOM" ? "Custom" : formatCategoryLabel(cat);
         btn.onclick = function() { onSelect(cat); };
         container.appendChild(btn);
     }

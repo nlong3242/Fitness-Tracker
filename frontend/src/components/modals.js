@@ -2,6 +2,7 @@ import { CATEGORY_ORDER } from "../config.js";
 import { escapeHtml, formatCategoryLabel, formatSessionDate } from "../utils/format.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { renderExerciseHistory } from "./exerciseHistory.js";
+import { exerciseOverviewHtml } from "./exerciseOverview.js";
 
 export function showConfirmModal(message, confirmLabel) {
     return new Promise(function(resolve) {
@@ -138,8 +139,6 @@ export function showExerciseDetailsModal(exercise, options) {
     options = options || {};
     const deleteLabel = options.deleteLabel || "Delete";
     const deleteConfirmMessage = options.deleteConfirmMessage || `Delete exercise "${exercise.name}"?`;
-    // options.history: show a "View History" button; resolves { action: "history" }.
-    const withHistory = options.history === true;
     return new Promise(function(resolve) {
         const original = {
             name: exercise.name || "",
@@ -154,8 +153,7 @@ export function showExerciseDetailsModal(exercise, options) {
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
             <div class="modal-form-box">
-                <div class="modal-form-title">Exercise Details</div>
-                ${withHistory ? `<button type="button" class="btn-secondary modal-history-btn" id="ex-edit-history">View History &#8250;</button>` : ""}
+                <div class="modal-form-title">Edit Exercise</div>
                 <div class="modal-field">
                     <label class="modal-field-label">Name <span class="required">*</span></label>
                     <input type="text" id="ex-edit-name" placeholder="Enter exercise name">
@@ -265,7 +263,14 @@ export function showExerciseDetailsModal(exercise, options) {
         nameInput.oninput = updateSaveState;
         musclesInput.oninput = updateSaveState;
         typeInput.oninput = updateSaveState;
-        cuesInput.oninput = updateSaveState;
+        // Cues can be a whole list of steps: the box grows to show them
+        // (up to about half the screen, then it scrolls; modals.css).
+        function fitCues() {
+            cuesInput.style.height = "auto";
+            cuesInput.style.height = `${cuesInput.scrollHeight + 4}px`;
+        }
+        cuesInput.oninput = function() { fitCues(); updateSaveState(); };
+        requestAnimationFrame(fitCues);
 
         function close(result) {
             document.body.removeChild(overlay);
@@ -284,14 +289,6 @@ export function showExerciseDetailsModal(exercise, options) {
             const confirmed = await showConfirmModal(message, "Discard");
             if (confirmed) close(null);
         };
-
-        const historyBtn = overlay.querySelector("#ex-edit-history");
-        if (historyBtn) {
-            historyBtn.onclick = async function() {
-                if (isDirty() && !(await showConfirmModal("Discard unsaved changes?", "Discard"))) return;
-                close({ action: "history" });
-            };
-        }
 
         deleteBtn.onclick = async function() {
             const confirmed = await showConfirmModal(deleteConfirmMessage, deleteLabel);
@@ -705,41 +702,21 @@ export function showRescheduleModal(options) {
 }
 
 /* Tapping an exercise in a live workout or a session summary: History
-   (PRs + past sessions, the default) and Details tabs. The tab body
-   scrolls on its own so Close stays in view. */
+   (PRs + past sessions, the default) and Overview (exerciseOverview.js)
+   tabs. The tab body scrolls on its own so Close stays in view. */
 export function showExerciseReadOnlyModal(exercise) {
     return new Promise(function(resolve) {
         const overlay = document.createElement("div");
         overlay.className = "modal-overlay";
-        const rows = [
-            ["Name", exercise.name],
-            ["Category", formatCategoryLabel(exercise.category)],
-            ["Primary Muscle Groups", exercise.primaryMuscleGroups],
-            ["Exercise Type", exercise.exerciseType],
-            ["Cues", exercise.cues],
-            ["Unilateral", exercise.unilateral === true ? "Yes" : "No"]
-        ];
-        let rowsHtml = "";
-        for (const [label, value] of rows) {
-            const display = value === null || value === undefined || value === ""
-                ? `<span class="modal-readonly-empty">None</span>`
-                : escapeHtml(String(value));
-            rowsHtml += `
-                <div class="modal-readonly-row">
-                    <div class="modal-readonly-label">${label}</div>
-                    <div class="modal-readonly-value">${display}</div>
-                </div>
-            `;
-        }
         overlay.innerHTML = `
             <div class="modal-form-box">
                 <div class="modal-form-title">${escapeHtml(exercise.name)}</div>
                 <div class="modal-tab-row" role="tablist">
                     <button type="button" class="filter-pill selected" data-tab="history" role="tab">History</button>
-                    <button type="button" class="filter-pill" data-tab="details" role="tab">Details</button>
+                    <button type="button" class="filter-pill" data-tab="overview" role="tab">Overview</button>
                 </div>
                 <div class="modal-tab-body" data-body="history"></div>
-                <div class="modal-tab-body" data-body="details" hidden>${rowsHtml}</div>
+                <div class="modal-tab-body" data-body="overview" hidden>${exerciseOverviewHtml(exercise)}</div>
                 <div class="modal-actions">
                     <button class="modal-cancel">Close</button>
                 </div>

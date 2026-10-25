@@ -71,7 +71,8 @@ class DataIsolationTest {
     @Test
     void listsShowNothingOfAnotherAccount() throws Exception {
         call(b, get("/workouts")).andExpect(jsonPath("$", hasSize(0)));
-        call(b, get("/exercises")).andExpect(jsonPath("$", hasSize(0)));
+        // Built-in exercises are everyone's; none of a's own show.
+        call(b, get("/exercises")).andExpect(jsonPath("$[?(@.builtIn == false)]", hasSize(0)));
         call(b, get("/sessions/unfinished")).andExpect(status().isNoContent());
         call(b, get("/sessions/overview" + WEEK))
             .andExpect(jsonPath("$.lastSession").isEmpty())

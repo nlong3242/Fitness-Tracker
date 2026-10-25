@@ -12,12 +12,13 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
+import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.service.SessionService;
 
 /* findUnfinishedSession drives the frontend's "Resume workout" bar. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
-@Import(SessionService.class)
+@Import({ SessionService.class, ExerciseNotes.class })
 class UnfinishedSessionTest {
 
     @Autowired TestEntityManager em;

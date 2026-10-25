@@ -178,6 +178,9 @@
 .modal-field textarea {
     resize: vertical;
     min-height: 60px;
+    /* Grows with the cues (modals.js fitCues), then scrolls. */
+    max-height: 50vh;
+    line-height: 1.2;
 }
 
 /* Modal pill — same shape as .filter-pill but tuned for cream-surface modals

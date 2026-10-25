@@ -12,13 +12,14 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
+import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.service.SessionService;
 
 /* Home page stats: finished sessions in a Monday–Sunday week, the
    most recent finished session, the week streak and the next plan. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
-@Import(SessionService.class)
+@Import({ SessionService.class, ExerciseNotes.class })
 class HomeOverviewTest {
 
     private static final LocalDate MONDAY = LocalDate.of(2026, 10, 19);

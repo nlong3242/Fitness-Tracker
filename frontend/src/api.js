@@ -298,6 +298,12 @@ export function deleteExercise(exerciseId) {
     return request("DELETE", `/exercises/${exerciseId}`);
 }
 
+// A Custom copy of a built-in exercise; it takes over from it (workouts,
+// history, note). Resolves to the copy.
+export function copyExercise(exerciseId) {
+    return requestJson("POST", `/exercises/${exerciseId}/copy`);
+}
+
 export function updateExerciseNote(exerciseId, content) {
     return requestJson("PUT", `/exercises/${exerciseId}/note`, { content });
 }

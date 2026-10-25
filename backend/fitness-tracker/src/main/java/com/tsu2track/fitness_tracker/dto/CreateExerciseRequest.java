@@ -11,7 +11,7 @@ public record CreateExerciseRequest(
     @NotNull ExerciseCategory category,
     @Size(max = 255) String primaryMuscleGroups,
     @Size(max = 255) String exerciseType,
-    @Size(max = 1000) String cues,
+    @Size(max = 4000) String cues,
     @Size(max = 5000) String notes,
     Boolean unilateral
 ) {}

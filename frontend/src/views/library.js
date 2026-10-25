@@ -1,20 +1,13 @@
-import {
-    fetchExercises,
-    createExercise,
-    updateExercise,
-    deleteExercise
-} from "../api.js";
-import {
-    showExerciseFormModal,
-    showExerciseDetailsModal
-} from "../components/modals.js";
+import { fetchExercises, createExercise } from "../api.js";
+import { showExerciseFormModal } from "../components/modals.js";
 import { renderCategoryPillRow } from "../components/categoryPills.js";
 import { renderLibraryList } from "../components/libraryList.js";
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
-import { renderExerciseHistoryPage } from "./exerciseHistoryPage.js";
+import { renderExercisePage } from "./exercisePage.js";
 import { setRoute } from "../router.js";
 
-export async function renderExerciseLibrary(initialCategory) {
+// initialQuery: the search to keep when coming back from an exercise.
+export async function renderExerciseLibrary(initialCategory, initialQuery) {
     clearNavGuard();
     setRoute("#/exercises");
     const container = document.getElementById("app-content");
@@ -24,6 +17,8 @@ export async function renderExerciseLibrary(initialCategory) {
             <button id="library-create-btn">Create Exercise</button>
             <button class="btn-secondary" id="library-back-btn">Back</button>
         </div>
+        <input type="search" id="library-search" class="library-search" placeholder="Search exercises"
+               autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
         <div id="library-pill-row" class="library-pill-row"></div>
         <div id="library-groups"></div>
     `;
@@ -42,31 +37,27 @@ export async function renderExerciseLibrary(initialCategory) {
     const groupsContainer = document.getElementById("library-groups");
     const pillContainer = document.getElementById("library-pill-row");
 
-    async function onRowClick(exercise) {
-        const result = await showExerciseDetailsModal(exercise, {
-            deleteLabel: "Delete",
-            deleteConfirmMessage: `Delete "${exercise.name}" permanently?`,
-            history: true
+    function onRowClick(exercise) {
+        renderExercisePage(exercise, {
+            routeFor: id => `#/exercises/${id}`,
+            onBack: function() { renderExerciseLibrary(selectedCategory, search.value); }
         });
-        if (!result) return;
-        if (result.action === "history") {
-            renderExerciseHistoryPage(exercise, function() { renderExerciseLibrary(selectedCategory); },
-                `#/exercises/${exercise.id}/history`);
-        } else if (result.action === "save") {
-            await updateExercise(exercise.id, result.data);
-            renderExerciseLibrary(result.data.category);
-        } else if (result.action === "delete") {
-            await deleteExercise(exercise.id);
-            renderExerciseLibrary(selectedCategory);
-        }
     }
 
+    const search = document.getElementById("library-search");
+    search.value = initialQuery || "";
+    function renderList() {
+        renderLibraryList(groupsContainer, exercises, selectedCategory, onRowClick, search.value);
+    }
     function rerender() {
         renderCategoryPillRow(pillContainer, selectedCategory, function(cat) {
             selectedCategory = cat;
             rerender();
         });
-        renderLibraryList(groupsContainer, exercises, selectedCategory, onRowClick);
+        renderList();
     }
+    search.oninput = renderList;
+    // Return/Search on the keyboard just puts it away.
+    search.onkeydown = function(e) { if (e.key === "Enter") search.blur(); };
     rerender();
 }

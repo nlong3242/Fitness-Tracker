@@ -14,14 +14,15 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
     List<ExerciseSet> findByExercise_IdAndSession_Id(Long exerciseId, Long sessionId);
     List<ExerciseSet> findBySession_Id(Long sessionId);
 
-    // Every set of this exercise in finished sessions, oldest first (by
-    // session date, then session, then logging order).
+    // Every set of this exercise in the account's finished sessions, oldest
+    // first (by session date, then session, then logging order). Built-in
+    // exercises are shared, so the account filter is what keeps it theirs.
     @Query("""
         SELECT s FROM ExerciseSet s JOIN FETCH s.session ses
-        WHERE s.exercise.id = :exerciseId AND ses.finished = true
+        WHERE s.exercise.id = :exerciseId AND ses.finished = true AND ses.userId = :userId
         ORDER BY ses.date, ses.id, s.id
         """)
-    List<ExerciseSet> findFinishedSetsOldestFirst(@Param("exerciseId") Long exerciseId);
+    List<ExerciseSet> findFinishedSetsOldestFirst(@Param("exerciseId") Long exerciseId, @Param("userId") Long userId);
 
     // Ordered by id (= logging order): the live workout maps these onto
     // set rows by position, so the order is part of the contract.

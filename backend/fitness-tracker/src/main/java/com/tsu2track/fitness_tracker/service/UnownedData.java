@@ -22,7 +22,9 @@ public class UnownedData {
 
     public void claimFor(Long userId) {
         for (String table : TABLES) {
-            entityManager.createNativeQuery("update " + table + " set user_id = ?1 where user_id is null")
+            // Built-in exercises have no owner on purpose: never claim them.
+            String shared = table.equals("exercise") ? " and built_in = false" : "";
+            entityManager.createNativeQuery("update " + table + " set user_id = ?1 where user_id is null" + shared)
                 .setParameter(1, userId)
                 .executeUpdate();
         }

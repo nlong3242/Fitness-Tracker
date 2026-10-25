@@ -1,24 +1,31 @@
 /* Workout detail — views/workoutDetail.js.
    The exercise rows are plain <li>s inheriting from base/elements.css,
    with a ⋮ from components/action-menu.css; the page-actions rows inherit
-   from layout/page.css. */
+   from layout/page.css. Top to bottom: Back and the workout's ⋮, the
+   title, Start, the exercises, then Add Exercise where a new one lands. */
 
-/* Start Workout: the page's main action, a wide button on its own row. */
+.wd-top {
+    align-items: center;
+}
+
+.wd-top .more-btn {
+    margin-left: auto;
+}
+
+.wd-title {
+    margin-top: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Start Workout: the page's main action, a wide button near the top. */
 .wd-start-btn {
     flex: 1;
     min-height: 56px;
     font-size: 1.25em;
 }
 
-/* Title with the workout's ⋮ on the right. */
-.wd-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.wd-header h2 {
-    min-width: 0;
-    overflow-wrap: anywhere;
+/* Add Exercise: full width under the list, cream so it doesn't compete
+   with Start. */
+.wd-add-btn {
+    flex: 1;
 }

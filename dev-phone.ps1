@@ -13,8 +13,42 @@ if (-not $ip) { throw "Tailscale has no IP - is it logged in and connected?" }
 $origins = "http://127.0.0.1:5500,http://localhost:5500,http://${ip}:5500,capacitor://localhost"
 Write-Host "Phone URL: http://${ip}:5500" -ForegroundColor Green
 
-# Backend in its own window so its log stays readable.
 $backendDir = Join-Path $PSScriptRoot "backend\fitness-tracker"
+
+# Copy the database before the backend starts (and runs any new migrations).
+# The backend isn't running yet, so a plain file copy is consistent. Keeps
+# the newest $keep copies in each folder.
+function Backup-Database($db, $dirs, $keep = 10) {
+    $stamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
+    foreach ($dir in $dirs) {
+        try {
+            New-Item -ItemType Directory -Force $dir | Out-Null
+            Copy-Item $db (Join-Path $dir "fitness-before-start-$stamp.mv.db")
+            Get-ChildItem $dir -Filter "fitness-before-start-*.mv.db" |
+                Sort-Object Name -Descending | Select-Object -Skip $keep | Remove-Item
+            Write-Host "Database backed up to $dir" -ForegroundColor Green
+        } catch {
+            # A failed backup must not stop the app from starting.
+            Write-Host "Backup to $dir failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+}
+
+# Local copy, plus one in the personal OneDrive (when signed in) so a copy
+# lives off this PC. Restore: stop the backend, copy the chosen file over
+# data\fitness.mv.db, start again.
+$db = Join-Path $backendDir "data\fitness.mv.db"
+$backendUp = Get-NetTCPConnection -State Listen -LocalPort 8080 -ErrorAction SilentlyContinue
+if ($backendUp) {
+    Write-Host "Backend already running on 8080 - skipping the database backup." -ForegroundColor Yellow
+} elseif (Test-Path $db) {
+    $backupDirs = @(Join-Path $backendDir "backups")
+    $oneDrive = (Get-ItemProperty "HKCU:\Software\Microsoft\OneDrive\Accounts\Personal" -ErrorAction SilentlyContinue).UserFolder
+    if ($oneDrive) { $backupDirs += Join-Path $oneDrive "Tsu2Track backups" }
+    Backup-Database $db $backupDirs
+}
+
+# Backend in its own window so its log stays readable.
 Start-Process powershell -WorkingDirectory $backendDir -ArgumentList @(
     "-NoExit", "-Command",
     "`$env:APP_CORS_ORIGINS='$origins'; .\mvnw.cmd spring-boot:run"

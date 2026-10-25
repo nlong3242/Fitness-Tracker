@@ -1,21 +1,15 @@
 import { clearNavGuard } from "../components/bottomNav.js";
 import { renderExerciseHistory } from "../components/exerciseHistory.js";
 import { exerciseOverviewHtml } from "../components/exerciseOverview.js";
-import { showConfirmModal, showExerciseDetailsModal } from "../components/modals.js";
-import {
-    copyExercise,
-    deleteExercise,
-    fetchExercise,
-    removeWorkoutExercise,
-    updateExercise,
-    updateWorkoutExercise
-} from "../api.js";
+import { showConfirmModal } from "../components/modals.js";
+import { copyExercise, removeWorkoutExercise } from "../api.js";
 import { escapeHtml } from "../utils/format.js";
 import { setRoute } from "../router.js";
+import { renderExerciseEditPage } from "./exerciseEdit.js";
 
 /* An exercise's page, opened from the Exercises tab or a workout's page:
    read-only, with Overview (cues and details) and History tabs. Edit opens
-   the edit popup. A built-in exercise can't be changed, so Edit first
+   the edit page. A built-in exercise can't be changed, so Edit first
    offers a Custom copy (which takes over the user's workouts and history
    for it, see ExerciseService.copyBuiltIn) and edits that.
 
@@ -78,6 +72,8 @@ export function renderExercisePage(exercise, opts) {
         };
     }
 
+    // Edit is a page of its own (exerciseEdit.js). A built-in exercise is
+    // copied first, with the user's say-so; the copy is what gets edited.
     document.getElementById("exp-edit-btn").onclick = async function() {
         let target = exercise;
         if (exercise.builtIn) {
@@ -92,28 +88,7 @@ export function renderExercisePage(exercise, opts) {
                 await showConfirmModal("Couldn't make the copy. Check your connection and try again.", "OK");
                 return;
             }
-            // The copy is the one in use now: show it, then edit it.
-            renderExercisePage(target, { ...opts, tab });
         }
-
-        const result = await showExerciseDetailsModal(target, workout
-            ? { deleteLabel: "Remove", deleteConfirmMessage: `Remove "${target.name}" from "${workout.name}"?` }
-            : { deleteLabel: "Delete", deleteConfirmMessage: `Delete "${target.name}" permanently?` });
-        if (!result) return;
-        if (result.action === "save") {
-            if (workout) await updateWorkoutExercise(workout.id, target.id, result.data);
-            else await updateExercise(target.id, result.data);
-            let saved;
-            try {
-                saved = await fetchExercise(target.id);
-            } catch (e) {
-                saved = { ...target, ...result.data };
-            }
-            renderExercisePage(saved, { ...opts, tab });
-        } else if (result.action === "delete") {
-            if (workout) await removeWorkoutExercise(workout.id, target.id);
-            else await deleteExercise(target.id);
-            opts.onBack();
-        }
+        renderExerciseEditPage(target, { ...opts, tab: "overview" });
     };
 }

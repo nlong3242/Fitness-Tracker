@@ -1,12 +1,11 @@
 import {
     fetchExercises,
     fetchWorkoutExercises,
-    createExercise,
     linkExerciseToWorkout
 } from "../api.js";
 import { findWorkout } from "../state.js";
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
-import { showExerciseFormModal } from "../components/modals.js";
+import { renderExerciseCreatePage } from "./exerciseEdit.js";
 import {
     renderCategoryPillRow,
     groupExercisesByCategory
@@ -14,7 +13,8 @@ import {
 import { filterExercises, exerciseNameHtml, emptyListMessage } from "../components/libraryList.js";
 import { viewWorkout } from "./workoutDetail.js";
 
-export async function renderMultiSelectExercisePicker(opts) {
+// kept: { selectedIds, category, query } to start from (back from Create Exercise).
+export async function renderMultiSelectExercisePicker(opts, kept) {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>${escapeHtml(opts.title)}</h2>
@@ -39,8 +39,8 @@ export async function renderMultiSelectExercisePicker(opts) {
     const listContainer = document.getElementById("picker-list");
     const addBtn = document.getElementById("picker-add-btn");
 
-    let selectedCategory = "ALL";
-    const selectedIds = new Set();
+    let selectedCategory = kept?.category || "ALL";
+    const selectedIds = new Set(kept?.selectedIds || []);
 
     function updateAddBtn() {
         addBtn.disabled = selectedIds.size === 0;
@@ -98,6 +98,7 @@ export async function renderMultiSelectExercisePicker(opts) {
     }
 
     const search = document.getElementById("picker-search");
+    search.value = kept?.query || "";
     search.oninput = renderList;
     search.onkeydown = function(e) { if (e.key === "Enter") search.blur(); };
 
@@ -111,16 +112,21 @@ export async function renderMultiSelectExercisePicker(opts) {
     rerender();
     updateAddBtn();
 
-    document.getElementById("picker-create-btn").onclick = async function() {
-        const data = await showExerciseFormModal(selectedCategory);
-        if (!data) return;
-        const created = await createExercise(data);
-        available.push(created);
-        selectedIds.add(created.id);
-        selectedCategory = created.category || "CHEST";
-        search.value = "";   // so the new one shows
-        rerender();
-        updateAddBtn();
+    // Create Exercise is a page of its own; coming back redraws the picker
+    // with the ticks and filters kept (and a new exercise ticked).
+    document.getElementById("picker-create-btn").onclick = function() {
+        const kept = { selectedIds: [...selectedIds], category: selectedCategory, query: search.value };
+        renderExerciseCreatePage({
+            category: selectedCategory,
+            onCancel: function() { renderMultiSelectExercisePicker(opts, kept); },
+            onCreated: function(created) {
+                renderMultiSelectExercisePicker(opts, {
+                    selectedIds: [...kept.selectedIds, created.id],
+                    category: created.category,
+                    query: ""   // so the new one shows
+                });
+            }
+        });
     };
 
     document.getElementById("picker-cancel-btn").onclick = function() {

@@ -34,7 +34,7 @@ export function exerciseOverviewHtml(exercise) {
                 <span class="exo-fact-value">${exercise.primaryMuscleGroups ? escapeHtml(exercise.primaryMuscleGroups) : `<span class="exo-empty">None</span>`}</span>
             </div>
             <div class="exo-fact">
-                <span class="exo-fact-label">One side at a time</span>
+                <span class="exo-fact-label">Unilateral</span>
                 <span class="exo-fact-value">${exercise.unilateral === true ? "Yes" : "No"}</span>
             </div>
         </section>

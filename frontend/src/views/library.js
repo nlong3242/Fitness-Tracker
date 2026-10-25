@@ -1,9 +1,9 @@
-import { fetchExercises, createExercise } from "../api.js";
-import { showExerciseFormModal } from "../components/modals.js";
+import { fetchExercises } from "../api.js";
 import { renderCategoryPillRow } from "../components/categoryPills.js";
 import { renderLibraryList } from "../components/libraryList.js";
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
 import { renderExercisePage } from "./exercisePage.js";
+import { renderExerciseCreatePage } from "./exerciseEdit.js";
 import { setRoute } from "../router.js";
 
 // initialQuery: the search to keep when coming back from an exercise.
@@ -26,11 +26,12 @@ export async function renderExerciseLibrary(initialCategory, initialQuery) {
     let selectedCategory = initialCategory || "ALL";
 
     document.getElementById("library-back-btn").onclick = function() { setActiveTab("home"); };
-    document.getElementById("library-create-btn").onclick = async function() {
-        const data = await showExerciseFormModal(selectedCategory);
-        if (!data) return;
-        await createExercise(data);
-        renderExerciseLibrary(data.category);
+    document.getElementById("library-create-btn").onclick = function() {
+        renderExerciseCreatePage({
+            category: selectedCategory,
+            onCancel: function() { renderExerciseLibrary(selectedCategory, search.value); },
+            onCreated: function(created) { renderExerciseLibrary(created.category); }
+        });
     };
 
     const exercises = await fetchExercises();

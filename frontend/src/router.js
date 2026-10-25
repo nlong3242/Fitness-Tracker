@@ -11,6 +11,7 @@ import { viewPastSessions } from "./views/pastSessions.js";
 import { viewSessionSummary } from "./views/summary.js";
 import { navigateToCalendarDay, navigateToCalendarMonth } from "./views/calendar.js";
 import { renderExercisePage } from "./views/exercisePage.js";
+import { renderExerciseEditPage } from "./views/exerciseEdit.js";
 
 /* Hash routes, so a reload (or iOS restarting the Home Screen app) comes
    back to the same page instead of Home. Each page records where it is
@@ -23,10 +24,10 @@ import { renderExercisePage } from "./views/exercisePage.js";
      #/settings/profile
      #/workouts                              #/workouts/12
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
-     #/workouts/12/exercises/7               #/workouts/12/exercises/7/history
+     #/workouts/12/exercises/7               #/workouts/12/exercises/7/history (/edit)
      #/calendar/2026-10                      #/calendar/2026-10-25
      #/calendar/2026-10-25/sessions/345?workout=12
-     #/exercises            #/exercises/7    #/exercises/7/history
+     #/exercises            #/exercises/7    #/exercises/7/history (/edit)
      #/live?exercise=55
 
    Pages holding unsaved state in memory (create workout, exercise picker,
@@ -147,9 +148,8 @@ async function openWorkouts(parts, params) {
         try {
             const exercise = await fetchExercise(id(parts[3]));
             const workout = findWorkout(workoutId);
-            renderExercisePage(exercise, {
+            openExercise(exercise, parts[4], {
                 routeFor: eid => `#/workouts/${workoutId}/exercises/${eid}`,
-                tab: parts[4],
                 onBack: function() { viewWorkout(workoutId); },
                 workout: { id: workout.id, name: workout.name }
             });
@@ -186,15 +186,21 @@ async function openCalendar(parts, params) {
     return true;
 }
 
+// An exercise's page: "history" opens its History tab, "edit" the edit
+// page (only for the user's own; a built-in one shows its page instead).
+function openExercise(exercise, sub, opts) {
+    if (sub === "edit" && !exercise.builtIn) renderExerciseEditPage(exercise, opts);
+    else renderExercisePage(exercise, { ...opts, tab: sub });
+}
+
 async function openExercises(parts) {
     const exerciseId = id(parts[1]);
     if (exerciseId !== null) {
         highlightTab("exercises");
         try {
             const exercise = await fetchExercise(exerciseId);
-            renderExercisePage(exercise, {
+            openExercise(exercise, parts[2], {
                 routeFor: eid => `#/exercises/${eid}`,
-                tab: parts[2],
                 onBack: function() { setActiveTab("exercises"); }
             });
             return true;

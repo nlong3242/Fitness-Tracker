@@ -183,7 +183,8 @@
 
 /* Exercise page (views/exercisePage.js): Back, then Edit on the right;
    Overview / History tabs side by side. */
-.exp-actions #exp-edit-btn {
+.exp-actions #exp-edit-btn,
+.exp-actions #exe-save-btn {
     margin-left: auto;
 }
 
@@ -196,4 +197,16 @@
 
 .exp-tabs .filter-pill {
     padding: 8px 0;
+}
+
+/* Edit page (views/exerciseEdit.js): the popup's fields on a page, with
+   Delete (or Remove from workout) on its own below the form. */
+.exe-form .modal-field:last-of-type {
+    margin-bottom: 4px;
+}
+
+.exe-delete-btn {
+    display: block;
+    width: 100%;
+    margin: 0 0 24px;
 }

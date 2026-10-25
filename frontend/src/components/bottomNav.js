@@ -71,6 +71,11 @@ export function clearNavGuard() {
     navGuard = null;
 }
 
+// The guard in place, so a page opened on top of another can put it back.
+export function getNavGuard() {
+    return navGuard;
+}
+
 /* Toggle the entire bottom nav's visibility. Used by views that need a
    focused, distraction-free surface (e.g., the live workout preview). The
    nav guard still protects against programmatic tab switches while hidden. */

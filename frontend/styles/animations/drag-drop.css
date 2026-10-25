@@ -2,7 +2,8 @@
    Three surfaces use this: Create Workout pending list, View Workout
    exercise list, and the live Active Workout cards.
 
-   - .draggable-row:    rows that opt in (prevents vertical-scroll hijack on mobile).
+   - .draggable-row:    rows that opt in (prevents vertical-scroll hijack on mobile,
+                        and iOS text selection / copy callout on the long press).
    - .dragging:         the lifted row while being dragged (sage glow, scale up).
    - .drag-placeholder: dashed-pink ghost holding the original slot.
 
@@ -12,6 +13,9 @@
 
 .draggable-row {
     touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .dragging {

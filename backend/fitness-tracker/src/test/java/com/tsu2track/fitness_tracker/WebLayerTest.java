@@ -30,12 +30,11 @@ import com.tsu2track.fitness_tracker.service.SessionService;
 
 /* HTTP layer only (service mocked): ValidationExceptionHandler's error
    shape for both exception branches, and the session-history paging clamp.
-   Runs through the real security chain, so requests carry the API key. */
+   Runs through the real security chain, so requests carry a login token. */
 @WebMvcTest(controllers = { SessionController.class, ExerciseSetController.class })
-@Import(SecurityConfig.class)
+@Import({ SecurityConfig.class, TestAuth.class })
 class WebLayerTest {
 
-    private static final String KEY = "dev-key";
 
     @Autowired MockMvc mvc;
     @MockitoBean SessionService sessionService;
@@ -136,7 +135,7 @@ class WebLayerTest {
         s.setLastActivityAt(java.time.Instant.parse("2026-01-06T09:30:00Z"));
         when(sessionService.findUnfinishedSession()).thenReturn(java.util.Optional.of(s));
 
-        mvc.perform(get("/sessions/unfinished").header("X-API-Key", KEY))
+        mvc.perform(get("/sessions/unfinished").header("Authorization", TestAuth.BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(42))
             .andExpect(jsonPath("$.workoutId").value(3))
@@ -149,7 +148,7 @@ class WebLayerTest {
     void noUnfinishedSessionIsNoContent() throws Exception {
         when(sessionService.findUnfinishedSession()).thenReturn(java.util.Optional.empty());
 
-        mvc.perform(get("/sessions/unfinished").header("X-API-Key", KEY))
+        mvc.perform(get("/sessions/unfinished").header("Authorization", TestAuth.BEARER))
             .andExpect(status().isNoContent());
     }
 
@@ -174,7 +173,7 @@ class WebLayerTest {
         when(sessionService.countPlannedOn(java.time.LocalDate.of(2026, 10, 24))).thenReturn(2L);
 
         mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").param("today", "2026-10-23")
-                .header("X-API-Key", KEY))
+                .header("Authorization", TestAuth.BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessionsThisWeek").value(3))
             .andExpect(jsonPath("$.lastSession.workoutId").value(4))
@@ -190,7 +189,7 @@ class WebLayerTest {
         when(sessionService.countFinishedInWeek(any())).thenReturn(0L);
         when(sessionService.findLastFinishedSession()).thenReturn(java.util.Optional.empty());
 
-        mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").header("X-API-Key", KEY))
+        mvc.perform(get("/sessions/overview").param("weekStart", "2026-10-19").header("Authorization", TestAuth.BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessionsThisWeek").value(0))
             .andExpect(jsonPath("$.lastSession").isEmpty())
@@ -201,7 +200,7 @@ class WebLayerTest {
 
     @Test
     void overviewNeedsWeekStart() throws Exception {
-        mvc.perform(get("/sessions/overview").header("X-API-Key", KEY))
+        mvc.perform(get("/sessions/overview").header("Authorization", TestAuth.BEARER))
             .andExpect(status().isBadRequest());
     }
 
@@ -218,7 +217,7 @@ class WebLayerTest {
     private MockHttpServletRequestBuilder createSet(String json) {
         return post("/sessions/1/sets")
             .param("exerciseId", "7")
-            .header("X-API-Key", KEY)
+            .header("Authorization", TestAuth.BEARER)
             .contentType(MediaType.APPLICATION_JSON)
             .content(json);
     }
@@ -227,7 +226,7 @@ class WebLayerTest {
         org.mockito.Mockito.clearInvocations(sessionService);
         when(sessionService.findSessions(anyLong(), any())).thenReturn(Page.empty());
 
-        mvc.perform(get("/workouts/1/sessions" + query).header("X-API-Key", KEY))
+        mvc.perform(get("/workouts/1/sessions" + query).header("Authorization", TestAuth.BEARER))
             .andExpect(status().isOk());
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);

@@ -1,6 +1,8 @@
 import { state, findWorkout } from "./state.js";
-import { fetchWorkouts, fetchUnfinishedSession } from "./api.js";
+import { fetchWorkouts, fetchUnfinishedSession, setUnauthorizedHandler, ApiError } from "./api.js";
+import { getToken } from "./auth.js";
 import { renderBottomNav } from "./components/bottomNav.js";
+import { renderLoginPage } from "./views/login.js";
 import { restoreRoute } from "./router.js";
 import { initLiveWorkout } from "./components/liveWorkout.js";
 import { startIdleWatch } from "./autoEnd.js";
@@ -36,7 +38,19 @@ function trackVisualViewport() {
 
 async function bootstrap() {
     trackVisualViewport();
-    state.workouts = await fetchWorkouts();
+    // No login, or the server turned the token down: the login page, which
+    // reloads the app once someone logs in.
+    setUnauthorizedHandler(renderLoginPage);
+    if (!getToken()) {
+        renderLoginPage();
+        return;
+    }
+    try {
+        state.workouts = await fetchWorkouts();
+    } catch (e) {
+        if (e instanceof ApiError && e.status === 401) return;   // login page is up
+        throw e;
+    }
     await restoreInProgressSession();
     renderBottomNav();
     initLiveWorkout();

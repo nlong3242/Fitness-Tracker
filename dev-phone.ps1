@@ -13,6 +13,12 @@ if (-not $ip) { throw "Tailscale has no IP - is it logged in and connected?" }
 $origins = "http://127.0.0.1:5500,http://localhost:5500,http://${ip}:5500,capacitor://localhost"
 Write-Host "Phone URL: http://${ip}:5500" -ForegroundColor Green
 
+# Code needed to create an account. Only reachable over Tailscale here, so a
+# fixed default is fine; set APP_INVITE_CODE first to use another. A real
+# server must set its own.
+$inviteCode = if ($env:APP_INVITE_CODE) { $env:APP_INVITE_CODE } else { "tsu2track" }
+Write-Host "Invite code: $inviteCode" -ForegroundColor Green
+
 $backendDir = Join-Path $PSScriptRoot "backend\fitness-tracker"
 
 # Copy the database before the backend starts (and runs any new migrations).
@@ -51,7 +57,7 @@ if ($backendUp) {
 # Backend in its own window so its log stays readable.
 Start-Process powershell -WorkingDirectory $backendDir -ArgumentList @(
     "-NoExit", "-Command",
-    "`$env:APP_CORS_ORIGINS='$origins'; .\mvnw.cmd spring-boot:run"
+    "`$env:APP_CORS_ORIGINS='$origins'; `$env:APP_INVITE_CODE='$inviteCode'; .\mvnw.cmd spring-boot:run"
 )
 
 # Frontend on all interfaces (VS Code Live Server only listens on 127.0.0.1).

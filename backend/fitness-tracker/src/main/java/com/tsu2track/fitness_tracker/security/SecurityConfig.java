@@ -13,10 +13,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
 
-    private final ApiKeyAuthFilter apiKeyAuthFilter;
+    private final TokenAuthFilter tokenAuthFilter;
 
-    public SecurityConfig(ApiKeyAuthFilter apiKeyAuthFilter) {
-        this.apiKeyAuthFilter = apiKeyAuthFilter;
+    public SecurityConfig(TokenAuthFilter tokenAuthFilter) {
+        this.tokenAuthFilter = tokenAuthFilter;
     }
 
     @Bean
@@ -29,13 +29,14 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // sendError() re-enters the filter chain as an ERROR dispatch,
-                // where the API-key filter doesn't run; without this, every
+                // where the token filter doesn't run; without this, every
                 // 4xx/5xx from a handler is replaced by an empty 403.
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(HttpMethod.POST, TokenAuthFilter.OPEN_PATHS.toArray(String[]::new)).permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(tokenAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

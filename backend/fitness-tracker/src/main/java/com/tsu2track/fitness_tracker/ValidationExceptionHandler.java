@@ -79,6 +79,20 @@ public class ValidationExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(ApiFieldException.class)
+    public ResponseEntity<ValidationErrorResponse> handleApiField(
+            ApiFieldException ex,
+            HttpServletRequest request) {
+        ValidationErrorResponse body = new ValidationErrorResponse(
+            Instant.now().toString(),
+            ex.getStatus().value(),
+            ex.getStatus().getReasonPhrase(),
+            request.getRequestURI(),
+            List.of(new FieldErrorDetail(ex.getField(), ex.getMessage()))
+        );
+        return ResponseEntity.status(ex.getStatus()).body(body);
+    }
+
     private static String extractFieldPath(DatabindException jme) {
         StringBuilder sb = new StringBuilder();
         for (DatabindException.Reference ref : jme.getPath()) {

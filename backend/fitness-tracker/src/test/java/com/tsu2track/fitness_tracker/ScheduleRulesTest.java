@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.tsu2track.fitness_tracker.service.AuthService;
+
 /* Calendar entry rules (V4): at most one plan (PLANNED/SKIPPED) per date
    and workout, but COMPLETED entries repeat — one per session, so a
    workout done twice in a day shows twice. Full stack, in-memory H2. */
@@ -24,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class ScheduleRulesTest {
 
-    private static final String KEY = "dev-key";
     private static final LocalDate DAY = LocalDate.of(2026, 3, 2);
     private static final LocalDate OTHER_DAY = LocalDate.of(2026, 3, 3);
 
@@ -32,12 +33,15 @@ class ScheduleRulesTest {
     @Autowired WorkoutRepository workoutRepository;
     @Autowired SessionRepository sessionRepository;
     @Autowired ScheduledWorkoutRepository scheduledWorkoutRepository;
+    @Autowired AuthService authService;
 
     private Workout workout;
+    private String bearer;
 
     @BeforeEach
     void setUp() {
         workout = workoutRepository.save(new Workout("Upper"));
+        bearer = "Bearer " + authService.signup("rules@example.com", "password123", TestAuth.INVITE_CODE).token();
     }
 
     @Test
@@ -109,12 +113,12 @@ class ScheduleRulesTest {
         String body = "{\"date\": \"" + date + "\", \"workoutId\": " + workout.getId()
             + (status != null ? ", \"status\": \"" + status + "\"" : "")
             + (sessionId != null ? ", \"sessionId\": " + sessionId : "") + "}";
-        return mvc.perform(post("/scheduled-workouts").header("X-API-Key", KEY)
+        return mvc.perform(post("/scheduled-workouts").header("Authorization", bearer)
             .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     private ResultActions update(Long id, String body) throws Exception {
-        return mvc.perform(patch("/scheduled-workouts/" + id).header("X-API-Key", KEY)
+        return mvc.perform(patch("/scheduled-workouts/" + id).header("Authorization", bearer)
             .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 

@@ -28,10 +28,9 @@ import com.tsu2track.fitness_tracker.service.BodyWeightService;
 /* HTTP layer for the bodyweight log: the weight must be above 0 before
    the service is called, and the date comes from the path. */
 @WebMvcTest(controllers = BodyWeightController.class)
-@Import(SecurityConfig.class)
+@Import({ SecurityConfig.class, TestAuth.class })
 class BodyWeightWebTest {
 
-    private static final String KEY = "dev-key";
     private static final LocalDate DAY = LocalDate.of(2026, 10, 25);
 
     @Autowired MockMvc mvc;
@@ -52,7 +51,7 @@ class BodyWeightWebTest {
         when(service.history()).thenReturn(java.util.List.of(
             new BodyWeight(DAY.minusDays(1), 72.6), new BodyWeight(DAY, 72.4)));
 
-        mvc.perform(get("/bodyweight").header("X-API-Key", KEY))
+        mvc.perform(get("/bodyweight").header("Authorization", TestAuth.BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].date").value("2026-10-24"))
             .andExpect(jsonPath("$[1].weightKg").value(72.4));
@@ -70,7 +69,7 @@ class BodyWeightWebTest {
 
     private MockHttpServletRequestBuilder logWeight(String json) {
         return put("/bodyweight/2026-10-25")
-            .header("X-API-Key", KEY)
+            .header("Authorization", TestAuth.BEARER)
             .contentType(MediaType.APPLICATION_JSON)
             .content(json);
     }

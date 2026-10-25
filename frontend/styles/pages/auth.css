@@ -1,0 +1,128 @@
+/* Log in / Create account — views/login.js.
+   The home sign-board title over one framed panel, on a full-screen layer
+   of grid paper above the app, the nav and popups (modals are 1000). */
+
+.auth-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background-color: var(--bg);
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    /* Same insets as #app-scroll (layout/page.css). */
+    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+             20px max(20px, env(safe-area-inset-left));
+}
+
+.auth-page {
+    max-width: 500px;
+    margin: 0 auto;
+    padding-top: 20px;
+}
+
+.auth-panel {
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--panel-shadow);
+    padding: 20px;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.auth-tab {
+    flex: 1;
+}
+
+.auth-field {
+    display: block;
+    margin-bottom: 14px;
+}
+
+.auth-field[hidden] {
+    display: none;
+}
+
+.auth-label {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+/* 16px or more, or iOS zooms in when the field is focused. */
+.auth-field input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    height: calc(1.2em + 24px);
+    padding: 10px 12px;
+    font-size: max(16px, 1em);
+    line-height: 1.2;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
+}
+
+.auth-field input:focus {
+    outline: none;
+    border-color: var(--accent-pink-deep);
+    border-width: 4px;
+    padding: 8px 10px;
+}
+
+/* Password box with Show/Hide sitting inside its right end; the input's
+   right padding keeps typed text clear of the button. */
+.auth-password-row {
+    position: relative;
+}
+
+.auth-password-row input {
+    padding-right: 84px;
+}
+
+.auth-password-row input:focus {
+    padding: 8px 82px 8px 10px;
+}
+
+.auth-show {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 8px;
+    margin: auto 0;
+    height: 32px;
+    min-width: 64px;
+    padding: 0 10px;
+    font-size: 0.9em;
+}
+
+.auth-hint {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin-top: 6px;
+}
+
+.auth-hint[hidden] {
+    display: none;
+}
+
+.auth-error {
+    color: var(--danger);
+    margin: 0 0 14px 0;
+}
+
+.auth-submit {
+    width: 100%;
+    padding: 14px;
+    font-size: 1.1em;
+}

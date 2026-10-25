@@ -1,11 +1,19 @@
 import { API_BASE } from "./config.js";
-import { getApiKey, setApiKey, clearApiKey } from "./auth.js";
+import { getToken, clearToken } from "./auth.js";
 
-async function request(method, path, body, _isRetry = false) {
+// Called when the server says the login is missing, revoked or expired
+// (main.js shows the login page). The request still fails with ApiError.
+let onUnauthorized = null;
+
+export function setUnauthorizedHandler(fn) {
+    onUnauthorized = fn;
+}
+
+async function request(method, path, body) {
     const opts = { method, headers: {} };
-    const key = getApiKey();
-    if (key) {
-        opts.headers["X-API-Key"] = key;
+    const token = getToken();
+    if (token) {
+        opts.headers["Authorization"] = `Bearer ${token}`;
     }
     if (body !== undefined) {
         opts.headers["Content-Type"] = "application/json";
@@ -13,16 +21,34 @@ async function request(method, path, body, _isRetry = false) {
     }
     const response = await fetch(`${API_BASE}${path}`, opts);
 
-    if (response.status === 401 && !_isRetry) {
-        clearApiKey();
-        let entered;
-        do {
-            entered = window.prompt('Enter your API key. (Use "dev-key" for local dev.)');
-        } while (!entered);
-        setApiKey(entered);
-        return request(method, path, body, true);
+    if (response.status === 401) {
+        clearToken();
+        if (onUnauthorized) onUnauthorized();
     }
     return response;
+}
+
+// --- Accounts ---
+
+/* Sign-up and login don't need a token. Both answer { ok, data }: on
+   success data is { token, user }, otherwise the error body, whose
+   errors[0] says what to fix. Throws only when the server can't be reached. */
+async function authRequest(path, body) {
+    const response = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+    const data = await response.json().catch(() => null);
+    return { ok: response.ok, status: response.status, data };
+}
+
+export function signup(email, password, inviteCode) {
+    return authRequest("/auth/signup", { email, password, inviteCode });
+}
+
+export function login(email, password) {
+    return authRequest("/auth/login", { email, password });
 }
 
 /* Thrown for non-2xx responses so an error envelope is never mistaken for

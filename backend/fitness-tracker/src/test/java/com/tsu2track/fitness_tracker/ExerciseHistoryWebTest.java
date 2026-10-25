@@ -26,10 +26,9 @@ import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.Records;
 
 /* HTTP shape of GET /exercises/{id}/history and its paging defaults. */
 @WebMvcTest(controllers = ExerciseHistoryController.class)
-@Import(SecurityConfig.class)
+@Import({ SecurityConfig.class, TestAuth.class })
 class ExerciseHistoryWebTest {
 
-    private static final String KEY = "dev-key";
     private static final LocalDate DAY = LocalDate.of(2026, 10, 20);
 
     @Autowired MockMvc mvc;
@@ -41,7 +40,7 @@ class ExerciseHistoryWebTest {
         when(service.history(3L, 0, 10)).thenReturn(new History(new Records(top, top, null, top),
             List.of(new HistorySession(7L, DAY, 2L, List.of(new HistorySet(80, 5, null, true)))), true));
 
-        mvc.perform(get("/exercises/3/history").header("X-API-Key", KEY))
+        mvc.perform(get("/exercises/3/history").header("Authorization", TestAuth.BEARER))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.records.heaviest.weight").value(80.0))
             .andExpect(jsonPath("$.records.bestSet.date").value("2026-10-20"))
@@ -55,7 +54,7 @@ class ExerciseHistoryWebTest {
 
     @Test
     void clampsPaging() throws Exception {
-        mvc.perform(get("/exercises/3/history").param("page", "-2").param("size", "500").header("X-API-Key", KEY));
+        mvc.perform(get("/exercises/3/history").param("page", "-2").param("size", "500").header("Authorization", TestAuth.BEARER));
 
         verify(service).history(3L, 0, 50);
     }

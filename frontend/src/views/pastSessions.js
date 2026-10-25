@@ -3,6 +3,7 @@ import { fetchSessionsPage, deleteSession } from "../api.js";
 import { formatSessionDate, escapeHtml } from "../utils/format.js";
 import { clearNavGuard } from "../components/bottomNav.js";
 import { showConfirmModal } from "../components/modals.js";
+import { createMoreButton } from "../components/actionMenu.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { viewSessionSummary } from "./summary.js";
 import { setRoute } from "../router.js";
@@ -17,12 +18,12 @@ export async function viewPastSessions(workoutId, onBack) {
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>${escapeHtml(workout.name)} History</h2>
-        <div id="session-list"></div>
-        <button id="load-more-sessions" style="display:none">Load More</button>
-        <div class="page-actions">
+        <div class="page-actions page-top">
             <button class="btn-secondary" id="past-sessions-back-btn">Back</button>
         </div>
+        <h2 class="page-title">${escapeHtml(workout.name)} History</h2>
+        <div id="session-list"></div>
+        <button id="load-more-sessions" style="display:none">Load More</button>
     `;
 
     document.getElementById("past-sessions-back-btn").onclick = back;
@@ -46,27 +47,26 @@ export async function viewPastSessions(workoutId, onBack) {
                 viewSessionSummary(workoutId, session.id, session.date, function() { viewPastSessions(workoutId, back); });
             };
 
-            const deleteBtn = document.createElement("button");
-            deleteBtn.className = "btn-danger session-delete-btn";
-            deleteBtn.textContent = "Delete";
-            deleteBtn.onclick = async function(event) {
-                event.stopPropagation();
-                const confirmed = await showConfirmModal(
-                    `Delete the session from ${formatSessionDate(session.date)}? Its sets are removed permanently.`,
-                    "Delete"
-                );
-                if (!confirmed) return;
-                await deleteSession(session.id);
-                if (state.currentSessionId === session.id) clearCurrentSession();
-                viewPastSessions(workoutId, back);
-            };
-            row.appendChild(deleteBtn);
+            row.appendChild(createMoreButton(`Options for the session from ${formatSessionDate(session.date)}`, function() {
+                return [{ label: "Delete session", danger: true, onSelect: function() { removeSession(session); } }];
+            }));
 
             sessionList.appendChild(row);
             sessionIndex++;
         }
         nextPage++;
         loadMoreBtn.style.display = pageData.last ? "none" : "inline-block";
+    }
+
+    async function removeSession(session) {
+        const confirmed = await showConfirmModal(
+            `Delete the session from ${formatSessionDate(session.date)}? Its sets are removed permanently.`,
+            "Delete"
+        );
+        if (!confirmed) return;
+        await deleteSession(session.id);
+        if (state.currentSessionId === session.id) clearCurrentSession();
+        viewPastSessions(workoutId, back);
     }
 
     loadMoreBtn.onclick = loadSessionPage;

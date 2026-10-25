@@ -15,10 +15,9 @@
     transition: background-color 0.15s, transform 0.1s;
 }
 
-.session-delete-btn {
+/* The session's ⋮ (components/action-menu.css), pushed to the right. */
+.session-row .more-btn {
     margin-left: auto;
-    padding: 6px 12px;
-    font-size: 0.9em;
 }
 
 @media (hover: hover) {

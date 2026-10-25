@@ -19,10 +19,10 @@ export async function renderSettingsPage(notice = "") {
     setRoute("#/settings");
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>Settings</h2>
-        <div class="page-actions">
+        <div class="page-actions page-top">
             <button class="btn-secondary" id="settings-back-btn">Back</button>
         </div>
+        <h2 class="page-title">Settings</h2>
         <p class="settings-notice" id="settings-notice" role="status" hidden></p>
         <div class="settings-panel">
             <span class="settings-label">Logged in as</span>
@@ -111,10 +111,10 @@ export function renderChangePasswordPage() {
     setRoute("#/settings/password");
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>Change password</h2>
-        <div class="page-actions">
+        <div class="page-actions page-top">
             <button class="btn-secondary" id="password-back-btn">Back</button>
         </div>
+        <h2 class="page-title">Change password</h2>
         <form class="auth-panel" id="password-form" novalidate>
             <input type="email" id="password-username" autocomplete="username" hidden>
             <div class="auth-field">

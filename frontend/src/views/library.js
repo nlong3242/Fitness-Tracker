@@ -12,10 +12,12 @@ export async function renderExerciseLibrary(initialCategory, initialQuery) {
     setRoute("#/exercises");
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>Exercise Library</h2>
+        <div class="page-actions page-top">
+            <button class="btn-secondary" id="library-back-btn">Back</button>
+        </div>
+        <h2 class="page-title">Exercise Library</h2>
         <div class="page-actions">
             <button id="library-create-btn">Create Exercise</button>
-            <button class="btn-secondary" id="library-back-btn">Back</button>
         </div>
         <input type="search" id="library-search" class="library-search" placeholder="Search exercises"
                autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">

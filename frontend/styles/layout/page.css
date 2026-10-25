@@ -36,3 +36,20 @@
     color: var(--text-on-bg-muted);
     padding: 8px 0;
 }
+
+/* The top of a page you came into: Back on the left (and a ⋮ on the
+   right, if the page has one), then the title on its own line. Same
+   place on every page, like an iPhone's back button. */
+.page-top {
+    align-items: center;
+    margin-top: 0;
+}
+
+.page-top .more-btn {
+    margin-left: auto;
+}
+
+.page-title {
+    margin-top: 0;
+    overflow-wrap: anywhere;
+}

@@ -24,10 +24,12 @@ export function renderWorkouts() {
     setRoute("#/workouts");
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>My Workouts</h2>
+        <div class="page-actions page-top">
+            <button class="btn-secondary" id="workouts-back-btn">Back</button>
+        </div>
+        <h2 class="page-title">My Workouts</h2>
         <div class="page-actions">
             <button id="workouts-create-btn">Create Workout</button>
-            <button class="btn-secondary" id="workouts-back-btn">Back</button>
         </div>
         <ul id="workout-list"></ul>
     `;
@@ -130,17 +132,22 @@ export function renderCreateWorkoutPage(initialState, options) {
     const draft = initialState || { name: "", pendingExercises: [] };
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>Create Workout</h2>
+        <div class="page-actions page-top">
+            <button class="btn-secondary" id="back-btn">Back</button>
+        </div>
+        <h2 class="page-title">Create Workout</h2>
         <div class="create-workout-form">
             <label for="new-workout-name">Workout Name</label>
             <input type="text" id="new-workout-name" placeholder="Enter workout name">
         </div>
         <h3>Exercises</h3>
-        <button id="add-exercise-btn">Add Exercise</button>
         <ul id="pending-exercises-list"></ul>
+        <div id="pending-exercises-empty" class="empty-sessions" hidden>No exercises yet.</div>
         <div class="page-actions">
-            <button id="save-workout-btn" disabled>Save Workout</button>
-            <button class="btn-secondary" id="back-btn">Back</button>
+            <button class="btn-secondary cw-wide-btn" id="add-exercise-btn">+ Add Exercise</button>
+        </div>
+        <div class="page-actions">
+            <button class="cw-wide-btn cw-save-btn" id="save-workout-btn" disabled>Save Workout</button>
         </div>
     `;
 
@@ -162,20 +169,23 @@ export function renderCreateWorkoutPage(initialState, options) {
         return await showConfirmModal("Discard this workout?", "Discard");
     });
 
+    // Same look as the workout page: numbered rows with a ⋮ (Remove), long
+    // press to reorder. Nothing is saved until Save Workout, so Remove
+    // doesn't ask.
     function renderPendingList() {
         list.innerHTML = "";
+        document.getElementById("pending-exercises-empty").hidden = draft.pendingExercises.length > 0;
         for (let i = 0; i < draft.pendingExercises.length; i++) {
             const exercise = draft.pendingExercises[i];
             const item = document.createElement("li");
             item.className = "draggable-row";
             item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
-            const deleteBtn = document.createElement("button");
-            deleteBtn.textContent = "Remove";
-            deleteBtn.onclick = function() {
-                draft.pendingExercises.splice(i, 1);
-                renderPendingList();
-            };
-            item.appendChild(deleteBtn);
+            item.appendChild(createMoreButton(`Options for ${exercise.name}`, function() {
+                return [{ label: "Remove exercise", danger: true, onSelect: function() {
+                    draft.pendingExercises.splice(i, 1);
+                    renderPendingList();
+                } }];
+            }));
             list.appendChild(item);
             if (draft.pendingExercises.length > 1) {
                 attachLongPressDrag(item, {

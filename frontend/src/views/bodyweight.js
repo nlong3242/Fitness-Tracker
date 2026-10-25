@@ -21,10 +21,12 @@ export async function renderBodyWeightPage() {
     setRoute("#/bodyweight");
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>Bodyweight</h2>
+        <div class="page-actions page-top">
+            <button class="btn-secondary" id="bw-back-btn">Back</button>
+        </div>
+        <h2 class="page-title">Bodyweight</h2>
         <div class="page-actions">
             <button id="bw-add-btn">Add Weigh-in</button>
-            <button class="btn-secondary" id="bw-back-btn">Back</button>
         </div>
         <div class="bw-chart-panel">
             <div class="bw-range-row" role="group" aria-label="Chart range">

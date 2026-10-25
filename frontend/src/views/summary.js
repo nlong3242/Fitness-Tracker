@@ -101,19 +101,17 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
                 <button id="summary-finish-btn">Finish Workout</button>
             </div>
         `
-        : `
-            <div class="page-actions">
-                <button class="btn-secondary" id="summary-back-btn">${backLabel}</button>
-            </div>
-        `;
-
-    const topBackHtml = mode === "preview" && onBack
-        ? `<button class="summary-back-link" id="summary-top-back-btn"><span class="summary-back-glyph">&#8249;</span> Back</button>`
         : "";
+
+    // A finished session's Back sits on top, like every page's; the live
+    // workout's preview keeps its small "‹ Back" link.
+    const topBackHtml = mode === "preview"
+        ? (onBack ? `<button class="summary-back-link" id="summary-top-back-btn"><span class="summary-back-glyph">&#8249;</span> Back</button>` : "")
+        : `<div class="page-actions page-top"><button class="btn-secondary" id="summary-back-btn">${backLabel}</button></div>`;
 
     target.innerHTML = `
         ${topBackHtml}
-        <h2>${headingPrefix} ${escapeHtml(workout.name)}</h2>
+        <h2 class="page-title">${headingPrefix} ${escapeHtml(workout.name)}</h2>
         ${formattedDate ? `<div class="summary-date">${formattedDate}</div>` : ""}
         <div class="summary-stats">
             <div class="stat-box">

@@ -30,10 +30,10 @@ export async function viewWorkout(workoutId) {
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <div class="page-actions wd-top">
+        <div class="page-actions page-top">
             <button class="btn-secondary" id="workout-back-btn">Back</button>
         </div>
-        <h2 class="wd-title">${escapeHtml(workout.name)}</h2>
+        <h2 class="page-title">${escapeHtml(workout.name)}</h2>
         <div class="page-actions">
             <button class="wd-start-btn" id="workout-start-btn">Start Workout</button>
         </div>
@@ -46,7 +46,7 @@ export async function viewWorkout(workoutId) {
 
     document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutId); };
     // The workout's other actions, the same ⋮ as on the workout list.
-    container.querySelector(".wd-top").appendChild(createMoreButton(`Options for ${workout.name}`, function() {
+    container.querySelector(".page-top").appendChild(createMoreButton(`Options for ${workout.name}`, function() {
         return workoutMenu(workout, {
             pastSessions: function() { viewPastSessions(workoutId); }
         });

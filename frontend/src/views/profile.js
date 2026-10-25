@@ -186,10 +186,10 @@ export async function renderProfilePage() {
     setRoute("#/settings/profile");
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>Profile</h2>
-        <div class="page-actions">
+        <div class="page-actions page-top">
             <button class="btn-secondary" id="profile-back-btn">Back</button>
         </div>
+        <h2 class="page-title">Profile</h2>
         ${formHtml("", "", "Save")}
     `;
     document.getElementById("profile-back-btn").onclick = function() { renderSettingsPage(); };

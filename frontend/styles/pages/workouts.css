@@ -72,6 +72,17 @@ li .workout-row-start.live {
     }
 }
 
+/* Create Workout: + Add Exercise under the list (cream) and Save Workout
+   below it, both full width like the workout page's buttons. */
+.cw-wide-btn {
+    flex: 1;
+}
+
+.cw-save-btn {
+    min-height: 56px;
+    font-size: 1.25em;
+}
+
 .create-workout-form {
     margin: 15px 0;
 }

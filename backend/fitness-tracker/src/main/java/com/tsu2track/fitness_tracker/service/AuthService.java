@@ -102,13 +102,7 @@ public class AuthService {
     public LoginResult login(String email, String password) {
         String normalized = normalize(email);
         LocalDateTime now = now();
-        Failures previous = failures.get(normalized);
-        if (previous != null && previous.lockedUntil() != null && now.isBefore(previous.lockedUntil())) {
-            // Whole minutes left, rounded up: 15:00 → 15, 14:01 → 15, 0:20 → 1.
-            long minutes = Math.max(1, (Duration.between(now, previous.lockedUntil()).toSeconds() + 59) / 60);
-            throw new ApiFieldException(HttpStatus.TOO_MANY_REQUESTS, "(credentials)",
-                "Too many attempts. Try again in " + minutes + " minute" + (minutes == 1 ? "" : "s") + ".");
-        }
+        rejectIfLocked(normalized, now, "(credentials)");
 
         Optional<AppUser> user = userRepository.findByEmail(normalized);
         boolean ok = passwordEncoder.matches(password, user.map(AppUser::getPasswordHash).orElse(dummyHash))
@@ -145,6 +139,43 @@ public class AuthService {
     @Transactional
     public void logout(String rawToken) {
         if (rawToken != null && !rawToken.isBlank()) tokenRepository.deleteByTokenHash(hash(rawToken));
+    }
+
+    // Ends every login of this account, on every device.
+    @Transactional
+    public void logoutEverywhere(Long userId) {
+        tokenRepository.deleteByUserId(userId);
+    }
+
+    /* Needs the current password, so an unlocked phone isn't enough to take
+       the account over; wrong ones count toward the login lockout. Every
+       other device is logged out; the one making the change stays in.
+       400, not 401, for a wrong password: the app treats 401 as "logged out". */
+    @Transactional
+    public void changePassword(Long userId, String rawToken, String currentPassword, String newPassword) {
+        AppUser user = userRepository.findById(userId).orElseThrow();
+        LocalDateTime now = now();
+        rejectIfLocked(user.getEmail(), now, "currentPassword");
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            recordFailure(user.getEmail(), now);
+            throw new ApiFieldException(HttpStatus.BAD_REQUEST, "currentPassword", "Current password is incorrect.");
+        }
+        failures.remove(user.getEmail());
+        if (newPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ApiFieldException(HttpStatus.BAD_REQUEST, "newPassword", "Password is too long.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        tokenRepository.deleteByUserIdAndTokenHashNot(userId, hash(rawToken));
+    }
+
+    private void rejectIfLocked(String email, LocalDateTime now, String field) {
+        Failures previous = failures.get(email);
+        if (previous != null && previous.lockedUntil() != null && now.isBefore(previous.lockedUntil())) {
+            // Whole minutes left, rounded up: 15:00 → 15, 14:01 → 15, 0:20 → 1.
+            long minutes = Math.max(1, (Duration.between(now, previous.lockedUntil()).toSeconds() + 59) / 60);
+            throw new ApiFieldException(HttpStatus.TOO_MANY_REQUESTS, field,
+                "Too many attempts. Try again in " + minutes + " minute" + (minutes == 1 ? "" : "s") + ".");
+        }
     }
 
     private LoginResult issueToken(AppUser user) {

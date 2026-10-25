@@ -208,6 +208,65 @@ class AuthServiceTest {
     }
 
     @Test
+    void logoutEverywhereEndsEveryDevicesLogin() {
+        var phone = auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE);
+        String laptop = auth.login("long@example.com", PASSWORD).token();
+        String friends = auth.signup("friend@example.com", PASSWORD, TestAuth.INVITE_CODE).token();
+
+        auth.logoutEverywhere(phone.user().id());
+
+        assertThat(auth.authenticate(phone.token())).isEmpty();
+        assertThat(auth.authenticate(laptop)).isEmpty();
+        assertThat(auth.authenticate(friends)).isPresent();
+    }
+
+    @Test
+    void changingThePasswordKeepsThisDeviceAndLogsOutTheOthers() {
+        var phone = auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE);
+        String laptop = auth.login("long@example.com", PASSWORD).token();
+        String friends = auth.signup("friend@example.com", PASSWORD, TestAuth.INVITE_CODE).token();
+
+        auth.changePassword(phone.user().id(), phone.token(), PASSWORD, "battery staple");
+
+        assertThat(auth.authenticate(phone.token())).isPresent();
+        assertThat(auth.authenticate(laptop)).isEmpty();
+        assertThat(auth.authenticate(friends)).isPresent();
+        assertThat(auth.login("long@example.com", "battery staple").token()).isNotBlank();
+        assertRejected(() -> auth.login("long@example.com", PASSWORD), HttpStatus.UNAUTHORIZED, "(credentials)");
+    }
+
+    @Test
+    void changingThePasswordNeedsTheCurrentOne() {
+        var phone = auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE);
+
+        assertRejected(() -> auth.changePassword(phone.user().id(), phone.token(), "nope nope", "battery staple"),
+            HttpStatus.BAD_REQUEST, "currentPassword");
+        assertThat(rejection(() -> auth.changePassword(phone.user().id(), phone.token(), "nope nope", "battery staple"))
+            .getMessage()).isEqualTo("Current password is incorrect.");
+        assertThat(auth.login("long@example.com", PASSWORD).token()).isNotBlank();
+    }
+
+    @Test
+    void wrongCurrentPasswordsCountTowardTheLockout() {
+        var phone = auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE);
+        for (int i = 0; i < 5; i++) {
+            rejection(() -> auth.changePassword(phone.user().id(), phone.token(), "nope nope", "battery staple"));
+        }
+
+        assertRejected(() -> auth.changePassword(phone.user().id(), phone.token(), PASSWORD, "battery staple"),
+            HttpStatus.TOO_MANY_REQUESTS, "currentPassword");
+        assertRejected(() -> auth.login("long@example.com", PASSWORD), HttpStatus.TOO_MANY_REQUESTS, "(credentials)");
+    }
+
+    @Test
+    void newPasswordOverBcryptsLimitInBytesIsRejected() {
+        var phone = auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE);
+
+        assertRejected(() -> auth.changePassword(phone.user().id(), phone.token(), PASSWORD, "é".repeat(40)),
+            HttpStatus.BAD_REQUEST, "newPassword");
+    }
+
+    @Test
     void unknownOrMissingTokensAreRejected() {
         assertThat(auth.authenticate("made-up")).isEmpty();
         assertThat(auth.authenticate("")).isEmpty();

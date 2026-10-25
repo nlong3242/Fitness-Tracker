@@ -51,6 +51,19 @@ export function login(email, password) {
     return authRequest("/auth/login", { email, password });
 }
 
+// Answers { ok, status, data } like signup/login: a wrong current password
+// is a 400 whose errors[0] explains it. Other devices get logged out.
+export async function changePassword(currentPassword, newPassword) {
+    const response = await request("POST", "/auth/password", { currentPassword, newPassword });
+    const data = await response.json().catch(() => null);
+    return { ok: response.ok, status: response.status, data };
+}
+
+// Ends every login of this account, this device's included.
+export function logoutEverywhere() {
+    return requestOk("POST", "/auth/logout-all");
+}
+
 // { id, email } of the logged-in account.
 export function fetchMe() {
     return requestJson("GET", "/auth/me");

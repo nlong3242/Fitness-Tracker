@@ -110,6 +110,36 @@ class AuthWebTest {
     }
 
     @Test
+    void changePasswordOverHttp() throws Exception {
+        String bearer = bearer(signup("long@example.com", "correct horse"));
+
+        changePassword(bearer, "wrong horse", "battery staple")
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errors[0].field").value("currentPassword"))
+            .andExpect(jsonPath("$.errors[0].message").value("Current password is incorrect."));
+        changePassword(bearer, "correct horse", "short")
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errors[0].field").value("newPassword"));
+        changePassword(bearer, "correct horse", "battery staple")
+            .andExpect(status().isNoContent());
+
+        mvc.perform(get("/auth/me").header("Authorization", bearer)).andExpect(status().isOk());
+        login("long@example.com", "battery staple").andExpect(status().isOk());
+    }
+
+    @Test
+    void logoutEverywhereOverHttp() throws Exception {
+        String phone = bearer(signup("long@example.com", "correct horse"));
+        String laptop = bearer(login("long@example.com", "correct horse"));
+
+        mvc.perform(post("/auth/logout-all").header("Authorization", phone))
+            .andExpect(status().isNoContent());
+
+        mvc.perform(get("/auth/me").header("Authorization", phone)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/auth/me").header("Authorization", laptop)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void browsersMaySendTheAuthorizationHeader() throws Exception {
         mvc.perform(options("/workouts")
                 .header("Origin", "http://127.0.0.1:5500")
@@ -123,6 +153,16 @@ class AuthWebTest {
         return mvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON)
             .content("{\"email\": \"" + email + "\", \"password\": \"" + password
                 + "\", \"inviteCode\": \"" + TestAuth.INVITE_CODE + "\"}"));
+    }
+
+    private ResultActions changePassword(String bearer, String current, String next) throws Exception {
+        return mvc.perform(post("/auth/password").header("Authorization", bearer)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"currentPassword\": \"" + current + "\", \"newPassword\": \"" + next + "\"}"));
+    }
+
+    private static String bearer(ResultActions loginOrSignup) throws Exception {
+        return "Bearer " + JsonPath.read(loginOrSignup.andReturn().getResponse().getContentAsString(), "$.token");
     }
 
     private ResultActions login(String email, String password) throws Exception {

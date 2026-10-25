@@ -1,4 +1,5 @@
-/* Settings — views/settings.js. */
+/* Settings — views/settings.js. Change password reuses the login page's
+   panel and fields (auth.css). */
 
 .settings-panel {
     background-color: var(--surface);
@@ -22,7 +23,22 @@
     overflow-wrap: anywhere;
 }
 
-.settings-logout {
+.settings-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-actions button {
     width: 100%;
     padding: 14px;
+}
+
+.settings-notice {
+    color: var(--text-primary);
+    margin: 0 0 14px 0;
+}
+
+.settings-notice.error {
+    color: var(--danger);
 }

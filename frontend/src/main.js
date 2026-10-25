@@ -1,5 +1,5 @@
 import { state, findWorkout } from "./state.js";
-import { fetchWorkouts, fetchUnfinishedSession, setUnauthorizedHandler, ApiError } from "./api.js";
+import { fetchWorkouts, fetchUnfinishedSession, fetchMe, setUnauthorizedHandler, ApiError } from "./api.js";
 import { getToken } from "./auth.js";
 import { renderBottomNav } from "./components/bottomNav.js";
 import { renderLoginPage } from "./views/login.js";
@@ -36,6 +36,24 @@ function trackVisualViewport() {
     sync();
 }
 
+/* A login ended elsewhere (Log out everywhere, a password change on another
+   device) only shows up on this device's next request. So ask the server
+   when the app comes back on screen: a refused login brings up the login
+   page at once (setUnauthorizedHandler), before the user taps anything.
+   At most every 30 s; offline, nothing happens. */
+const LOGIN_CHECK_EVERY_MS = 30 * 1000;
+let lastLoginCheck = Date.now();
+
+function checkLoginWhenShown() {
+    document.addEventListener("visibilitychange", function() {
+        if (document.visibilityState !== "visible" || !getToken()) return;
+        if (document.getElementById("auth-screen")) return;
+        if (Date.now() - lastLoginCheck < LOGIN_CHECK_EVERY_MS) return;
+        lastLoginCheck = Date.now();
+        fetchMe().catch(function() { /* 401 handled in api.js; offline: try next time */ });
+    });
+}
+
 async function bootstrap() {
     trackVisualViewport();
     // No login, or the server turned the token down: the login page, which
@@ -56,6 +74,7 @@ async function bootstrap() {
     initLiveWorkout();
     await restoreRoute();
     startIdleWatch();
+    checkLoginWhenShown();
 }
 
 bootstrap();

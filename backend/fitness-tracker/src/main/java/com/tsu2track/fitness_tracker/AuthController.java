@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tsu2track.fitness_tracker.dto.ChangePasswordRequest;
 import com.tsu2track.fitness_tracker.dto.LoginRequest;
 import com.tsu2track.fitness_tracker.dto.SignupRequest;
 import com.tsu2track.fitness_tracker.security.AuthUser;
@@ -44,6 +45,24 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
         authService.logout(TokenAuthFilter.bearerToken(authorization));
+        return ResponseEntity.noContent().build();
+    }
+
+    // Every device, this one included.
+    @PostMapping("/logout-all")
+    public ResponseEntity<Void> logoutEverywhere(@AuthenticationPrincipal AuthUser user) {
+        authService.logoutEverywhere(user.id());
+        return ResponseEntity.noContent().build();
+    }
+
+    // Keeps this device logged in and logs out the others.
+    @PostMapping("/password")
+    public ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal AuthUser user,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @Valid @RequestBody ChangePasswordRequest body) {
+        authService.changePassword(user.id(), TokenAuthFilter.bearerToken(authorization),
+            body.currentPassword(), body.newPassword());
         return ResponseEntity.noContent().build();
     }
 

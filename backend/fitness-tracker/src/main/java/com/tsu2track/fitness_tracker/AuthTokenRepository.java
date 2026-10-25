@@ -9,4 +9,6 @@ public interface AuthTokenRepository extends JpaRepository<AuthToken, Long> {
     Optional<AuthToken> findByTokenHash(String tokenHash);
     long deleteByTokenHash(String tokenHash);
     long deleteByUserIdAndLastUsedAtBefore(Long userId, LocalDateTime cutoff);
+    long deleteByUserId(Long userId);
+    long deleteByUserIdAndTokenHashNot(Long userId, String tokenHash);
 }

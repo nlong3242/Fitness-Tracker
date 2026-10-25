@@ -93,8 +93,8 @@ function endLoginOnThisDevice() {
     location.reload();
 }
 
-/* Current password, then the new one twice, with one Show/Hide for all
-   three (same parts as the login page, styles/pages/auth.css). On success
+/* Current password, then the new one twice, each with a Show/Hide (the
+   same parts as the login page, styles/pages/auth.css). On success
    other devices are logged out and this one carries on. */
 export function renderChangePasswordPage() {
     clearNavGuard();
@@ -112,12 +112,16 @@ export function renderChangePasswordPage() {
                 <div class="auth-password-row">
                     <input id="password-current" type="password" autocomplete="current-password">
                     <button type="button" class="btn-secondary auth-show" id="password-show"
-                            aria-controls="password-current password-new password-confirm"></button>
+                            aria-controls="password-current"></button>
                 </div>
             </div>
             <div class="auth-field">
                 <label class="auth-label" for="password-new">New password</label>
-                <input id="password-new" type="password" autocomplete="new-password">
+                <div class="auth-password-row">
+                    <input id="password-new" type="password" autocomplete="new-password">
+                    <button type="button" class="btn-secondary auth-show" id="password-show-new"
+                            aria-controls="password-new password-confirm"></button>
+                </div>
                 <span class="auth-hint">At least 8 characters. Other devices will be logged out.</span>
             </div>
             <div class="auth-field">
@@ -133,6 +137,7 @@ export function renderChangePasswordPage() {
     const next = document.getElementById("password-new");
     const confirm = document.getElementById("password-confirm");
     const show = document.getElementById("password-show");
+    const showNew = document.getElementById("password-show-new");
     const error = document.getElementById("password-error");
     const submit = document.getElementById("password-submit");
 
@@ -149,11 +154,18 @@ export function renderChangePasswordPage() {
         error.hidden = !message;
     }
 
+    // Each Show/Hide covers its own field; the new password's also covers
+    // its confirmation, as on the sign-up page.
+    function setShown(button, fields, shown, what) {
+        for (const field of fields) field.type = shown ? "text" : "password";
+        button.textContent = shown ? "Hide" : "Show";
+        button.setAttribute("aria-pressed", String(shown));
+        button.setAttribute("aria-label", (shown ? "Hide " : "Show ") + what);
+    }
+
     function setPasswordsShown(shown) {
-        for (const field of [current, next, confirm]) field.type = shown ? "text" : "password";
-        show.textContent = shown ? "Hide" : "Show";
-        show.setAttribute("aria-pressed", String(shown));
-        show.setAttribute("aria-label", shown ? "Hide passwords" : "Show passwords");
+        setShown(show, [current], shown, "current password");
+        setShown(showNew, [next, confirm], shown, "new password");
     }
 
     // What to tell the user, in the order they'd fix it.
@@ -168,7 +180,9 @@ export function renderChangePasswordPage() {
 
     // Tapping Show mustn't take focus from the field being typed in.
     show.onmousedown = function(e) { e.preventDefault(); };
-    show.onclick = function() { setPasswordsShown(current.type === "password"); };
+    show.onclick = function() { setShown(show, [current], current.type === "password", "current password"); };
+    showNew.onmousedown = function(e) { e.preventDefault(); };
+    showNew.onclick = function() { setShown(showNew, [next, confirm], next.type === "password", "new password"); };
 
     form.onsubmit = async function(e) {
         e.preventDefault();

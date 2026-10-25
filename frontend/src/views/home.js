@@ -1,6 +1,6 @@
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
 import { fetchOverview, fetchBodyWeightSummary, logBodyWeight } from "../api.js";
-import { findWorkout } from "../state.js";
+import { state, findWorkout } from "../state.js";
 import { startWorkout } from "./activeWorkout.js";
 import { liveWorkout } from "../components/liveWorkout.js";
 import { renderBodyWeightPage } from "./bodyweight.js";
@@ -66,6 +66,7 @@ export function renderHomePage() {
     container.innerHTML = `
         <div class="home-hero">
             <h1 class="home-title">Tsu2Track</h1>
+            <p class="home-greeting" id="home-greeting" hidden></p>
             <button type="button" class="btn-secondary home-settings-btn" id="home-settings-btn" aria-label="Settings">${GEAR}</button>
         </div>
 
@@ -110,6 +111,8 @@ export function renderHomePage() {
             <div class="home-stat">
                 <div class="home-stat-label">This week</div>
                 <div class="home-stat-value" id="home-week-count">–</div>
+                <div class="home-meter home-week-meter" id="home-week-meter" hidden><div class="home-meter-fill" id="home-week-fill"></div></div>
+                <div class="home-stat-sub" id="home-week-note"></div>
             </div>
             <div class="home-stat">
                 <div class="home-stat-label">Last session</div>
@@ -120,10 +123,35 @@ export function renderHomePage() {
     `;
 
     document.getElementById("home-settings-btn").onclick = function() { renderSettingsPage(); };
+    showGreeting();
     wireStartButton();
     wireWeightLogging();
     loadStats();
     loadBodyWeight();
+}
+
+// "Hi, <name>" under the title once there's a profile. Exported so the
+// set-up page can fill it in as it closes.
+function showGreeting() {
+    const greeting = document.getElementById("home-greeting");
+    if (!greeting) return;
+    const name = state.profile && state.profile.name;
+    greeting.textContent = name ? `Hi, ${name}` : "";
+    greeting.hidden = !name;
+}
+
+/* This week: "2 sessions", or with a weekly goal (profile) "2 / 4
+   sessions" over a meter, with a note once it's reached. */
+function showWeek(n) {
+    const goal = state.profile && state.profile.weeklyGoal;
+    const unit = n === 1 && !goal ? "session" : "sessions";
+    document.getElementById("home-week-count").innerHTML = goal
+        ? `${n}<span class="home-tile-unit"> / ${goal} ${unit}</span>`
+        : withUnit(n, unit);
+    const meter = document.getElementById("home-week-meter");
+    meter.hidden = !goal;
+    if (goal) document.getElementById("home-week-fill").style.width = `${Math.min(100, Math.round((n / goal) * 100))}%`;
+    document.getElementById("home-week-note").textContent = goal && n >= goal ? "Goal reached" : "";
 }
 
 // Latest summary, kept for the input's "last time" hint.
@@ -283,7 +311,7 @@ async function loadStats() {
     if (!countEl) return;
 
     const n = overview.sessionsThisWeek;
-    countEl.innerHTML = withUnit(n, n === 1 ? "session" : "sessions");
+    showWeek(n);
 
     // Older backends don't send these; leave the placeholders.
     if (overview.weekStreak !== undefined) {

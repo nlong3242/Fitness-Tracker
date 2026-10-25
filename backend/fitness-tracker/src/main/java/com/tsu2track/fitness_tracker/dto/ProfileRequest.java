@@ -22,7 +22,7 @@ public record ProfileRequest(
     @Max(value = 250, message = "Height must be between 100 and 250 cm.")
     Integer heightCm,
 
-    @Min(value = 1, message = "Weekly goal must be between 1 and 7.")
-    @Max(value = 7, message = "Weekly goal must be between 1 and 7.")
+    @Min(value = 1, message = "Weekly goal must be between 1 and 14.")
+    @Max(value = 14, message = "Weekly goal must be between 1 and 14.")
     Integer weeklyGoal
 ) {}

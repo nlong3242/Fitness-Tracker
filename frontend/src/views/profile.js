@@ -11,7 +11,7 @@ import { renderSettingsPage } from "./settings.js";
    - renderProfilePage(): edit it any time from Settings.
    Only the name is required; the rest can stay blank. */
 
-const GOALS = [1, 2, 3, 4, 5, 6, 7];
+const MAX_GOAL = 14;   // twice a day; the server checks the same
 
 function formHtml(heading, intro, submitLabel) {
     return `
@@ -37,10 +37,14 @@ function formHtml(heading, intro, submitLabel) {
             </label>
             <div class="auth-field">
                 <span class="auth-label" id="profile-goal-label">Weekly goal <span class="profile-optional">(optional)</span></span>
-                <div class="profile-goal-row" role="group" aria-labelledby="profile-goal-label">
-                    ${GOALS.map(n => `<button type="button" class="filter-pill profile-goal" data-goal="${n}" aria-pressed="false">${n}</button>`).join("")}
+                <div class="profile-goal-row">
+                    <button type="button" class="btn-secondary profile-goal-step" id="profile-goal-minus" aria-label="One fewer">−</button>
+                    <input id="profile-goal" type="text" inputmode="numeric" autocomplete="off" maxlength="2"
+                           placeholder="–" aria-labelledby="profile-goal-label">
+                    <button type="button" class="btn-secondary profile-goal-step" id="profile-goal-plus" aria-label="One more">+</button>
+                    <span class="profile-unit">a week</span>
                 </div>
-                <span class="auth-hint">Workouts per week. Tap again to clear.</span>
+                <span class="auth-hint">Workouts per week, up to ${MAX_GOAL}. Leave empty for no goal.</span>
             </div>
             <p class="auth-error" id="profile-error" role="alert" hidden></p>
             <button type="submit" class="auth-submit" id="profile-submit">${submitLabel}</button>
@@ -61,35 +65,47 @@ function wireForm(profile, onSaved) {
     const height = document.getElementById("profile-height");
     const error = document.getElementById("profile-error");
     const submit = document.getElementById("profile-submit");
-    const goalButtons = [...form.querySelectorAll(".profile-goal")];
+    const goal = document.getElementById("profile-goal");
+    const minus = document.getElementById("profile-goal-minus");
+    const plus = document.getElementById("profile-goal-plus");
 
     const today = new Date();
     const oldest = new Date(today.getFullYear() - 120, today.getMonth(), today.getDate());
     birth.max = localIso(today);
     birth.min = localIso(oldest);
 
-    let goal = null;
-    function setGoal(next) {
-        goal = next;
-        for (const b of goalButtons) {
-            const on = Number(b.dataset.goal) === goal;
-            b.classList.toggle("selected", on);
-            b.setAttribute("aria-pressed", String(on));
-        }
+    // Weekly goal: type it, or step it with − / +. − from 1 empties it (no
+    // goal); + from empty starts at 1. Anything typed that isn't a number
+    // counts as empty for stepping.
+    function goalNumber() {
+        const g = goal.value.trim();
+        return /^\d+$/.test(g) ? Number(g) : null;
     }
-    for (const b of goalButtons) {
-        b.onclick = function() {
-            const n = Number(b.dataset.goal);
-            setGoal(goal === n ? null : n);
-        };
+    function updateSteps() {
+        const n = goalNumber();
+        minus.disabled = n === null;
+        plus.disabled = n !== null && n >= MAX_GOAL;
     }
+    function setGoal(n) {
+        goal.value = n === null ? "" : String(n);
+        updateSteps();
+    }
+    minus.onclick = function() {
+        const n = goalNumber();
+        if (n !== null) setGoal(n <= 1 ? null : Math.min(n - 1, MAX_GOAL));
+    };
+    plus.onclick = function() {
+        const n = goalNumber();
+        setGoal(n === null || n < 1 ? 1 : Math.min(n + 1, MAX_GOAL));
+    };
+    goal.oninput = updateSteps;
 
     if (profile) {
         name.value = profile.name || "";
         birth.value = profile.birthDate || "";
         height.value = profile.heightCm != null ? String(profile.heightCm) : "";
-        setGoal(profile.weeklyGoal != null ? profile.weeklyGoal : null);
     }
+    setGoal(profile && profile.weeklyGoal != null ? profile.weeklyGoal : null);
 
     function showError(message) {
         error.textContent = message;
@@ -104,6 +120,10 @@ function wireForm(profile, onSaved) {
         const h = height.value.trim();
         if (h && !(/^\d+$/.test(h) && Number(h) >= 100 && Number(h) <= 250)) {
             return "Height must be between 100 and 250 cm.";
+        }
+        const g = goal.value.trim();
+        if (g && !(/^\d+$/.test(g) && Number(g) >= 1 && Number(g) <= MAX_GOAL)) {
+            return `Weekly goal must be between 1 and ${MAX_GOAL}.`;
         }
         return "";
     }
@@ -122,7 +142,7 @@ function wireForm(profile, onSaved) {
                 name: name.value.trim(),
                 birthDate: birth.value || null,
                 heightCm: height.value.trim() ? Number(height.value.trim()) : null,
-                weeklyGoal: goal,
+                weeklyGoal: goalNumber(),
             });
             if (!result.ok) {
                 const first = result.data && result.data.errors && result.data.errors[0];
@@ -149,8 +169,8 @@ export function showProfileSetup(onDone) {
     screen.innerHTML = `
         <div class="auth-page">
             <div class="home-hero"><h1 class="home-title">Tsu2Track</h1></div>
-            ${formHtml("Set up your profile",
-                "Tell us what to call you. Everything else is optional and can be changed later in Settings.",
+            ${formHtml("Tell us about you!",
+                "What should we call you? The rest is optional, and you can change it any time in Settings.",
                 "Save")}
         </div>
     `;

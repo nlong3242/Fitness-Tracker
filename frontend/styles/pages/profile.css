@@ -30,14 +30,25 @@
     width: 110px;
 }
 
+/* Weekly goal: − [n] + a week. */
 .profile-goal-row {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.profile-goal {
-    padding: 8px 0;
+.profile-goal-step {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 1.3em;
+    line-height: 1;
+    flex: none;
+}
+
+.auth-field .profile-goal-row input {
+    width: 64px;
+    text-align: center;
 }
 
 /* Date of birth. iOS Safari draws date inputs its own way: a minimum

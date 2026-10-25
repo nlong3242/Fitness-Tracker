@@ -89,10 +89,10 @@ class ProfileWebTest {
             "birthDate", "Date of birth is too far in the past.");
         expectError("{\"name\": \"Long\", \"heightCm\": 99}", "heightCm", "Height must be between 100 and 250 cm.");
         expectError("{\"name\": \"Long\", \"heightCm\": 251}", "heightCm", "Height must be between 100 and 250 cm.");
-        expectError("{\"name\": \"Long\", \"weeklyGoal\": 0}", "weeklyGoal", "Weekly goal must be between 1 and 7.");
-        expectError("{\"name\": \"Long\", \"weeklyGoal\": 8}", "weeklyGoal", "Weekly goal must be between 1 and 7.");
+        expectError("{\"name\": \"Long\", \"weeklyGoal\": 0}", "weeklyGoal", "Weekly goal must be between 1 and 14.");
+        expectError("{\"name\": \"Long\", \"weeklyGoal\": 15}", "weeklyGoal", "Weekly goal must be between 1 and 14.");
 
-        save(bearer, "{\"name\": \"" + "x".repeat(40) + "\", \"heightCm\": 250, \"weeklyGoal\": 7}")
+        save(bearer, "{\"name\": \"" + "x".repeat(40) + "\", \"heightCm\": 250, \"weeklyGoal\": 14}")
             .andExpect(status().isOk());
     }
 

@@ -4,9 +4,11 @@ import { getToken } from "./auth.js";
 import { renderBottomNav } from "./components/bottomNav.js";
 import { renderLoginPage } from "./views/login.js";
 import { showProfileSetup } from "./views/profile.js";
+import { renderHomePage } from "./views/home.js";
 import { restoreRoute } from "./router.js";
 import { initLiveWorkout } from "./components/liveWorkout.js";
 import { startIdleWatch } from "./autoEnd.js";
+import { keepCaretAtEnd } from "./utils/caretAtEnd.js";
 
 // Pick up a workout left in progress (page reloaded, iOS closed the app...)
 // so the home page can offer to resume it. Best-effort: skipped if this fails.
@@ -57,6 +59,7 @@ function checkLoginWhenShown() {
 
 async function bootstrap() {
     trackVisualViewport();
+    keepCaretAtEnd();
     // No login, or the server turned the token down: the login page, which
     // reloads the app once someone logs in.
     setUnauthorizedHandler(renderLoginPage);
@@ -82,7 +85,8 @@ async function bootstrap() {
     renderBottomNav();
     initLiveWorkout();
     await restoreRoute();
-    if (needsProfile) showProfileSetup();
+    // Home shows the name and weekly goal: draw it again once they exist.
+    if (needsProfile) showProfileSetup(function() { if (document.getElementById("home-greeting")) renderHomePage(); });
     startIdleWatch();
     checkLoginWhenShown();
 }

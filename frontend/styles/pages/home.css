@@ -319,3 +319,23 @@
     width: 28px;
     height: 28px;
 }
+
+/* "Hi, Long" under the title, from the profile. */
+.home-greeting {
+    margin: 14px 0 0 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* This week, with a weekly goal: progress toward it. */
+.home-week-meter {
+    margin-top: 6px;
+}
+
+.home-week-meter[hidden] {
+    display: none;
+}

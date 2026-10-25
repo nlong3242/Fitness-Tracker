@@ -14,11 +14,11 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     row.innerHTML = `
         <div class="set-input-num"></div>
         <div class="set-input-cell">
-            <input type="number" min="0" step="0.5" inputmode="decimal" class="set-input weight-input">
+            <input type="text" inputmode="decimal" autocomplete="off" maxlength="6" class="set-input weight-input">
             <span class="set-input-delta weight-delta"></span>
         </div>
         <div class="set-input-cell">
-            <input type="number" min="1" step="1" inputmode="numeric" class="set-input reps-input">
+            <input type="text" inputmode="numeric" autocomplete="off" maxlength="3" class="set-input reps-input">
             <span class="set-input-delta reps-delta"></span>
         </div>
         <button class="set-input-retry" aria-label="Retry">&#8635;</button>
@@ -156,8 +156,24 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         saveDraft();
     }
 
-    weightInput.oninput = onInputChange;
-    repsInput.oninput = onInputChange;
+    /* Plain text boxes (so tapping in puts the cursor at the end, see
+       utils/caretAtEnd.js), kept to numbers: weight takes one decimal
+       point, and a comma counts as one (some iPhone regions type "72,5");
+       reps take digits only. */
+    function keepNumber(input, decimal) {
+        let v = input.value;
+        if (decimal) {
+            v = v.replace(/,/g, ".").replace(/[^\d.]/g, "");
+            const dot = v.indexOf(".");
+            if (dot >= 0) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, "");
+        } else {
+            v = v.replace(/\D/g, "");
+        }
+        if (v !== input.value) input.value = v;
+    }
+
+    weightInput.oninput = function() { keepNumber(weightInput, true); onInputChange(); };
+    repsInput.oninput = function() { keepNumber(repsInput, false); onInputChange(); };
 
     /* A saved set exists only while both fields are filled: emptying either
        one deletes it (the remaining value stays on screen, unsaved), and

@@ -33,11 +33,11 @@ export async function viewWorkout(workoutId) {
         <h2>${escapeHtml(workout.name)}</h2>
         <div class="page-actions">
             <button id="workout-add-exercise-btn">Add Exercise</button>
-            <button id="workout-start-btn">Start Workout</button>
+            <button id="workout-past-sessions-btn">Past Sessions</button>
             <button id="workout-schedule-btn">Schedule</button>
         </div>
         <div class="page-actions">
-            <button id="workout-past-sessions-btn">Past Sessions</button>
+            <button class="wd-start-btn" id="workout-start-btn">Start Workout</button>
         </div>
         <ul id="exercise-list"></ul>
         <div id="exercise-list-empty" class="empty-sessions" hidden></div>

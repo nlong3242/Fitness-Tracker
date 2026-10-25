@@ -167,7 +167,9 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
     };
 }
 
-export async function addExercise(workoutId) {
+// onDone: where Cancel and Add go (default the workout's page).
+export async function addExercise(workoutId, onDone) {
+    const done = onDone || function() { viewWorkout(workoutId); };
     const workout = findWorkout(workoutId);
     const workoutExercises = await fetchWorkoutExercises(workout.id);
     const excludedIds = workoutExercises.map(e => e.id);
@@ -175,12 +177,12 @@ export async function addExercise(workoutId) {
         title: `Add to ${workout.name}`,
         workoutLabel: workout.name,
         excludedIds: excludedIds,
-        onCancel: function() { viewWorkout(workoutId); },
+        onCancel: done,
         onConfirm: async function(selected) {
             for (const ex of selected) {
                 await linkExerciseToWorkout(workout.id, ex.id);
             }
-            viewWorkout(workoutId);
+            done();
         }
     });
 }

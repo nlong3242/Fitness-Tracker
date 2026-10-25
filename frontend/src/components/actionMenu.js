@@ -1,5 +1,23 @@
-/* A small pop-up menu opened by a ⋮ button (the workout page's exercise
-   rows). items: [{ label, danger, onSelect() }].
+/* A row's ⋮ button (the workout list and the workout page's exercises):
+   a see-through 44px tap area with a small box drawn inside. Tapping it
+   opens the menu that items() returns, without opening the row. */
+export function createMoreButton(ariaLabel, items) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "more-btn";
+    button.setAttribute("aria-label", ariaLabel);
+    button.setAttribute("aria-haspopup", "menu");
+    button.setAttribute("aria-expanded", "false");
+    button.innerHTML = `<span class="more-box"><svg viewBox="0 0 4 20" aria-hidden="true" fill="currentColor">`
+        + `<rect y="0" width="4" height="4"/><rect y="8" width="4" height="4"/><rect y="16" width="4" height="4"/></svg></span>`;
+    button.onclick = function(e) {
+        e.stopPropagation();
+        showActionMenu(button, items());
+    };
+    return button;
+}
+
+/* A small pop-up menu opened by a ⋮ button. items: [{ label, danger, onSelect() }].
    A see-through backdrop takes the tap outside, so closing the menu never
    also opens whatever is underneath; Esc closes it too. It opens below the
    button, or above it when there's no room above the tab bar. */

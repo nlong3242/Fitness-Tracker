@@ -7,8 +7,11 @@ import { viewWorkout } from "./workoutDetail.js";
 import { viewSessionSummary } from "./summary.js";
 import { setRoute } from "../router.js";
 
-export async function viewPastSessions(workoutId) {
+// onBack: where Back goes (default the workout's page; the workout list's
+// ⋮ passes its own).
+export async function viewPastSessions(workoutId, onBack) {
     clearNavGuard();
+    const back = onBack || function() { viewWorkout(workoutId); };
     const workout = findWorkout(workoutId);
     setRoute(`#/workouts/${workoutId}/sessions`);
 
@@ -22,7 +25,7 @@ export async function viewPastSessions(workoutId) {
         </div>
     `;
 
-    document.getElementById("past-sessions-back-btn").onclick = function() { viewWorkout(workoutId); };
+    document.getElementById("past-sessions-back-btn").onclick = back;
 
     let nextPage = 0;
     let sessionIndex = 1;
@@ -40,7 +43,7 @@ export async function viewPastSessions(workoutId) {
             row.className = "session-row";
             row.innerHTML = `<span class="session-index">${sessionIndex}.</span> ${formatSessionDate(session.date)}`;
             row.onclick = function() {
-                viewSessionSummary(workoutId, session.id, session.date, function() { viewPastSessions(workoutId); });
+                viewSessionSummary(workoutId, session.id, session.date, function() { viewPastSessions(workoutId, back); });
             };
 
             const deleteBtn = document.createElement("button");
@@ -55,7 +58,7 @@ export async function viewPastSessions(workoutId) {
                 if (!confirmed) return;
                 await deleteSession(session.id);
                 if (state.currentSessionId === session.id) clearCurrentSession();
-                viewPastSessions(workoutId);
+                viewPastSessions(workoutId, back);
             };
             row.appendChild(deleteBtn);
 

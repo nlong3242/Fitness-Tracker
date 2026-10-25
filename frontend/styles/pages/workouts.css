@@ -1,6 +1,76 @@
 /* Workouts list + Create Workout — views/workouts.js.
-   The plain list and Delete buttons inherit base/elements.css.
-   This file owns the Create Workout form (workout name input). */
+   The list rows inherit base/elements.css, with a ⋮ from
+   components/action-menu.css. This file owns the row's text and Start
+   button, and the Create Workout form (workout name input). */
+
+.workout-row-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.workout-row-name {
+    overflow-wrap: anywhere;
+}
+
+.workout-row-count {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+/* Start / Resume: pink like the app's main buttons (not the red that
+   base/elements.css gives a button inside an <li>). */
+li .workout-row-start {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 38px;
+    margin-left: 12px;
+    padding: 6px 14px;
+    font-size: 1em;
+    background-color: var(--accent-pink);
+    color: var(--text-primary);
+    box-shadow:
+        inset -2px -2px 0 var(--accent-pink-shade),
+        inset 2px 2px 0 var(--accent-pink-light),
+        0 2px 0 var(--frame);
+}
+
+@media (hover: hover) {
+    li .workout-row-start:hover {
+        background-color: var(--accent-pink-hover);
+    }
+}
+
+li .workout-row-start:active {
+    box-shadow:
+        inset -2px -2px 0 var(--accent-pink-shade),
+        inset 2px 2px 0 var(--accent-pink-light);
+}
+
+li .workout-row-start svg {
+    display: block;
+    width: 8px;
+    height: 14px;
+}
+
+/* The workout that's open: green, like the live light. */
+li .workout-row-start.live {
+    background-color: var(--action);
+    box-shadow:
+        inset -2px -2px 0 rgba(0, 0, 0, 0.18),
+        inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+        0 2px 0 var(--frame);
+}
+
+@media (hover: hover) {
+    li .workout-row-start.live:hover {
+        background-color: var(--action-hover);
+    }
+}
 
 .create-workout-form {
     margin: 15px 0;

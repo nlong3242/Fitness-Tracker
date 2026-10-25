@@ -11,8 +11,8 @@ import {
     showScheduleForWorkoutModal
 } from "../components/modals.js";
 import { clearNavGuard } from "../components/bottomNav.js";
-import { showActionMenu } from "../components/actionMenu.js";
-import { renderWorkouts } from "./workouts.js";
+import { createMoreButton } from "../components/actionMenu.js";
+import { renderWorkouts, workoutMenu } from "./workouts.js";
 import { addExercise, replaceExercise } from "./exercisePicker.js";
 import { startWorkout } from "./activeWorkout.js";
 import { viewPastSessions } from "./pastSessions.js";
@@ -30,11 +30,11 @@ export async function viewWorkout(workoutId) {
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <h2>${escapeHtml(workout.name)}</h2>
+        <div class="wd-header">
+            <h2>${escapeHtml(workout.name)}</h2>
+        </div>
         <div class="page-actions">
             <button id="workout-add-exercise-btn">Add Exercise</button>
-            <button id="workout-past-sessions-btn">Past Sessions</button>
-            <button id="workout-schedule-btn">Schedule</button>
         </div>
         <div class="page-actions">
             <button class="wd-start-btn" id="workout-start-btn">Start Workout</button>
@@ -47,25 +47,14 @@ export async function viewWorkout(workoutId) {
     `;
 
     document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutId); };
+    // The workout's other actions, the same ⋮ as on the workout list.
+    container.querySelector(".wd-header").appendChild(createMoreButton(`Options for ${workout.name}`, function() {
+        return workoutMenu(workout, {
+            pastSessions: function() { viewPastSessions(workoutId); }
+        });
+    }));
     const startBtn = document.getElementById("workout-start-btn");
     startBtn.onclick = function() { startWorkout(workoutId); };
-    document.getElementById("workout-schedule-btn").onclick = async function() {
-        const todayIso = isoToday();
-        const result = await showScheduleForWorkoutModal({
-            workoutName: workout.name,
-            todayIso: todayIso,
-            onSave: function(data) {
-                return createSchedule({
-                    date: data.date,
-                    workoutId: workout.id,
-                    notes: data.notes
-                });
-            }
-        });
-        if (!result) return;
-        await navigateToCalendarDay(result.schedule.date);
-    };
-    document.getElementById("workout-past-sessions-btn").onclick = function() { viewPastSessions(workoutId); };
     document.getElementById("workout-back-btn").onclick = renderWorkouts;
 
     const list = document.getElementById("exercise-list");
@@ -79,12 +68,12 @@ export async function viewWorkout(workoutId) {
 
     // Each row's ⋮: changes to this workout's exercise. Tapping the row
     // itself just opens the exercise to look at.
-    function openRowMenu(button, exercise) {
-        showActionMenu(button, [
+    function rowMenu(exercise) {
+        return [
             { label: "Replace exercise", onSelect: function() { replaceExercise(workoutId, exercise); } },
             { label: "Edit exercise", onSelect: function() { editExercise(exercise, exerciseOpts); } },
             { label: "Remove from workout", danger: true, onSelect: function() { removeFromWorkout(exercise); } }
-        ]);
+        ];
     }
 
     // Off this workout only; the exercise stays in the library.
@@ -97,14 +86,6 @@ export async function viewWorkout(workoutId) {
         }
         workout.exercises = workout.exercises.filter(e => e.id !== exercise.id);
         rebuildExerciseList();
-    }
-
-    function isoToday() {
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${day}`;
     }
 
     const emptyState = document.getElementById("exercise-list-empty");
@@ -124,19 +105,7 @@ export async function viewWorkout(workoutId) {
             item.className = "exercise-row draggable-row";
             item.style.cursor = "pointer";
             item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
-            const moreBtn = document.createElement("button");
-            moreBtn.type = "button";
-            moreBtn.className = "wd-more-btn";
-            moreBtn.setAttribute("aria-label", `Options for ${exercise.name}`);
-            moreBtn.setAttribute("aria-haspopup", "menu");
-            moreBtn.setAttribute("aria-expanded", "false");
-            moreBtn.innerHTML = `<span class="wd-more-box"><svg viewBox="0 0 4 20" aria-hidden="true" fill="currentColor">`
-                + `<rect y="0" width="4" height="4"/><rect y="8" width="4" height="4"/><rect y="16" width="4" height="4"/></svg></span>`;
-            moreBtn.onclick = function(e) {
-                e.stopPropagation();
-                openRowMenu(moreBtn, exercise);
-            };
-            item.appendChild(moreBtn);
+            item.appendChild(createMoreButton(`Options for ${exercise.name}`, function() { return rowMenu(exercise); }));
             item.onclick = function() { renderExercisePage(exercise, exerciseOpts); };
             list.appendChild(item);
             if (workout.exercises.length > 1) {
@@ -159,4 +128,30 @@ export async function viewWorkout(workoutId) {
         }
     }
     rebuildExerciseList();
+}
+
+/* Schedule (the workout's ⋮, here and on the workout list): pick a date, then that
+   day opens in the calendar. */
+export async function scheduleWorkout(workout) {
+    const result = await showScheduleForWorkoutModal({
+        workoutName: workout.name,
+        todayIso: isoToday(),
+        onSave: function(data) {
+            return createSchedule({
+                date: data.date,
+                workoutId: workout.id,
+                notes: data.notes
+            });
+        }
+    });
+    if (!result) return;
+    await navigateToCalendarDay(result.schedule.date);
+}
+
+function isoToday() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
 }

@@ -1,6 +1,66 @@
-/* Action menu — components/actionMenu.js: the pop-up list a ⋮ button opens.
-   The backdrop is see-through; it only catches the tap outside. Sits under
-   the modals (1000) and over the tab bar (100). */
+/* Action menu — components/actionMenu.js: a ⋮ button (on list rows and
+   the workout page's title) and the pop-up list it opens. */
+
+/* The ⋮: a see-through 44px square a thumb can hit on the gym floor
+   (negative margins keep the row its usual height); the small cream box
+   inside is what shows. Overrides the red that base/elements.css gives a
+   button inside an <li>. */
+.more-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: -6px -6px -6px 6px;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    color: var(--text-primary);
+}
+
+@media (hover: hover) {
+    .more-btn:hover {
+        background: none;
+    }
+    .more-btn:hover .more-box {
+        background-color: #E9D9C4;
+    }
+}
+
+.more-btn:active {
+    box-shadow: none;
+}
+
+.more-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    box-sizing: border-box;
+    background-color: var(--surface-sunk);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
+    box-shadow:
+        inset -2px -2px 0 var(--frame-soft),
+        inset 2px 2px 0 var(--surface);
+}
+
+.more-btn[aria-expanded="true"] .more-box {
+    background-color: var(--accent-pink);
+}
+
+/* Three square "pixels" stacked. */
+.more-box svg {
+    display: block;
+    width: 3px;
+    height: 15px;
+}
+
+/* The menu. The backdrop is see-through; it only catches the tap outside.
+   Sits under the modals (1000) and over the tab bar (100). */
 
 .action-menu-backdrop {
     position: fixed;

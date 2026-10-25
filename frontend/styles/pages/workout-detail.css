@@ -1,6 +1,7 @@
 /* Workout detail — views/workoutDetail.js.
-   The exercise rows are plain <li>s inheriting from base/elements.css;
-   the page-actions rows inherit from layout/page.css. */
+   The exercise rows are plain <li>s inheriting from base/elements.css,
+   with a ⋮ from components/action-menu.css; the page-actions rows inherit
+   from layout/page.css. */
 
 /* Start Workout: the page's main action, a wide button on its own row. */
 .wd-start-btn {
@@ -9,60 +10,15 @@
     font-size: 1.25em;
 }
 
-/* The ⋮ on each row. The button is a see-through 44px square a thumb can
-   hit on the gym floor (negative margins keep the row its usual height);
-   the small cream box inside is what shows. Overrides the red that
-   base/elements.css gives a button inside an <li>. */
-li .wd-more-btn {
-    flex-shrink: 0;
+/* Title with the workout's ⋮ on the right. */
+.wd-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    margin: -6px -6px -6px 6px;
-    padding: 0;
-    background: none;
-    border: none;
-    box-shadow: none;
-    color: var(--text-primary);
+    justify-content: space-between;
+    gap: 12px;
 }
 
-@media (hover: hover) {
-    li .wd-more-btn:hover {
-        background: none;
-    }
-    li .wd-more-btn:hover .wd-more-box {
-        background-color: #E9D9C4;
-    }
-}
-
-li .wd-more-btn:active {
-    box-shadow: none;
-}
-
-.wd-more-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    box-sizing: border-box;
-    background-color: var(--surface-sunk);
-    border: 2px solid var(--frame);
-    border-radius: 3px;
-    box-shadow:
-        inset -2px -2px 0 var(--frame-soft),
-        inset 2px 2px 0 var(--surface);
-}
-
-li .wd-more-btn[aria-expanded="true"] .wd-more-box {
-    background-color: var(--accent-pink);
-}
-
-/* Three square "pixels" stacked. */
-.wd-more-box svg {
-    display: block;
-    width: 3px;
-    height: 15px;
+.wd-header h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }

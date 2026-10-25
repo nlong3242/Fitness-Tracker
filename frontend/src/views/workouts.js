@@ -4,13 +4,19 @@ import { clearDrafts } from "../drafts.js";
 import {
     createWorkout,
     deleteWorkout,
+    fetchWorkouts,
     linkExerciseToWorkout
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { showConfirmModal } from "../components/modals.js";
+import { createMoreButton } from "../components/actionMenu.js";
+import { liveWorkout } from "../components/liveWorkout.js";
 import { setActiveTab, setNavGuard, clearNavGuard } from "../components/bottomNav.js";
-import { viewWorkout } from "./workoutDetail.js";
-import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
+import { viewWorkout, scheduleWorkout } from "./workoutDetail.js";
+import { renderMultiSelectExercisePicker, addExercise } from "./exercisePicker.js";
+import { viewPastSessions } from "./pastSessions.js";
+import { startWorkout } from "./activeWorkout.js";
+import { escapeHtml } from "../utils/format.js";
 import { setRoute } from "../router.js";
 
 export function renderWorkouts() {
@@ -30,31 +36,84 @@ export function renderWorkouts() {
     document.getElementById("workouts-back-btn").onclick = function() { setActiveTab("home"); };
 
     const list = document.getElementById("workout-list");
+    drawWorkoutRows(list);
+    // state.workouts is loaded at startup, so exercise counts can be stale
+    // (exercises added or removed since). Draw now, then again once fresh.
+    fetchWorkouts().then(function(fresh) {
+        state.workouts = fresh;
+        if (list.isConnected) drawWorkoutRows(list);
+    }).catch(function() { /* keep the cached list */ });
+}
+
+/* Each row: name and exercise count; Start (Resume for the workout that's
+   open) right there, so a known workout starts in one tap; a ⋮ with the
+   workout page's other actions and Delete. Tapping the row opens the
+   workout. An empty workout can't be
+   started. */
+function drawWorkoutRows(list) {
+    list.innerHTML = "";
+    const live = liveWorkout();
     for (const workout of state.workouts) {
         const item = document.createElement("li");
-        const nameText = document.createTextNode(workout.name);
+        item.className = "workout-row";
         item.style.cursor = "pointer";
         item.onclick = function() { viewWorkout(workout.id); };
 
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "Delete";
-        deleteBtn.onclick = async function(event) {
-            event.stopPropagation();
-            const confirmed = await showConfirmModal(`Delete workout "${workout.name}"?`, "Delete");
-            if (!confirmed) return;
-            await deleteWorkout(workout.id);
-            // Its sessions go with it, including one still in progress.
-            if (state.currentWorkoutId === workout.id) clearCurrentSession();
-            if (getStartedWorkoutId() === workout.id) clearStartedWorkout();
-            if (getStartedWorkoutId() === null && state.currentSessionId === null) clearDrafts();
-            state.workouts = state.workouts.filter(w => w.id !== workout.id);
-            renderWorkouts();
-        };
+        const count = workout.exerciseCount || 0;
+        const text = document.createElement("div");
+        text.className = "workout-row-text";
+        text.innerHTML = `<span class="workout-row-name">${escapeHtml(workout.name)}</span>`
+            + `<span class="workout-row-count">${count === 0 ? "No exercises" : count === 1 ? "1 exercise" : `${count} exercises`}</span>`;
+        item.appendChild(text);
 
-        item.appendChild(nameText);
-        item.appendChild(deleteBtn);
+        const isLive = live !== null && live.id === workout.id;
+        if (count > 0 || isLive) {
+            const startBtn = document.createElement("button");
+            startBtn.type = "button";
+            startBtn.className = "workout-row-start" + (isLive ? " live" : "");
+            startBtn.innerHTML = isLive ? "Resume"
+                : `<svg viewBox="0 0 4 7" aria-hidden="true" fill="currentColor"><path d="M0 0h1v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-1z"/></svg>Start`;
+            startBtn.setAttribute("aria-label", `${isLive ? "Resume" : "Start"} ${workout.name}`);
+            startBtn.onclick = function(e) {
+                e.stopPropagation();
+                startWorkout(workout.id);
+            };
+            item.appendChild(startBtn);
+        }
+
+        item.appendChild(createMoreButton(`Options for ${workout.name}`, function() {
+            return workoutMenu(workout, {
+                addExercise: function() { addExercise(workout.id, renderWorkouts); },
+                pastSessions: function() { viewPastSessions(workout.id, renderWorkouts); }
+            });
+        }));
         list.appendChild(item);
     }
+}
+
+/* A workout's ⋮ (on the list and on its own page). Add exercise and Past
+   sessions come back to wherever it was opened from, so the caller passes
+   those; no addExercise means no Add exercise item (the workout's page
+   has its own button). Delete always ends on the list. */
+export function workoutMenu(workout, actions) {
+    return [
+        ...(actions.addExercise ? [{ label: "Add exercise", onSelect: actions.addExercise }] : []),
+        { label: "Past sessions", onSelect: actions.pastSessions },
+        { label: "Schedule", onSelect: function() { scheduleWorkout(workout); } },
+        { label: "Delete workout", danger: true, onSelect: function() { removeWorkout(workout); } }
+    ];
+}
+
+async function removeWorkout(workout) {
+    const confirmed = await showConfirmModal(`Delete workout "${workout.name}"?`, "Delete");
+    if (!confirmed) return;
+    await deleteWorkout(workout.id);
+    // Its sessions go with it, including one still in progress.
+    if (state.currentWorkoutId === workout.id) clearCurrentSession();
+    if (getStartedWorkoutId() === workout.id) clearStartedWorkout();
+    if (getStartedWorkoutId() === null && state.currentSessionId === null) clearDrafts();
+    state.workouts = state.workouts.filter(w => w.id !== workout.id);
+    renderWorkouts();
 }
 
 /* options (optional):

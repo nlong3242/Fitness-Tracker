@@ -151,6 +151,7 @@ async function openWorkouts(parts, params) {
             openExercise(exercise, parts[4], {
                 routeFor: eid => `#/workouts/${workoutId}/exercises/${eid}`,
                 onBack: function() { viewWorkout(workoutId); },
+                onDone: function() { viewWorkout(workoutId); },
                 workout: { id: workout.id, name: workout.name }
             });
             return true;

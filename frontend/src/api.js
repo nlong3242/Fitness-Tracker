@@ -153,6 +153,10 @@ export function removeWorkoutExercise(workoutId, exerciseId) {
     return request("DELETE", `/workouts/${workoutId}/exercises/${exerciseId}`);
 }
 
+export function replaceWorkoutExercise(workoutId, exerciseId, replacementId) {
+    return request("PUT", `/workouts/${workoutId}/exercises/${exerciseId}/replace/${replacementId}`);
+}
+
 export function reorderWorkoutExercises(workoutId, orderedExerciseIds) {
     return request("PATCH", `/workouts/${workoutId}/exercises/order`, { orderedExerciseIds });
 }

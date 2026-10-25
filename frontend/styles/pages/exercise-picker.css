@@ -41,10 +41,81 @@
     color: var(--text-primary);
 }
 
+/* Add / Replace floats above the tab bar, over the list, so it's in reach
+   wherever the list is scrolled. Hidden until something is ticked, then
+   slides up (.shown, set in exercisePicker.js). One pink bar: ✕ (clear
+   the ticks) on the left, the action filling the rest. */
 .picker-action-bar {
+    position: fixed;
+    bottom: calc(var(--nav-height) + 24px);
+    left: max(16px, env(safe-area-inset-left));
+    right: max(16px, env(safe-area-inset-right));
+    max-width: 468px;
+    margin: 0 auto;
+    z-index: 100;
     display: flex;
-    justify-content: flex-end;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 2px dashed var(--frame-soft);
+    align-items: stretch;
+    min-height: 58px;
+    background-color: var(--accent-pink);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
+    box-shadow:
+        inset -2px -2px 0 var(--accent-pink-shade),
+        inset 2px 2px 0 var(--accent-pink-light),
+        0 3px 0 var(--frame),
+        0 6px 14px var(--shadow-hard);
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(16px);
+    transition: opacity 0.15s, transform 0.15s, visibility 0.15s;
+}
+
+.picker-action-bar.shown {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+}
+
+/* The two parts are flat; the bar carries the frame and bevel. */
+.picker-action-bar button,
+.picker-action-bar button:disabled {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--text-primary);
+    opacity: 1;
+    transform: none;
+}
+
+.picker-action-bar button:active {
+    background-color: var(--accent-pink-hover);
+}
+
+#picker-clear-btn {
+    flex: 0 0 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+#picker-clear-btn svg {
+    display: block;
+    width: 21px;
+    height: 21px;
+}
+
+/* Label centred on the whole bar, not just the part right of the ✕. */
+#picker-add-btn {
+    flex: 1;
+    padding: 12px 58px 12px 0;
+    font-size: 1.2em;
+    text-align: center;
+}
+
+/* Room for the last rows to scroll up clear of the floating button. */
+#app-content:has(.picker-action-bar) {
+    padding-bottom: calc(var(--nav-height) + 104px);
 }

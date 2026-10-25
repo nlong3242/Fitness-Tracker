@@ -1,0 +1,57 @@
+/* Action menu — components/actionMenu.js: the pop-up list a ⋮ button opens.
+   The backdrop is see-through; it only catches the tap outside. Sits under
+   the modals (1000) and over the tab bar (100). */
+
+.action-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+}
+
+.action-menu {
+    position: fixed;
+    z-index: 901;
+    min-width: 210px;
+    max-width: calc(100vw - 16px);
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: 0 3px 0 var(--frame), 0 6px 14px var(--shadow-hard);
+    overflow: hidden;
+}
+
+/* Rows, not buttons: no bevel or press-drop from the global button style. */
+.action-menu-item {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 18px;
+    background-color: transparent;
+    color: var(--text-primary);
+    border: none;
+    border-bottom: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+    text-align: left;
+    font-size: 1.05em;
+}
+
+.action-menu-item:last-child {
+    border-bottom: none;
+}
+
+.action-menu-item:active {
+    transform: none;
+    box-shadow: none;
+    background-color: var(--surface-sunk);
+}
+
+@media (hover: hover) {
+    .action-menu-item:hover {
+        background-color: var(--surface-sunk);
+    }
+}
+
+.action-menu-item.danger {
+    color: var(--danger);
+}

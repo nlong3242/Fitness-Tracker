@@ -2,6 +2,7 @@ import { findWorkout } from "../state.js";
 import {
     fetchWorkoutExercises,
     reorderWorkoutExercises,
+    removeWorkoutExercise,
     createSchedule
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
@@ -10,11 +11,13 @@ import {
     showScheduleForWorkoutModal
 } from "../components/modals.js";
 import { clearNavGuard } from "../components/bottomNav.js";
+import { showActionMenu } from "../components/actionMenu.js";
 import { renderWorkouts } from "./workouts.js";
-import { addExercise } from "./exercisePicker.js";
+import { addExercise, replaceExercise } from "./exercisePicker.js";
 import { startWorkout } from "./activeWorkout.js";
 import { viewPastSessions } from "./pastSessions.js";
 import { renderExercisePage } from "./exercisePage.js";
+import { editExercise } from "./exerciseEdit.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { escapeHtml } from "../utils/format.js";
 import { setRoute } from "../router.js";
@@ -45,11 +48,7 @@ export async function viewWorkout(workoutId) {
 
     document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutId); };
     const startBtn = document.getElementById("workout-start-btn");
-    if (workout.exercises.length === 0) {
-        startBtn.disabled = true;
-    } else {
-        startBtn.onclick = function() { startWorkout(workoutId); };
-    }
+    startBtn.onclick = function() { startWorkout(workoutId); };
     document.getElementById("workout-schedule-btn").onclick = async function() {
         const todayIso = isoToday();
         const result = await showScheduleForWorkoutModal({
@@ -71,6 +70,35 @@ export async function viewWorkout(workoutId) {
 
     const list = document.getElementById("exercise-list");
 
+    const exerciseOpts = {
+        routeFor: id => `#/workouts/${workoutId}/exercises/${id}`,
+        onBack: function() { viewWorkout(workoutId); },
+        onDone: function() { viewWorkout(workoutId); },
+        workout: { id: workout.id, name: workout.name }
+    };
+
+    // Each row's ⋮: changes to this workout's exercise. Tapping the row
+    // itself just opens the exercise to look at.
+    function openRowMenu(button, exercise) {
+        showActionMenu(button, [
+            { label: "Replace exercise", onSelect: function() { replaceExercise(workoutId, exercise); } },
+            { label: "Edit exercise", onSelect: function() { editExercise(exercise, exerciseOpts); } },
+            { label: "Remove from workout", danger: true, onSelect: function() { removeFromWorkout(exercise); } }
+        ]);
+    }
+
+    // Off this workout only; the exercise stays in the library.
+    async function removeFromWorkout(exercise) {
+        if (!(await showConfirmModal(`Remove "${exercise.name}" from "${workout.name}"?`, "Remove"))) return;
+        const resp = await removeWorkoutExercise(workout.id, exercise.id);
+        if (!resp.ok) {
+            await showConfirmModal("Couldn't remove the exercise.", "OK");
+            return;
+        }
+        workout.exercises = workout.exercises.filter(e => e.id !== exercise.id);
+        rebuildExerciseList();
+    }
+
     function isoToday() {
         const d = new Date();
         const y = d.getFullYear();
@@ -83,6 +111,7 @@ export async function viewWorkout(workoutId) {
 
     function rebuildExerciseList() {
         list.innerHTML = "";
+        startBtn.disabled = workout.exercises.length === 0;
         if (workout.exercises.length === 0) {
             emptyState.textContent = `No exercises for "${workout.name}" yet.`;
             emptyState.hidden = false;
@@ -95,13 +124,20 @@ export async function viewWorkout(workoutId) {
             item.className = "exercise-row draggable-row";
             item.style.cursor = "pointer";
             item.appendChild(document.createTextNode(`${i + 1}. ${exercise.name}`));
-            item.onclick = function() {
-                renderExercisePage(exercise, {
-                    routeFor: id => `#/workouts/${workoutId}/exercises/${id}`,
-                    onBack: function() { viewWorkout(workoutId); },
-                    workout: { id: workout.id, name: workout.name }
-                });
+            const moreBtn = document.createElement("button");
+            moreBtn.type = "button";
+            moreBtn.className = "wd-more-btn";
+            moreBtn.setAttribute("aria-label", `Options for ${exercise.name}`);
+            moreBtn.setAttribute("aria-haspopup", "menu");
+            moreBtn.setAttribute("aria-expanded", "false");
+            moreBtn.innerHTML = `<span class="wd-more-box"><svg viewBox="0 0 4 20" aria-hidden="true" fill="currentColor">`
+                + `<rect y="0" width="4" height="4"/><rect y="8" width="4" height="4"/><rect y="16" width="4" height="4"/></svg></span>`;
+            moreBtn.onclick = function(e) {
+                e.stopPropagation();
+                openRowMenu(moreBtn, exercise);
             };
+            item.appendChild(moreBtn);
+            item.onclick = function() { renderExercisePage(exercise, exerciseOpts); };
             list.appendChild(item);
             if (workout.exercises.length > 1) {
                 attachLongPressDrag(item, {

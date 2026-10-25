@@ -1,8 +1,10 @@
 import {
     fetchExercises,
     fetchWorkoutExercises,
-    linkExerciseToWorkout
+    linkExerciseToWorkout,
+    replaceWorkoutExercise
 } from "../api.js";
+import { showConfirmModal } from "../components/modals.js";
 import { findWorkout } from "../state.js";
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 import { renderExerciseCreatePage } from "./exerciseEdit.js";
@@ -14,7 +16,10 @@ import { filterExercises, exerciseNameHtml, emptyListMessage } from "../componen
 import { viewWorkout } from "./workoutDetail.js";
 
 // kept: { selectedIds, category, query } to start from (back from Create Exercise).
+// opts.single: only one can be ticked (Replace exercise); opts.confirmLabel(count)
+// gives the button's text (default "Add n to <workout>").
 export async function renderMultiSelectExercisePicker(opts, kept) {
+    const confirmLabel = opts.confirmLabel || (n => `Add ${n} to "${opts.workoutLabel}"`);
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>${escapeHtml(opts.title)}</h2>
@@ -27,7 +32,12 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
         <div id="picker-pill-row" class="library-pill-row"></div>
         <div id="picker-list"></div>
         <div class="picker-action-bar">
-            <button id="picker-add-btn" disabled>Add 0 to "${escapeHtml(opts.workoutLabel)}"</button>
+            <button type="button" id="picker-clear-btn" aria-label="Clear selection">
+                <svg viewBox="0 0 7 7" aria-hidden="true" fill="currentColor">
+                    ${[0, 1, 2, 3, 4, 5, 6].map(i => `<rect x="${i}" y="${i}" width="1" height="1"/><rect x="${6 - i}" y="${i}" width="1" height="1"/>`).join("")}
+                </svg>
+            </button>
+            <button id="picker-add-btn" disabled>${escapeHtml(confirmLabel(0))}</button>
         </div>
     `;
 
@@ -42,9 +52,12 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
     let selectedCategory = kept?.category || "ALL";
     const selectedIds = new Set(kept?.selectedIds || []);
 
+    // The button floats in only once something is ticked. Its text stays
+    // as it was while it slides away, rather than flashing "Add 0".
     function updateAddBtn() {
         addBtn.disabled = selectedIds.size === 0;
-        addBtn.textContent = `Add ${selectedIds.size} to "${opts.workoutLabel}"`;
+        addBtn.parentElement.classList.toggle("shown", selectedIds.size > 0);
+        if (selectedIds.size > 0) addBtn.textContent = confirmLabel(selectedIds.size);
     }
 
     function buildSelectableRow(exercise) {
@@ -55,7 +68,13 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
         checkbox.className = "picker-checkbox";
         checkbox.checked = selectedIds.has(exercise.id);
         checkbox.onchange = function() {
-            if (checkbox.checked) selectedIds.add(exercise.id);
+            if (opts.single) {
+                selectedIds.clear();
+                if (checkbox.checked) selectedIds.add(exercise.id);
+                for (const other of listContainer.querySelectorAll(".picker-checkbox")) {
+                    if (other !== checkbox) other.checked = false;
+                }
+            } else if (checkbox.checked) selectedIds.add(exercise.id);
             else selectedIds.delete(exercise.id);
             updateAddBtn();
         };
@@ -121,12 +140,19 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
             onCancel: function() { renderMultiSelectExercisePicker(opts, kept); },
             onCreated: function(created) {
                 renderMultiSelectExercisePicker(opts, {
-                    selectedIds: [...kept.selectedIds, created.id],
+                    selectedIds: opts.single ? [created.id] : [...kept.selectedIds, created.id],
                     category: created.category,
                     query: ""   // so the new one shows
                 });
             }
         });
+    };
+
+    // ✕ on the floating bar: untick everything (the bar then slides away).
+    document.getElementById("picker-clear-btn").onclick = function() {
+        selectedIds.clear();
+        for (const box of listContainer.querySelectorAll(".picker-checkbox")) box.checked = false;
+        updateAddBtn();
     };
 
     document.getElementById("picker-cancel-btn").onclick = function() {
@@ -154,6 +180,26 @@ export async function addExercise(workoutId) {
             for (const ex of selected) {
                 await linkExerciseToWorkout(workout.id, ex.id);
             }
+            viewWorkout(workoutId);
+        }
+    });
+}
+
+// Replace exercise (the workout page's ⋮ menu): pick one, and it takes the
+// old one's place in the workout's order.
+export async function replaceExercise(workoutId, exercise) {
+    const workout = findWorkout(workoutId);
+    const workoutExercises = await fetchWorkoutExercises(workout.id);
+    await renderMultiSelectExercisePicker({
+        title: `Replace ${exercise.name}`,
+        workoutLabel: workout.name,
+        excludedIds: workoutExercises.map(e => e.id),
+        single: true,
+        confirmLabel: () => "Replace",
+        onCancel: function() { viewWorkout(workoutId); },
+        onConfirm: async function(selected) {
+            const resp = await replaceWorkoutExercise(workout.id, exercise.id, selected[0].id);
+            if (!resp.ok) await showConfirmModal("Couldn't replace the exercise.", "OK");
             viewWorkout(workoutId);
         }
     });

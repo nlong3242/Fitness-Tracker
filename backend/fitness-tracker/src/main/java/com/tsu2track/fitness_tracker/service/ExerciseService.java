@@ -208,6 +208,23 @@ public class ExerciseService {
         link.ifPresent(workoutExerciseRepository::delete);
     }
 
+    // Swaps the exercise on the workout's link, so the new one takes the
+    // old one's place in the order. Past sessions keep their snapshots.
+    @Transactional
+    public void replaceInWorkout(Long workoutId, Long exerciseId, Long replacementId) {
+        ownedWorkout(workoutId);
+        WorkoutExercise link = workoutExerciseRepository.findByWorkout_IdAndExercise_Id(workoutId, exerciseId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not in workout"));
+        Exercise replacement = usableExercise(replacementId);
+        if (replacement.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
+        }
+        if (workoutExerciseRepository.findByWorkout_IdAndExercise_Id(workoutId, replacementId).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Exercise already in workout");
+        }
+        link.setExercise(replacement);
+    }
+
     @Transactional
     public void reorder(Long workoutId, List<Long> orderedExerciseIds) {
         if (orderedExerciseIds == null) {

@@ -2,10 +2,10 @@ import { CATEGORY_ORDER, EQUIPMENT, EXERCISE_TYPES } from "../config.js";
 import { clearNavGuard, getNavGuard, setNavGuard } from "../components/bottomNav.js";
 import { showConfirmModal } from "../components/modals.js";
 import {
+    copyExercise,
     createExercise,
     deleteExercise,
     fetchExercise,
-    removeWorkoutExercise,
     updateExercise,
     updateWorkoutExercise
 } from "../api.js";
@@ -13,11 +13,33 @@ import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 import { setRoute } from "../router.js";
 import { renderExercisePage } from "./exercisePage.js";
 
-/* Edit a Custom exercise, as a page of its own (opened by Edit on the
-   exercise page, which first copies a built-in one). Cancel and Save go
-   back to the exercise page; Delete (or Remove, from a workout) goes back
-   to where the exercise page was opened from. Leaving by a tab with
-   unsaved changes asks first. opts: as renderExercisePage. */
+/* Edit an exercise: Edit on the exercise page, or the workout page's ⋮
+   menu. A built-in exercise can't be changed, so this first offers a
+   Custom copy (which takes over the user's workouts and history for it,
+   see ExerciseService.copyBuiltIn) and edits that. */
+export async function editExercise(exercise, opts) {
+    let target = exercise;
+    if (exercise.builtIn) {
+        const ok = await showConfirmModal(
+            "Built-in exercises can't be changed. Make a Custom copy you can edit? "
+            + "Your workouts and history for it will move to the copy.",
+            "Make a copy");
+        if (!ok) return;
+        try {
+            target = await copyExercise(exercise.id);
+        } catch (e) {
+            await showConfirmModal("Couldn't make the copy. Check your connection and try again.", "OK");
+            return;
+        }
+    }
+    renderExerciseEditPage(target, opts);
+}
+
+/* Edit a Custom exercise, as a page of its own. Cancel and Save go back to
+   opts.onDone() if given (the workout page, from its ⋮ menu), else to the
+   exercise page. Delete goes back to where the exercise page was opened
+   from; from a workout there's no Delete (the ⋮ menu has Remove). Leaving
+   by a tab with unsaved changes asks first. opts: as renderExercisePage. */
 export function renderExerciseEditPage(exercise, opts) {
     clearNavGuard();
     setRoute(opts.routeFor(exercise.id) + "/edit");
@@ -28,12 +50,13 @@ export function renderExerciseEditPage(exercise, opts) {
         saveLabel: "Save",
         initial: exercise,
         musclesPlaceholder: "None",
-        deleteLabel: workout ? "Remove from workout" : "Delete exercise"
+        deleteLabel: workout ? null : "Delete exercise"
     });
     setNavGuard(form.confirmLeave);
+    const done = opts.onDone || function(shown) { renderExercisePage(shown, opts); };
 
     form.onCancel = async function() {
-        if (await form.confirmLeave()) renderExercisePage(exercise, opts);
+        if (await form.confirmLeave()) done(exercise);
     };
 
     form.onSave = async function(data) {
@@ -47,16 +70,12 @@ export function renderExerciseEditPage(exercise, opts) {
         } catch (err) {
             saved = { ...exercise, ...data };
         }
-        renderExercisePage(saved, opts);
+        done(saved);
     };
 
     form.onDelete = async function() {
-        const message = workout
-            ? `Remove "${exercise.name}" from "${workout.name}"?`
-            : `Delete "${exercise.name}" permanently?`;
-        if (!(await showConfirmModal(message, workout ? "Remove" : "Delete"))) return;
-        if (workout) await removeWorkoutExercise(workout.id, exercise.id);
-        else await deleteExercise(exercise.id);
+        if (!(await showConfirmModal(`Delete "${exercise.name}" permanently?`, "Delete"))) return;
+        await deleteExercise(exercise.id);
         clearNavGuard();
         opts.onBack();
     };

@@ -86,6 +86,11 @@ public class ExerciseController {
         exerciseService.unlinkFromWorkout(workoutId, id);
     }
 
+    @PutMapping("/workouts/{workoutId}/exercises/{id}/replace/{replacementId}")
+    public void replaceExerciseInWorkout(@PathVariable Long workoutId, @PathVariable Long id, @PathVariable Long replacementId) {
+        exerciseService.replaceInWorkout(workoutId, id, replacementId);
+    }
+
     public static class OrderBody {
         private List<Long> orderedExerciseIds;
         public List<Long> getOrderedExerciseIds() { return orderedExerciseIds; }

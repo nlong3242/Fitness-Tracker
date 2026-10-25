@@ -12,7 +12,7 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
     Optional<Exercise> findByIdAndUserId(Long id, Long userId);
 
     List<Exercise> findByBuiltInTrueAndDeletedFalseOrderByNameAsc();
-    Optional<Exercise> findBySourceId(String sourceId);
+    List<Exercise> findByBuiltInTrue();
 
     // What an account can use (add to workouts, log, look at): its own
     // exercises and the built-in ones. Changing one needs findByIdAndUserId.

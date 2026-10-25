@@ -2,18 +2,20 @@ package com.tsu2track.fitness_tracker.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.tsu2track.fitness_tracker.Exercise;
@@ -28,9 +30,12 @@ import tools.jackson.databind.ObjectMapper;
    its own format. Each one is added once (matched on the dataset's id)
    and brought up to date on later starts, so a newer file just replaces
    the old one. Exercises taken out of the file stay: people may have
-   logged them. Only strength exercises are used. */
+   logged them. Only strength exercises are used.
+   It runs once the app is set up but before the server takes requests,
+   so the list never comes back without them; a broken file stops the
+   start. */
 @Component
-public class BuiltInExercises implements ApplicationRunner {
+public class BuiltInExercises implements SmartInitializingSingleton {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Entry(String id, String name, String category, String level, String mechanic,
                         String equipment, List<String> primaryMuscles, List<String> instructions) {}
@@ -74,30 +79,51 @@ public class BuiltInExercises implements ApplicationRunner {
     private final ExerciseRepository exercises;
     private final ObjectMapper objectMapper;
     private final Resource file;
+    private final TransactionTemplate transaction;
 
     public BuiltInExercises(ExerciseRepository exercises, ObjectMapper objectMapper,
-                            @Value("${app.builtin-exercises}") Resource file) {
+                            @Value("${app.builtin-exercises}") Resource file,
+                            PlatformTransactionManager transactions) {
         this.exercises = exercises;
         this.objectMapper = objectMapper;
         this.file = file;
+        this.transaction = new TransactionTemplate(transactions);
     }
 
     @Override
-    @Transactional
-    public void run(ApplicationArguments args) throws IOException {
-        try (InputStream in = file.getInputStream()) {
-            load(List.of(objectMapper.readValue(in, Entry[].class)));
-        }
+    public void afterSingletonsInstantiated() {
+        loadFile();
     }
 
+    public void loadFile() {
+        List<Entry> entries;
+        try (InputStream in = file.getInputStream()) {
+            entries = List.of(objectMapper.readValue(in, Entry[].class));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        transaction.executeWithoutResult(status -> load(entries));
+    }
+
+    /* The ones already there come in one query and are matched here. Only
+       new ones are saved; the rest are changed in place, and only those
+       that really changed get written when the transaction ends. */
     void load(List<Entry> entries) {
+        Map<String, Exercise> existing = new HashMap<>();
+        for (Exercise e : exercises.findByBuiltInTrue()) existing.put(e.getSourceId(), e);
+        List<Exercise> added = new ArrayList<>();
+
         for (Entry entry : entries) {
             if (!"strength".equals(entry.category()) || entry.primaryMuscles() == null
                     || entry.primaryMuscles().isEmpty()) continue;
             ExerciseCategory group = MOVED.getOrDefault(entry.id(), GROUPS.get(entry.primaryMuscles().get(0)));
             if (group == null) continue;
 
-            Exercise exercise = exercises.findBySourceId(entry.id()).orElseGet(Exercise::new);
+            Exercise exercise = existing.get(entry.id());
+            if (exercise == null) {
+                exercise = new Exercise();
+                added.add(exercise);
+            }
             exercise.setBuiltIn(true);
             exercise.setSourceId(entry.id());
             exercise.setName(entry.name());
@@ -111,8 +137,8 @@ public class BuiltInExercises implements ApplicationRunner {
             String steps = entry.instructions() == null ? "" : String.join("\n", entry.instructions());
             exercise.setCues(steps.isEmpty() ? null
                 : steps.length() > MAX_CUES ? steps.substring(0, MAX_CUES) : steps);
-            exercises.save(exercise);
         }
+        exercises.saveAll(added);
     }
 
     private static List<String> capitalized(List<String> words) {

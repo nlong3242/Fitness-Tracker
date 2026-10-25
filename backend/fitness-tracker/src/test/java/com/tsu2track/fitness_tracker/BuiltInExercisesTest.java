@@ -41,6 +41,7 @@ class BuiltInExercisesTest {
 
     @Autowired MockMvc mvc;
     @Autowired BuiltInExercises builtInExercises;
+    @Autowired ExerciseRepository exerciseRepository;
 
     private String a;
     private String b;
@@ -97,7 +98,20 @@ class BuiltInExercisesTest {
 
     @Test
     void startingAgainDoesNotAddThemTwice() throws Exception {
-        builtInExercises.run(null);
+        builtInExercises.loadFile();
+        call(a, get("/exercises")).andExpect(jsonPath("$[?(@.builtIn == true)]", hasSize(IN_FILE)));
+    }
+
+    @Test
+    void startingAgainPutsBackWhatTheFileSays() throws Exception {
+        Exercise stored = exerciseRepository.findById(bench).orElseThrow();
+        stored.setName("Out of date");
+        stored.setEquipment("Rock");
+        exerciseRepository.flush();
+        builtInExercises.loadFile();
+        call(a, get("/exercises/" + bench))
+            .andExpect(jsonPath("$.name").value(BENCH))
+            .andExpect(jsonPath("$.equipment").value("Barbell"));
         call(a, get("/exercises")).andExpect(jsonPath("$[?(@.builtIn == true)]", hasSize(IN_FILE)));
     }
 

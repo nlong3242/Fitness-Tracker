@@ -13,17 +13,9 @@ export function attachLongPressDrag(rowEl, opts) {
     let originIndex = -1;
     let placeholder = null;
     let listEl = null;
-    let suppressNextClick = false;
     let autoScrollAnimId = null;
 
     rowEl.addEventListener("pointerdown", onPointerDown);
-    rowEl.addEventListener("click", function(e) {
-        if (suppressNextClick) {
-            e.stopImmediatePropagation();
-            e.preventDefault();
-            suppressNextClick = false;
-        }
-    }, true);
     rowEl.addEventListener("contextmenu", function(e) {
         if (state === "armed" || state === "dragging") e.preventDefault();
     });
@@ -120,7 +112,7 @@ export function attachLongPressDrag(rowEl, opts) {
         rowEl.style.zIndex = "1000";
         rowEl.style.pointerEvents = "none";
 
-        suppressNextClick = true;
+        listEl.addEventListener("click", swallowClick, true);
 
         try { rowEl.setPointerCapture(pointerId); } catch (_) {}
         document.addEventListener("keydown", onKeyDown);
@@ -222,8 +214,19 @@ export function attachLongPressDrag(rowEl, opts) {
             opts.onReorder(originIndex, toIndex);
         }
 
-        setTimeout(function() { suppressNextClick = false; }, 50);
+        /* A drag ends in a stray click, which must not count as a tap. iOS
+           can deliver it to whatever is now where the press started (after
+           a reorder, a neighbour, e.g. the pill that moved into slot 1)
+           rather than to the dragged row, so swallow clicks anywhere in the
+           list for a moment, not just on this row. */
+        const draggedIn = listEl;
+        setTimeout(function() { draggedIn.removeEventListener("click", swallowClick, true); }, 400);
         resetListeners();
+    }
+
+    function swallowClick(e) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
     }
 
     function onKeyDown(e) {

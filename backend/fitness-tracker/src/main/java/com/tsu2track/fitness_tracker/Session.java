@@ -18,7 +18,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
 @Entity
-public class Session {
+public class Session extends Owned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

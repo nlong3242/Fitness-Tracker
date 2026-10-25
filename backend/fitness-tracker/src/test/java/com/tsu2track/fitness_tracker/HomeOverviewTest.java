@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
@@ -16,6 +17,7 @@ import com.tsu2track.fitness_tracker.service.SessionService;
 /* Home page stats: finished sessions in a Monday–Sunday week, the
    most recent finished session, the week streak and the next plan. */
 @DataJpaTest
+@ExtendWith(LoggedIn.class)
 @Import(SessionService.class)
 class HomeOverviewTest {
 

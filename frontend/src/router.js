@@ -3,6 +3,7 @@ import { fetchExercise } from "./api.js";
 import { setActiveTab, highlightTab } from "./components/bottomNav.js";
 import { liveWorkout } from "./components/liveWorkout.js";
 import { renderBodyWeightPage } from "./views/bodyweight.js";
+import { renderSettingsPage } from "./views/settings.js";
 import { startWorkout } from "./views/activeWorkout.js";
 import { viewWorkout } from "./views/workoutDetail.js";
 import { viewPastSessions } from "./views/pastSessions.js";
@@ -17,6 +18,7 @@ import { renderExerciseHistoryPage } from "./views/exerciseHistoryPage.js";
    entries pile up, and the in-app Back buttons keep working as before.
 
      #/home                                  #/bodyweight
+     #/settings
      #/workouts                              #/workouts/12
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
      #/workouts/12/exercises/7/history
@@ -90,6 +92,10 @@ async function openRoute(parts, params) {
         case "bodyweight":
             highlightTab("home");
             await renderBodyWeightPage();
+            return true;
+        case "settings":
+            highlightTab("home");
+            await renderSettingsPage();
             return true;
         case "live":
             return openLive(params);

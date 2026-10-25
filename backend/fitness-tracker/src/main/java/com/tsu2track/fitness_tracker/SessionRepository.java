@@ -11,14 +11,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface SessionRepository extends JpaRepository<Session, Long> {
+    Optional<Session> findByIdAndUserId(Long id, Long userId);
     List<Session> findByWorkout_Id(Long workoutId);
     Page<Session> findByWorkout_IdOrderByDateDescIdDesc(Long workoutId, Pageable pageable);
-    Optional<Session> findFirstByFinishedFalseOrderByDateDescIdDesc();
-    Optional<Session> findFirstByFinishedTrueOrderByDateDescIdDesc();
-    long countByFinishedTrueAndDateBetween(LocalDate from, LocalDate to);
+    Optional<Session> findFirstByUserIdAndFinishedFalseOrderByDateDescIdDesc(Long userId);
+    Optional<Session> findFirstByUserIdAndFinishedTrueOrderByDateDescIdDesc(Long userId);
+    long countByUserIdAndFinishedTrueAndDateBetween(Long userId, LocalDate from, LocalDate to);
 
-    @Query("SELECT DISTINCT s.date FROM Session s WHERE s.finished = true AND s.date <= :until ORDER BY s.date DESC")
-    List<LocalDate> findFinishedDatesUpTo(@Param("until") LocalDate until);
+    @Query("""
+        SELECT DISTINCT s.date FROM Session s
+        WHERE s.userId = :userId AND s.finished = true AND s.date <= :until
+        ORDER BY s.date DESC
+        """)
+    List<LocalDate> findFinishedDatesUpTo(@Param("userId") Long userId, @Param("until") LocalDate until);
 
     @Query("""
         SELECT s FROM Session s

@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.tsu2track.fitness_tracker.dto.CreateScheduledWorkoutRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateScheduledWorkoutRequest;
+import com.tsu2track.fitness_tracker.security.CurrentUser;
 
 import jakarta.validation.Valid;
 
@@ -47,19 +48,19 @@ public class ScheduledWorkoutController {
         if (to.isBefore(from)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "'to' must be on or after 'from'");
         }
-        return scheduledWorkoutRepository.findByDateBetweenOrderByDateAscCreatedAtAsc(from, to);
+        return scheduledWorkoutRepository.findByUserIdAndDateBetweenOrderByDateAscCreatedAtAsc(CurrentUser.id(), from, to);
     }
 
     @GetMapping("/by-date/{date}")
     public List<ScheduledWorkout> getByDate(
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        return scheduledWorkoutRepository.findByDateOrderByCreatedAtAsc(date);
+        return scheduledWorkoutRepository.findByUserIdAndDateOrderByCreatedAtAsc(CurrentUser.id(), date);
     }
 
     @PostMapping
     public ScheduledWorkout create(@RequestBody @Valid CreateScheduledWorkoutRequest body) {
-        Workout workout = workoutRepository.findById(body.workoutId())
+        Workout workout = workoutRepository.findByIdAndUserId(body.workoutId(), CurrentUser.id())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Workout not found"));
 
         ScheduleStatus status = body.status() != null ? body.status() : ScheduleStatus.PLANNED;
@@ -74,7 +75,7 @@ public class ScheduledWorkoutController {
         scheduled.setNotes(body.notes());
         scheduled.setStatus(status);
         if (body.sessionId() != null) {
-            Session session = sessionRepository.findById(body.sessionId())
+            Session session = sessionRepository.findByIdAndUserId(body.sessionId(), CurrentUser.id())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
             scheduled.setSession(session);
         }
@@ -83,7 +84,7 @@ public class ScheduledWorkoutController {
 
     @PatchMapping("/{id}")
     public ScheduledWorkout update(@PathVariable Long id, @RequestBody @Valid UpdateScheduledWorkoutRequest body) {
-        ScheduledWorkout scheduled = scheduledWorkoutRepository.findById(id)
+        ScheduledWorkout scheduled = scheduledWorkoutRepository.findByIdAndUserId(id, CurrentUser.id())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scheduled workout not found"));
         // One plan (PLANNED/SKIPPED) per date and workout; COMPLETED entries
         // can repeat, one per session (a workout done twice in a day).
@@ -97,7 +98,7 @@ public class ScheduledWorkoutController {
         scheduled.setStatus(newStatus);
         if (body.notes() != null) scheduled.setNotes(body.notes());
         if (body.sessionId() != null) {
-            Session session = sessionRepository.findById(body.sessionId())
+            Session session = sessionRepository.findByIdAndUserId(body.sessionId(), CurrentUser.id())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Session not found"));
             scheduled.setSession(session);
         }
@@ -106,9 +107,8 @@ public class ScheduledWorkoutController {
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        if (!scheduledWorkoutRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Scheduled workout not found");
-        }
-        scheduledWorkoutRepository.deleteById(id);
+        ScheduledWorkout scheduled = scheduledWorkoutRepository.findByIdAndUserId(id, CurrentUser.id())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scheduled workout not found"));
+        scheduledWorkoutRepository.delete(scheduled);
     }
 }

@@ -29,6 +29,7 @@ import com.tsu2track.fitness_tracker.security.AuthUser;
 
 /* Accounts and login tokens.
    - Sign-up needs the invite code (app.signup.invite-code); blank closes it.
+     The first account takes any data from before accounts (UnownedData).
    - Logging in (or signing up) issues a random token. The client sends it
      as "Authorization: Bearer <token>"; only its SHA-256 is stored.
    - A token lapses after 90 days without use. Using it pushes that out,
@@ -49,6 +50,7 @@ public class AuthService {
 
     private final AppUserRepository userRepository;
     private final AuthTokenRepository tokenRepository;
+    private final UnownedData unownedData;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
     private final byte[] inviteCode;
@@ -62,10 +64,12 @@ public class AuthService {
             AppUserRepository userRepository,
             AuthTokenRepository tokenRepository,
             PasswordEncoder passwordEncoder,
+            UnownedData unownedData,
             Clock clock,
             @Value("${app.signup.invite-code:}") String inviteCode) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
+        this.unownedData = unownedData;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
         this.inviteCode = inviteCode.trim().getBytes(StandardCharsets.UTF_8);
@@ -87,8 +91,10 @@ public class AuthService {
         if (userRepository.existsByEmail(normalized)) {
             throw new ApiFieldException(HttpStatus.CONFLICT, "email", "An account with this email already exists.");
         }
+        boolean firstAccount = userRepository.count() == 0;
         AppUser user = userRepository.save(
             new AppUser(normalized, passwordEncoder.encode(password), now()));
+        if (firstAccount) unownedData.claimFor(user.getId());
         return issueToken(user);
     }
 

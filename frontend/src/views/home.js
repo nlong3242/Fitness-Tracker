@@ -4,6 +4,7 @@ import { findWorkout } from "../state.js";
 import { startWorkout } from "./activeWorkout.js";
 import { liveWorkout } from "../components/liveWorkout.js";
 import { renderBodyWeightPage } from "./bodyweight.js";
+import { renderSettingsPage } from "./settings.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { pixelArt } from "../utils/pixelArt.js";
 import { setRoute } from "../router.js";
@@ -35,6 +36,24 @@ const SNEAKER = pixelArt([
     "oooooooooooooo",
 ], { o: "#3B2723", f: "#E8B4A4", w: "#FBF5EA" }, "home-tile-icon");
 
+// Settings gear: rose cogs round an open centre.
+const GEAR = pixelArt([
+    ".....oooo.....",
+    ".oo..offo..oo.",
+    ".offooffooffo.",
+    "..offffffffo..",
+    "..offffffffo..",
+    "ooofffoofffooo",
+    "offffo..offffo",
+    "offffo..offffo",
+    "ooofffoofffooo",
+    "..offffffffo..",
+    "..offffffffo..",
+    ".offooffooffo.",
+    ".oo..offo..oo.",
+    ".....oooo.....",
+], { o: "#3B2723", f: "#E8B4A4" }, "home-settings-icon");
+
 // Placeholder week of steps for the Steps tile (Mon..today) until step
 // tracking exists.
 const SAMPLE_STEPS = [5200, 6100, 7400, 11800, 5900, 4800, 6379];
@@ -47,6 +66,7 @@ export function renderHomePage() {
     container.innerHTML = `
         <div class="home-hero">
             <h1 class="home-title">Tsu2Track</h1>
+            <button type="button" class="btn-secondary home-settings-btn" id="home-settings-btn" aria-label="Settings">${GEAR}</button>
         </div>
 
         <button class="home-cta" id="home-start-btn">Start a Workout</button>
@@ -99,6 +119,7 @@ export function renderHomePage() {
         </div>
     `;
 
+    document.getElementById("home-settings-btn").onclick = function() { renderSettingsPage(); };
     wireStartButton();
     wireWeightLogging();
     loadStats();

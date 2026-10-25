@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -17,6 +18,7 @@ import com.tsu2track.fitness_tracker.service.BodyWeightService.Summary;
 /* Bodyweight log: one entry per day, and the Home tile summary (latest
    weigh-in, change vs the last weigh-in at least a week earlier). */
 @DataJpaTest
+@ExtendWith(LoggedIn.class)
 @Import(BodyWeightService.class)
 class BodyWeightServiceTest {
 

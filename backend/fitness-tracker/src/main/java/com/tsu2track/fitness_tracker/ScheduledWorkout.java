@@ -19,7 +19,7 @@ import jakarta.persistence.PrePersist;
 // No (date, workout) uniqueness any more (V4): repeat COMPLETED entries are
 // allowed; ScheduledWorkoutController keeps one PLANNED/SKIPPED per day.
 @Entity
-public class ScheduledWorkout {
+public class ScheduledWorkout extends Owned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

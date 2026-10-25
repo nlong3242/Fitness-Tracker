@@ -11,6 +11,7 @@ import com.tsu2track.fitness_tracker.Workout;
 import com.tsu2track.fitness_tracker.WorkoutController;
 import com.tsu2track.fitness_tracker.WorkoutExerciseRepository;
 import com.tsu2track.fitness_tracker.WorkoutRepository;
+import com.tsu2track.fitness_tracker.security.CurrentUser;
 
 @Service
 public class WorkoutService {
@@ -24,7 +25,7 @@ public class WorkoutService {
     }
 
     public List<WorkoutController.WorkoutSummary> findAllSummaries() {
-        return workoutRepository.findAll().stream()
+        return workoutRepository.findByUserIdOrderByIdAsc(CurrentUser.id()).stream()
             .map(this::toSummary)
             .collect(Collectors.toList());
     }
@@ -35,10 +36,9 @@ public class WorkoutService {
     }
 
     public void delete(Long id) {
-        if (!workoutRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found");
-        }
-        workoutRepository.deleteById(id);
+        Workout workout = workoutRepository.findByIdAndUserId(id, CurrentUser.id())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+        workoutRepository.delete(workout);
     }
 
     private WorkoutController.WorkoutSummary toSummary(Workout w) {

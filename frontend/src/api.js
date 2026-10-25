@@ -51,6 +51,23 @@ export function login(email, password) {
     return authRequest("/auth/login", { email, password });
 }
 
+// { id, email } of the logged-in account.
+export function fetchMe() {
+    return requestJson("GET", "/auth/me");
+}
+
+/* Ends this device's login on the server. Called straight, not through
+   request(): an already-expired token (401) is logged out anyway, and
+   mustn't open the login page before the caller has cleaned up. */
+export async function logout() {
+    const token = getToken();
+    if (!token) return;
+    await fetch(`${API_BASE}/auth/logout`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+}
+
 /* Thrown for non-2xx responses so an error envelope is never mistaken for
    data (e.g. a 409 on createSet used to come back as if it were the set). */
 export class ApiError extends Error {

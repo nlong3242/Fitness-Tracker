@@ -7,8 +7,8 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BodyWeightRepository extends JpaRepository<BodyWeight, Long> {
-    Optional<BodyWeight> findByDate(LocalDate date);
-    Optional<BodyWeight> findFirstByDateLessThanEqualOrderByDateDesc(LocalDate date);
-    long deleteByDate(LocalDate date);
-    List<BodyWeight> findAllByOrderByDateAsc();
+    Optional<BodyWeight> findByUserIdAndDate(Long userId, LocalDate date);
+    Optional<BodyWeight> findFirstByUserIdAndDateLessThanEqualOrderByDateDesc(Long userId, LocalDate date);
+    long deleteByUserIdAndDate(Long userId, LocalDate date);
+    List<BodyWeight> findByUserIdOrderByDateAsc(Long userId);
 }

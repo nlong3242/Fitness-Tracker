@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
@@ -22,6 +23,7 @@ import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySet;
 /* Exercise history: finished sessions of an exercise across workouts,
    newest first and paged, its PRs, and the single ★ on the Best set. */
 @DataJpaTest
+@ExtendWith(LoggedIn.class)
 @Import(ExerciseHistoryService.class)
 class ExerciseHistoryTest {
 

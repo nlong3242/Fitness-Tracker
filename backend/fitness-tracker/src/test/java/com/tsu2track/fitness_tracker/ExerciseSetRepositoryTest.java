@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
@@ -15,6 +16,7 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
    the sets of the most recent session of this workout that logged this
    exercise, optionally strictly before a given session (by date, then id). */
 @DataJpaTest
+@ExtendWith(LoggedIn.class)
 class ExerciseSetRepositoryTest {
 
     private static final LocalDate DAY1 = LocalDate.of(2026, 1, 5);

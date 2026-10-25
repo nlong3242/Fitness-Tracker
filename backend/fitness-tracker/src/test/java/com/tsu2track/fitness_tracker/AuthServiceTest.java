@@ -20,11 +20,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.tsu2track.fitness_tracker.service.AuthService;
+import com.tsu2track.fitness_tracker.service.UnownedData;
+
+import jakarta.persistence.EntityManager;
 
 /* Accounts and tokens: sign-up rules, login and lockout, token expiry.
    Time comes from a clock the tests move forward. */
 @DataJpaTest
-@Import({ AuthService.class, AuthServiceTest.Config.class })
+@Import({ AuthService.class, UnownedData.class, AuthServiceTest.Config.class })
 class AuthServiceTest {
 
     private static final String PASSWORD = "correct horse";
@@ -32,6 +35,8 @@ class AuthServiceTest {
     @Autowired AuthService auth;
     @Autowired AppUserRepository userRepository;
     @Autowired AuthTokenRepository tokenRepository;
+    @Autowired UnownedData unownedData;
+    @Autowired EntityManager entityManager;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired MovableClock clock;
 
@@ -53,6 +58,28 @@ class AuthServiceTest {
     }
 
     @Test
+    void theFirstAccountTakesTheDataFromBeforeAccounts() {
+        entityManager.createNativeQuery("insert into workout (name) values ('Upper')").executeUpdate();
+        entityManager.createNativeQuery("insert into body_weight (date, weight_kg) values (date '2026-03-02', 80)")
+            .executeUpdate();
+
+        Long first = auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE).user().id();
+
+        assertThat(ownerOf("workout")).isEqualTo(first);
+        assertThat(ownerOf("body_weight")).isEqualTo(first);
+    }
+
+    @Test
+    void laterAccountsStartEmpty() {
+        auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE);
+        entityManager.createNativeQuery("insert into workout (name) values ('Upper')").executeUpdate();
+
+        auth.signup("friend@example.com", PASSWORD, TestAuth.INVITE_CODE);
+
+        assertThat(ownerOf("workout")).isNull();
+    }
+
+    @Test
     void storesOnlyHashes() {
         var result = auth.signup("long@example.com", PASSWORD, TestAuth.INVITE_CODE);
 
@@ -71,7 +98,7 @@ class AuthServiceTest {
 
     @Test
     void signupIsClosedWithoutAnInviteCodeConfigured() {
-        var closed = new AuthService(userRepository, tokenRepository, passwordEncoder, clock, "  ");
+        var closed = new AuthService(userRepository, tokenRepository, passwordEncoder, unownedData, clock, "  ");
 
         assertRejected(() -> closed.signup("long@example.com", PASSWORD, ""), HttpStatus.FORBIDDEN, "inviteCode");
     }
@@ -185,6 +212,11 @@ class AuthServiceTest {
         assertThat(auth.authenticate("made-up")).isEmpty();
         assertThat(auth.authenticate("")).isEmpty();
         assertThat(auth.authenticate(null)).isEmpty();
+    }
+
+    private Long ownerOf(String table) {
+        Object id = entityManager.createNativeQuery("select user_id from " + table).getSingleResult();
+        return id == null ? null : ((Number) id).longValue();
     }
 
     private static ApiFieldException rejection(Runnable call) {

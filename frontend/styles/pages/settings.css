@@ -1,0 +1,28 @@
+/* Settings — views/settings.js. */
+
+.settings-panel {
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--panel-shadow);
+    padding: 14px;
+    margin-bottom: 20px;
+}
+
+.settings-label {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+
+.settings-email {
+    display: block;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.settings-logout {
+    width: 100%;
+    padding: 14px;
+}

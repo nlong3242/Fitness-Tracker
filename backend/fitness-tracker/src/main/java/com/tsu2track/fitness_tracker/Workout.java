@@ -13,7 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 
 @Entity
-public class Workout {
+public class Workout extends Owned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

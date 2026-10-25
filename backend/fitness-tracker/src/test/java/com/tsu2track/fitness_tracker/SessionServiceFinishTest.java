@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
@@ -20,6 +21,7 @@ import com.tsu2track.fitness_tracker.service.SessionService;
 /* finishSession writes the permanent history snapshot (SessionExercise rows):
    which exercises the session shows, in what order, under what name. */
 @DataJpaTest
+@ExtendWith(LoggedIn.class)
 @Import(SessionService.class)
 class SessionServiceFinishTest {
 

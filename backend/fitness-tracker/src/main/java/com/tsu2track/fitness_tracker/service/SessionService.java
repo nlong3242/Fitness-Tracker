@@ -34,6 +34,7 @@ import com.tsu2track.fitness_tracker.WorkoutExerciseRepository;
 import com.tsu2track.fitness_tracker.WorkoutRepository;
 import com.tsu2track.fitness_tracker.dto.CreateSetRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateSetRequest;
+import com.tsu2track.fitness_tracker.security.CurrentUser;
 
 @Service
 public class SessionService {
@@ -62,23 +63,25 @@ public class SessionService {
     }
 
     public Page<Session> findSessions(Long workoutId, Pageable pageable) {
+        ownedWorkout(workoutId);
         return sessionRepository.findByWorkout_IdOrderByDateDescIdDesc(workoutId, pageable);
     }
 
     /* The workout the user is still in the middle of (started, never
        finished), so the app can offer to resume it. Most recent wins. */
     public Optional<Session> findUnfinishedSession() {
-        return sessionRepository.findFirstByFinishedFalseOrderByDateDescIdDesc();
+        return sessionRepository.findFirstByUserIdAndFinishedFalseOrderByDateDescIdDesc(CurrentUser.id());
     }
 
     // Home page stats. weekStart comes from the client so "this week" follows
     // the user's local calendar (Monday start, like the calendar view).
     public long countFinishedInWeek(LocalDate weekStart) {
-        return sessionRepository.countByFinishedTrueAndDateBetween(weekStart, weekStart.plusDays(6));
+        return sessionRepository.countByUserIdAndFinishedTrueAndDateBetween(
+            CurrentUser.id(), weekStart, weekStart.plusDays(6));
     }
 
     public Optional<Session> findLastFinishedSession() {
-        return sessionRepository.findFirstByFinishedTrueOrderByDateDescIdDesc();
+        return sessionRepository.findFirstByUserIdAndFinishedTrueOrderByDateDescIdDesc(CurrentUser.id());
     }
 
     /* Weeks in a row (Monday start) with at least one finished session,
@@ -86,7 +89,7 @@ public class SessionService {
        the streak while it's still the current one: it starts from last week. */
     public int countWeekStreak(LocalDate weekStart) {
         // Newest first, so each week's dates come in one run.
-        List<LocalDate> dates = sessionRepository.findFinishedDatesUpTo(weekStart.plusDays(6));
+        List<LocalDate> dates = sessionRepository.findFinishedDatesUpTo(CurrentUser.id(), weekStart.plusDays(6));
         LocalDate week = weekStart;
         if (dates.isEmpty() || dates.get(0).isBefore(week)) {
             week = week.minusWeeks(1);
@@ -103,17 +106,17 @@ public class SessionService {
 
     // The earliest workout still planned for today or later.
     public Optional<ScheduledWorkout> findNextPlanned(LocalDate today) {
-        return scheduledWorkoutRepository
-            .findFirstByStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(ScheduleStatus.PLANNED, today);
+        return scheduledWorkoutRepository.findFirstByUserIdAndStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(
+            CurrentUser.id(), ScheduleStatus.PLANNED, today);
     }
 
     // Plans still to do on a day (the next one included).
     public long countPlannedOn(LocalDate date) {
-        return scheduledWorkoutRepository.countByStatusAndDate(ScheduleStatus.PLANNED, date);
+        return scheduledWorkoutRepository.countByUserIdAndStatusAndDate(CurrentUser.id(), ScheduleStatus.PLANNED, date);
     }
 
     public Session createSession(Long workoutId) {
-        Optional<Workout> workout = workoutRepository.findById(workoutId);
+        Optional<Workout> workout = workoutRepository.findByIdAndUserId(workoutId, CurrentUser.id());
         if (!workout.isPresent()) {
             return null;
         }
@@ -126,8 +129,7 @@ public class SessionService {
 
     @Transactional
     public Session finishSession(Long sessionId, List<Long> orderedExerciseIds) {
-        Session session = sessionRepository.findById(sessionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        Session session = ownedSession(sessionId);
         if (session.isFinished()) {
             return session;
         }
@@ -187,8 +189,7 @@ public class SessionService {
 
     @Transactional
     public void deleteSession(Long sessionId) {
-        Session session = sessionRepository.findById(sessionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        Session session = ownedSession(sessionId);
         // scheduled_workout.session_id has a plain FK to session; deleting a
         // linked session without unlinking first is a constraint violation.
         // The calendar entry itself (and its status) is left untouched.
@@ -200,15 +201,13 @@ public class SessionService {
     }
 
     public List<SessionExercise> findSessionExercises(Long sessionId) {
-        if (!sessionRepository.existsById(sessionId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found");
-        }
+        ownedSession(sessionId);
         return sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
     }
 
     public Optional<SessionController.SessionTotals> findPreviousTotals(Long workoutId, Long sessionId) {
-        Session current = sessionRepository.findById(sessionId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        ownedWorkout(workoutId);
+        Session current = ownedSession(sessionId);
         Optional<Session> previous = sessionRepository.findPreviousSession(workoutId, current.getDate(), sessionId);
         if (!previous.isPresent()) {
             return Optional.empty();
@@ -233,13 +232,17 @@ public class SessionService {
     }
 
     public List<ExerciseSet> findSetsBySession(Long sessionId) {
+        ownedSession(sessionId);
         return exerciseSetRepository.findBySession_Id(sessionId);
     }
 
     public List<ExerciseSet> findLastSets(Long workoutId, Long exerciseId, Long beforeSessionId) {
+        if (workoutRepository.findByIdAndUserId(workoutId, CurrentUser.id()).isEmpty()) {
+            return Collections.emptyList();
+        }
         LocalDate beforeDate = null;
         if (beforeSessionId != null) {
-            Optional<Session> anchor = sessionRepository.findById(beforeSessionId);
+            Optional<Session> anchor = sessionRepository.findByIdAndUserId(beforeSessionId, CurrentUser.id());
             if (!anchor.isPresent()) {
                 return Collections.emptyList();
             }
@@ -249,8 +252,8 @@ public class SessionService {
     }
 
     public ExerciseSet createSet(Long sessionId, Long exerciseId, CreateSetRequest req) {
-        Optional<Session> session = sessionRepository.findById(sessionId);
-        Optional<Exercise> exercise = exerciseRepository.findById(exerciseId);
+        Optional<Session> session = sessionRepository.findByIdAndUserId(sessionId, CurrentUser.id());
+        Optional<Exercise> exercise = exerciseRepository.findByIdAndUserId(exerciseId, CurrentUser.id());
         if (session.isPresent() && exercise.isPresent()) {
             if (session.get().isFinished()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
@@ -275,7 +278,7 @@ public class SessionService {
     }
 
     public ExerciseSet updateSet(Long setId, UpdateSetRequest req) {
-        Optional<ExerciseSet> existing = exerciseSetRepository.findById(setId);
+        Optional<ExerciseSet> existing = exerciseSetRepository.findByIdAndSession_UserId(setId, CurrentUser.id());
         if (existing.isPresent()) {
             ExerciseSet set = existing.get();
             if (set.getSession() != null && set.getSession().isFinished()) {
@@ -290,12 +293,24 @@ public class SessionService {
     }
 
     public void deleteSet(Long setId) {
-        Optional<ExerciseSet> existing = exerciseSetRepository.findById(setId);
+        Optional<ExerciseSet> existing = exerciseSetRepository.findByIdAndSession_UserId(setId, CurrentUser.id());
         if (existing.isPresent() && existing.get().getSession() != null && existing.get().getSession().isFinished()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
         }
-        if (existing.isPresent() && existing.get().getSession() != null) touch(existing.get().getSession());
-        exerciseSetRepository.deleteById(setId);
+        if (existing.isEmpty()) return;
+        if (existing.get().getSession() != null) touch(existing.get().getSession());
+        exerciseSetRepository.delete(existing.get());
+    }
+
+    // Another account's workout or session is "not found", same as a missing one.
+    private Workout ownedWorkout(Long workoutId) {
+        return workoutRepository.findByIdAndUserId(workoutId, CurrentUser.id())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+    }
+
+    private Session ownedSession(Long sessionId) {
+        return sessionRepository.findByIdAndUserId(sessionId, CurrentUser.id())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
     }
 
     // Any set change counts as activity on its session (see Session.lastActivityAt).

@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.tsu2track.fitness_tracker.BodyWeight;
 import com.tsu2track.fitness_tracker.BodyWeightRepository;
+import com.tsu2track.fitness_tracker.security.CurrentUser;
 
 @Service
 public class BodyWeightService {
@@ -29,7 +30,7 @@ public class BodyWeightService {
     // Stored to one decimal place, like the scale shows it.
     @Transactional
     public BodyWeight log(LocalDate date, double weightKg) {
-        BodyWeight entry = bodyWeightRepository.findByDate(date)
+        BodyWeight entry = bodyWeightRepository.findByUserIdAndDate(CurrentUser.id(), date)
             .orElseGet(() -> new BodyWeight(date, null));
         entry.setWeightKg(roundToTenth(weightKg));
         return bodyWeightRepository.save(entry);
@@ -37,14 +38,14 @@ public class BodyWeightService {
 
     // Every weigh-in, oldest first (one a day at most, so this stays small).
     public List<BodyWeight> history() {
-        return bodyWeightRepository.findAllByOrderByDateAsc();
+        return bodyWeightRepository.findByUserIdOrderByDateAsc(CurrentUser.id());
     }
 
     public Summary summary(LocalDate today) {
-        Optional<BodyWeight> latest = bodyWeightRepository.findFirstByDateLessThanEqualOrderByDateDesc(today);
+        Optional<BodyWeight> latest = bodyWeightRepository.findFirstByUserIdAndDateLessThanEqualOrderByDateDesc(CurrentUser.id(), today);
         if (latest.isEmpty()) return new Summary(null, null);
         Double weekChange = bodyWeightRepository
-            .findFirstByDateLessThanEqualOrderByDateDesc(latest.get().getDate().minusDays(7))
+            .findFirstByUserIdAndDateLessThanEqualOrderByDateDesc(CurrentUser.id(), latest.get().getDate().minusDays(7))
             .map(before -> roundToTenth(latest.get().getWeightKg() - before.getWeightKg()))
             .orElse(null);
         return new Summary(latest.get(), weekChange);
@@ -52,7 +53,7 @@ public class BodyWeightService {
 
     @Transactional
     public void delete(LocalDate date) {
-        if (bodyWeightRepository.deleteByDate(date) == 0) {
+        if (bodyWeightRepository.deleteByUserIdAndDate(CurrentUser.id(), date) == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No weigh-in on " + date);
         }
     }

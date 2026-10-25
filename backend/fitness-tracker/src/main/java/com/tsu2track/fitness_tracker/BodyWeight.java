@@ -11,14 +11,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 
-// One row per date (V5 unique constraint); see BodyWeightService.log.
+// One row per account and date (V7 unique constraint); see BodyWeightService.log.
 @Entity
-public class BodyWeight {
+public class BodyWeight extends Owned {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private LocalDate date;
 
     @Column(name = "weight_kg", nullable = false)

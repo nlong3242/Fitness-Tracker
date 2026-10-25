@@ -7,6 +7,7 @@ import java.time.temporal.ChronoUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
@@ -19,6 +20,7 @@ import com.tsu2track.fitness_tracker.service.SessionService;
 /* Session.lastActivityAt drives the app's idle auto-end: it must move on
    every set change, and only then. */
 @DataJpaTest
+@ExtendWith(LoggedIn.class)
 @Import(SessionService.class)
 class SessionActivityTest {
 

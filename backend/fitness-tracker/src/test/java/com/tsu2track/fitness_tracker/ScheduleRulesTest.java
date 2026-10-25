@@ -6,16 +6,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDate;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.tsu2track.fitness_tracker.security.AuthUser;
 import com.tsu2track.fitness_tracker.service.AuthService;
 
 /* Calendar entry rules (V4): at most one plan (PLANNED/SKIPPED) per date
@@ -37,11 +40,21 @@ class ScheduleRulesTest {
 
     private Workout workout;
     private String bearer;
+    private AuthUser user;
 
+    // Signs up for real; rows saved directly here belong to that account too.
     @BeforeEach
     void setUp() {
+        var login = authService.signup("rules@example.com", "password123", TestAuth.INVITE_CODE);
+        bearer = "Bearer " + login.token();
+        user = login.user();
+        LoggedIn.as(user);
         workout = workoutRepository.save(new Workout("Upper"));
-        bearer = "Bearer " + authService.signup("rules@example.com", "password123", TestAuth.INVITE_CODE).token();
+    }
+
+    @AfterEach
+    void logOut() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -50,7 +63,7 @@ class ScheduleRulesTest {
         create(DAY, "COMPLETED", session().getId()).andExpect(status().isOk());
 
         org.assertj.core.api.Assertions.assertThat(
-            scheduledWorkoutRepository.findByDateOrderByCreatedAtAsc(DAY)).hasSize(2);
+            scheduledWorkoutRepository.findByUserIdAndDateOrderByCreatedAtAsc(user.id(), DAY)).hasSize(2);
     }
 
     @Test
@@ -101,7 +114,9 @@ class ScheduleRulesTest {
 
     // --- helpers ---
 
+    // Each request clears the login on this thread (TokenAuthFilter), so set it again.
     private Session session() {
+        LoggedIn.as(user);
         Session s = new Session();
         s.setWorkout(workout);
         s.setDate(DAY);

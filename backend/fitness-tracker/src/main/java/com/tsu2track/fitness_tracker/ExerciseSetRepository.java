@@ -2,12 +2,15 @@ package com.tsu2track.fitness_tracker;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> {
+    // A set belongs to whoever owns its session.
+    Optional<ExerciseSet> findByIdAndSession_UserId(Long id, Long userId);
     List<ExerciseSet> findByExercise_IdAndSession_Id(Long exerciseId, Long sessionId);
     List<ExerciseSet> findBySession_Id(Long sessionId);
 

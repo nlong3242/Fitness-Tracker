@@ -21,6 +21,7 @@ import com.tsu2track.fitness_tracker.WorkoutExerciseRepository;
 import com.tsu2track.fitness_tracker.WorkoutRepository;
 import com.tsu2track.fitness_tracker.dto.CreateExerciseRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateExerciseRequest;
+import com.tsu2track.fitness_tracker.security.CurrentUser;
 
 @Service
 public class ExerciseService {
@@ -37,12 +38,11 @@ public class ExerciseService {
     }
 
     public List<Exercise> findAll() {
-        return exerciseRepository.findByDeletedFalseOrderByNameAsc();
+        return exerciseRepository.findByUserIdAndDeletedFalseOrderByNameAsc(CurrentUser.id());
     }
 
     public Exercise findById(Long id) {
-        return exerciseRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        return ownedExercise(id);
     }
 
     public Exercise create(CreateExerciseRequest req) {
@@ -50,8 +50,7 @@ public class ExerciseService {
     }
 
     public Exercise update(Long id, UpdateExerciseRequest body) {
-        Exercise existing = exerciseRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        Exercise existing = ownedExercise(id);
         if (existing.isDeleted()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
@@ -65,7 +64,7 @@ public class ExerciseService {
     }
 
     public void softDelete(Long id) {
-        Optional<Exercise> existing = exerciseRepository.findById(id);
+        Optional<Exercise> existing = exerciseRepository.findByIdAndUserId(id, CurrentUser.id());
         if (existing.isPresent()) {
             Exercise exercise = existing.get();
             exercise.setDeleted(true);
@@ -74,13 +73,13 @@ public class ExerciseService {
     }
 
     public Exercise updateNote(Long id, String content) {
-        Exercise exercise = exerciseRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        Exercise exercise = ownedExercise(id);
         exercise.setNotes(content == null || content.isEmpty() ? null : content);
         return exerciseRepository.save(exercise);
     }
 
     public List<Exercise> findByWorkout(Long workoutId) {
+        ownedWorkout(workoutId);
         List<WorkoutExercise> joins = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
         List<Exercise> result = new ArrayList<>(joins.size());
         for (WorkoutExercise we : joins) {
@@ -90,8 +89,7 @@ public class ExerciseService {
     }
 
     public Exercise createAndLinkToWorkout(Long workoutId, CreateExerciseRequest req) {
-        Workout workout = workoutRepository.findById(workoutId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+        Workout workout = ownedWorkout(workoutId);
         Exercise saved = exerciseRepository.save(buildExercise(req));
         int nextPosition = workoutExerciseRepository.findMaxPositionForWorkout(workoutId) + 1;
         workoutExerciseRepository.save(new WorkoutExercise(workout, saved, nextPosition));
@@ -99,10 +97,8 @@ public class ExerciseService {
     }
 
     public Exercise linkToWorkout(Long workoutId, Long exerciseId) {
-        Workout workout = workoutRepository.findById(workoutId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
-        Exercise exercise = exerciseRepository.findById(exerciseId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        Workout workout = ownedWorkout(workoutId);
+        Exercise exercise = ownedExercise(exerciseId);
         if (exercise.isDeleted()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
@@ -116,6 +112,7 @@ public class ExerciseService {
     }
 
     public void unlinkFromWorkout(Long workoutId, Long exerciseId) {
+        ownedWorkout(workoutId);
         Optional<WorkoutExercise> link = workoutExerciseRepository.findByWorkout_IdAndExercise_Id(workoutId, exerciseId);
         link.ifPresent(workoutExerciseRepository::delete);
     }
@@ -125,6 +122,7 @@ public class ExerciseService {
         if (orderedExerciseIds == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "orderedExerciseIds is required");
         }
+        ownedWorkout(workoutId);
         List<WorkoutExercise> current = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
         if (current.size() != orderedExerciseIds.size()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Order list does not match current exercises");
@@ -140,6 +138,17 @@ public class ExerciseService {
         for (int i = 0; i < orderedExerciseIds.size(); i++) {
             byExerciseId.get(orderedExerciseIds.get(i)).setPosition(i);
         }
+    }
+
+    // Another account's workout or exercise is "not found", same as a missing one.
+    private Workout ownedWorkout(Long workoutId) {
+        return workoutRepository.findByIdAndUserId(workoutId, CurrentUser.id())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found"));
+    }
+
+    private Exercise ownedExercise(Long exerciseId) {
+        return exerciseRepository.findByIdAndUserId(exerciseId, CurrentUser.id())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
     }
 
     private Exercise buildExercise(CreateExerciseRequest req) {

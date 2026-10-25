@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
@@ -15,6 +16,7 @@ import com.tsu2track.fitness_tracker.service.SessionService;
 
 /* findUnfinishedSession drives the frontend's "Resume workout" bar. */
 @DataJpaTest
+@ExtendWith(LoggedIn.class)
 @Import(SessionService.class)
 class UnfinishedSessionTest {
 

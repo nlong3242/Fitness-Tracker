@@ -20,6 +20,7 @@ import com.tsu2track.fitness_tracker.ExerciseSet;
 import com.tsu2track.fitness_tracker.ExerciseSetRepository;
 import com.tsu2track.fitness_tracker.Session;
 import com.tsu2track.fitness_tracker.Side;
+import com.tsu2track.fitness_tracker.security.CurrentUser;
 
 /* An exercise's history across every workout that uses it: its PRs, and
    its finished sessions newest first, a page at a time. Unfinished
@@ -53,7 +54,7 @@ public class ExerciseHistoryService {
 
     @Transactional(readOnly = true)
     public History history(Long exerciseId, int page, int size) {
-        if (!exerciseRepository.existsById(exerciseId)) {
+        if (exerciseRepository.findByIdAndUserId(exerciseId, CurrentUser.id()).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found");
         }
         List<ExerciseSet> sets = exerciseSetRepository.findFinishedSetsOldestFirst(exerciseId);

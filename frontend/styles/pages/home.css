@@ -296,3 +296,26 @@
         inset 0 0 0 4px var(--frame-soft),
         0 1px 0 var(--shadow-hard);
 }
+
+/* Settings gear: a small square button in the top-right corner, level
+   with the top of the title. */
+.home-hero {
+    position: relative;
+}
+
+.home-settings-btn {
+    position: absolute;
+    top: -22px;
+    right: 0;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-settings-icon {
+    width: 28px;
+    height: 28px;
+}

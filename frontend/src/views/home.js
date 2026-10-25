@@ -6,6 +6,7 @@ import { liveWorkout } from "../components/liveWorkout.js";
 import { renderBodyWeightPage } from "./bodyweight.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { pixelArt } from "../utils/pixelArt.js";
+import { setRoute } from "../router.js";
 
 // Bathroom scale: rose platform, readout window with a needle, feet.
 const SCALE = pixelArt([
@@ -41,6 +42,7 @@ const STEP_GOAL = 10000;
 
 export function renderHomePage() {
     clearNavGuard();
+    setRoute("#/home");
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="home-hero">

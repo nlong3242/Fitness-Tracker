@@ -11,9 +11,11 @@ import { showConfirmModal } from "../components/modals.js";
 import { setActiveTab, setNavGuard, clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
+import { setRoute } from "../router.js";
 
 export function renderWorkouts() {
     clearNavGuard();
+    setRoute("#/workouts");
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>My Workouts</h2>

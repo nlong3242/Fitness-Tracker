@@ -20,11 +20,13 @@ import { viewPastSessions } from "./pastSessions.js";
 import { renderExerciseHistoryPage } from "./exerciseHistoryPage.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { escapeHtml } from "../utils/format.js";
+import { setRoute } from "../router.js";
 
 export async function viewWorkout(workoutId) {
     clearNavGuard();
     const workout = findWorkout(workoutId);
     workout.exercises = await fetchWorkoutExercises(workout.id);
+    setRoute(`#/workouts/${workoutId}`);
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
@@ -104,7 +106,8 @@ export async function viewWorkout(workoutId) {
                 });
                 if (!result) return;
                 if (result.action === "history") {
-                    renderExerciseHistoryPage(exercise, function() { viewWorkout(workoutId); });
+                    renderExerciseHistoryPage(exercise, function() { viewWorkout(workoutId); },
+                        `#/workouts/${workoutId}/exercises/${exercise.id}/history`);
                 } else if (result.action === "save") {
                     await updateWorkoutExercise(workout.id, exercise.id, result.data);
                     viewWorkout(workoutId);

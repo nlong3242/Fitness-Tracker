@@ -208,6 +208,10 @@ export function fetchExercises() {
     return requestJson("GET", "/exercises");
 }
 
+export function fetchExercise(exerciseId) {
+    return requestJson("GET", `/exercises/${exerciseId}`);
+}
+
 export function createExercise(data) {
     return requestJson("POST", "/exercises", data);
 }

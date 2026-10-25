@@ -5,10 +5,12 @@ import { clearNavGuard } from "../components/bottomNav.js";
 import { showConfirmModal } from "../components/modals.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { viewSessionSummary } from "./summary.js";
+import { setRoute } from "../router.js";
 
 export async function viewPastSessions(workoutId) {
     clearNavGuard();
     const workout = findWorkout(workoutId);
+    setRoute(`#/workouts/${workoutId}/sessions`);
 
     const container = document.getElementById("app-content");
     container.innerHTML = `

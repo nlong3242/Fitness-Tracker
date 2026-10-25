@@ -1,13 +1,16 @@
 import { clearNavGuard } from "../components/bottomNav.js";
 import { renderExerciseHistory } from "../components/exerciseHistory.js";
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
+import { setRoute } from "../router.js";
 
 /* Full-page exercise history (PRs + past sessions), opened from an
    exercise's edit popup in the Exercises tab or on a workout's page.
    Same content as the live workout popup's History tab, with the whole
-   page to scroll. onBack returns to wherever it was opened from. */
-export function renderExerciseHistoryPage(exercise, onBack) {
+   page to scroll. onBack returns to wherever it was opened from; route
+   is that origin's hash route for this page (router.js). */
+export function renderExerciseHistoryPage(exercise, onBack, route) {
     clearNavGuard();
+    setRoute(route);
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2 class="exh-page-title">${escapeHtml(exercise.name)}</h2>

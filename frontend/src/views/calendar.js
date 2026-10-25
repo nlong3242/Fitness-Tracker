@@ -20,6 +20,7 @@ import {
     fetchSessionSets
 } from "../api.js";
 import { state, findWorkout } from "../state.js";
+import { setRoute } from "../router.js";
 
 /* state.workouts is loaded once at startup; exerciseCount goes stale
    whenever the user links or unlinks an exercise elsewhere. Refresh
@@ -74,8 +75,16 @@ export async function navigateToCalendarDay(iso) {
     renderDayDetail(iso);
 }
 
+// Open the calendar on a given month (month is 0-based), e.g. on reload.
+export async function navigateToCalendarMonth(year, month) {
+    viewYear = year;
+    viewMonth = month;
+    await setActiveTab("calendar");
+}
+
 async function renderMonth() {
     const myToken = ++renderToken;
+    setRoute(`#/calendar/${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`);
     const container = document.getElementById("app-content");
     const todayIso = isoDate(new Date());
     const days = buildMonthGrid(viewYear, viewMonth);
@@ -235,6 +244,7 @@ function workoutExerciseCount(workoutId) {
 
 async function renderDayDetail(iso) {
     const myToken = ++renderToken;
+    setRoute(`#/calendar/${iso}`);
     const container = document.getElementById("app-content");
     const todayIso = isoDate(new Date());
     const isToday = iso === todayIso;
@@ -411,7 +421,7 @@ function openSessionSummaryFromSchedule(schedule, dayIso) {
     viewSessionSummary(schedule.workoutId, schedule.sessionId, schedule.date, function() {
         setActiveTab("calendar");
         renderDayDetail(dayIso);
-    });
+    }, `#/calendar/${dayIso}/sessions/${schedule.sessionId}?workout=${schedule.workoutId}`);
 }
 
 /* Cross-tab navigation: setActiveTab first so the bottom-nav highlights

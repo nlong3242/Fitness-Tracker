@@ -94,6 +94,16 @@ export function renderBottomNav() {
     }
 }
 
+/* Show the nav with one tab lit, without rendering that tab's page. The
+   router uses it to reopen a deeper page (e.g. a workout) under its tab. */
+export function highlightTab(name) {
+    const nav = document.getElementById("bottom-nav");
+    nav.style.display = "";
+    for (const cell of nav.querySelectorAll(".nav-tab")) {
+        cell.classList.toggle("active", cell.dataset.tab === name);
+    }
+}
+
 export async function setActiveTab(name) {
     const tab = TABS.find(t => t.name === name);
     if (!tab) return;
@@ -102,11 +112,7 @@ export async function setActiveTab(name) {
         if (!allow) return;
         navGuard = null;
     }
-    const nav = document.getElementById("bottom-nav");
-    nav.style.display = "";
-    for (const cell of nav.querySelectorAll(".nav-tab")) {
-        cell.classList.toggle("active", cell.dataset.tab === name);
-    }
+    highlightTab(name);
     // Each tab starts at the top; otherwise the previous tab's scroll
     // offset carries over and hides the top of the new page.
     document.getElementById("app-scroll").scrollTo(0, 0);

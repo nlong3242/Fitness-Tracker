@@ -23,7 +23,8 @@ import { clearNavGuard, setNavVisible } from "../components/bottomNav.js";
 import { abandonSession, markWorkoutStarted, clearStartedWorkout, getStartedWorkoutId } from "../session.js";
 import { loadDrafts, clearDrafts, sideKey } from "../drafts.js";
 import { renderWorkouts } from "./workouts.js";
-import { renderWorkoutSummary } from "./summary.js";
+import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
+import { setRoute } from "../router.js";
 import { escapeHtml } from "../utils/format.js";
 
 /* One exercise visible at a time. The full set of .exercise-card divs is
@@ -45,6 +46,8 @@ import { escapeHtml } from "../utils/format.js";
    - onComplete: where to navigate when the workout flow ends. Called both
      after the "no session logged" early exit AND from the Back button on
      the workout summary. Default is renderWorkouts.
+   - exerciseId: the exercise to open on (the router passes the one that
+     was showing before a reload); default is the first.
 
    Resume: if a session is already in progress for this workout (still open
    from earlier, or restored at boot from GET /sessions/unfinished), its
@@ -166,6 +169,7 @@ export async function startWorkout(workoutId, options) {
             navRow.style.display = "";
             pageActions.style.display = "";
             setNavVisible(true);
+            setRoute(`#/live?exercise=${workout.exercises[currentIndex].id}`);
             for (let i = 0; i < cards.children.length; i++) {
                 cards.children[i].classList.toggle("active", i === currentIndex);
             }
@@ -331,7 +335,8 @@ export async function startWorkout(workoutId, options) {
     }
 
     restoreDrafts();
-    setActive(0);
+    const startIndex = workout.exercises.findIndex(e => e.id === (options && options.exerciseId));
+    setActive(Math.max(startIndex, 0));
 
     /* Typed-but-unsaved values from before a reload go into the first
        unsaved rows of their exercise and side, adding rows if needed. */
@@ -382,6 +387,7 @@ export async function startWorkout(workoutId, options) {
         clearDrafts();
         setNavVisible(true);
         await syncCalendarOnFinish(workout.id, sessionId, sessionDate, scheduledWorkoutId);
+        setRoute(sessionSummaryRoute(workout.id, sessionId, sessionDate));
         await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: onComplete });
     }
 }

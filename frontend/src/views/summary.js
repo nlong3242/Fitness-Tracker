@@ -10,13 +10,17 @@ import { showExerciseReadOnlyModal } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
 import { clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
+import { setRoute } from "../router.js";
 
-export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBack) {
+/* route: where the summary was opened from, as a hash route (router.js);
+   defaults to the workout's past sessions. */
+export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBack, route) {
     clearNavGuard();
     const workout = findWorkout(workoutId);
 
     const snapshotExercises = await fetchSessionExercises(sessionId);
     const sets = await fetchSessionSets(sessionId);
+    setRoute(route || sessionSummaryRoute(workoutId, sessionId, sessionDate));
 
     const setsByExerciseId = new Map();
     for (const set of sets) {
@@ -34,6 +38,10 @@ export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBa
 
     const back = onBack || function() { viewWorkout(workoutId); };
     await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: back });
+}
+
+export function sessionSummaryRoute(workoutId, sessionId, sessionDate) {
+    return `#/workouts/${workoutId}/sessions/${sessionId}?date=${sessionDate}`;
 }
 
 /* options: { onBack, target?, mode?, onFinish?, backLabel?, headingPrefix?,

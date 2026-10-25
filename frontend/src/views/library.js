@@ -12,9 +12,11 @@ import { renderCategoryPillRow } from "../components/categoryPills.js";
 import { renderLibraryList } from "../components/libraryList.js";
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
 import { renderExerciseHistoryPage } from "./exerciseHistoryPage.js";
+import { setRoute } from "../router.js";
 
 export async function renderExerciseLibrary(initialCategory) {
     clearNavGuard();
+    setRoute("#/exercises");
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>Exercise Library</h2>
@@ -48,7 +50,8 @@ export async function renderExerciseLibrary(initialCategory) {
         });
         if (!result) return;
         if (result.action === "history") {
-            renderExerciseHistoryPage(exercise, function() { renderExerciseLibrary(selectedCategory); });
+            renderExerciseHistoryPage(exercise, function() { renderExerciseLibrary(selectedCategory); },
+                `#/exercises/${exercise.id}/history`);
         } else if (result.action === "save") {
             await updateExercise(exercise.id, result.data);
             renderExerciseLibrary(result.data.category);

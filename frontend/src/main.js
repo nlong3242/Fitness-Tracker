@@ -1,6 +1,7 @@
 import { state, findWorkout } from "./state.js";
 import { fetchWorkouts, fetchUnfinishedSession } from "./api.js";
-import { renderBottomNav, setActiveTab } from "./components/bottomNav.js";
+import { renderBottomNav } from "./components/bottomNav.js";
+import { restoreRoute } from "./router.js";
 import { initLiveWorkout } from "./components/liveWorkout.js";
 import { startIdleWatch } from "./autoEnd.js";
 
@@ -39,7 +40,7 @@ async function bootstrap() {
     await restoreInProgressSession();
     renderBottomNav();
     initLiveWorkout();
-    setActiveTab("home");
+    await restoreRoute();
     startIdleWatch();
 }
 

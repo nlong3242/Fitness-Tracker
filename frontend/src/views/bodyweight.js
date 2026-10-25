@@ -1,4 +1,5 @@
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
+import { setRoute } from "../router.js";
 import { fetchBodyWeightHistory, logBodyWeight, deleteBodyWeight } from "../api.js";
 import { showWeighInModal } from "../components/modals.js";
 
@@ -17,6 +18,7 @@ let range = "1M";   // kept while the app is open
 
 export async function renderBodyWeightPage() {
     clearNavGuard();
+    setRoute("#/bodyweight");
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>Bodyweight</h2>

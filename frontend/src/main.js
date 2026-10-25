@@ -1,8 +1,9 @@
 import { state, findWorkout } from "./state.js";
-import { fetchWorkouts, fetchUnfinishedSession, fetchMe, setUnauthorizedHandler, ApiError } from "./api.js";
+import { fetchWorkouts, fetchUnfinishedSession, fetchMe, fetchProfile, setUnauthorizedHandler, ApiError } from "./api.js";
 import { getToken } from "./auth.js";
 import { renderBottomNav } from "./components/bottomNav.js";
 import { renderLoginPage } from "./views/login.js";
+import { showProfileSetup } from "./views/profile.js";
 import { restoreRoute } from "./router.js";
 import { initLiveWorkout } from "./components/liveWorkout.js";
 import { startIdleWatch } from "./autoEnd.js";
@@ -69,10 +70,19 @@ async function bootstrap() {
         if (e instanceof ApiError && e.status === 401) return;   // login page is up
         throw e;
     }
+    // No profile yet (new account, or one from before profiles): the set-up
+    // page goes over the app until it's saved. If this can't be checked
+    // (offline), ask next start.
+    let needsProfile = false;
+    try {
+        state.profile = await fetchProfile();
+        needsProfile = state.profile === null;
+    } catch (e) { /* keep going without it */ }
     await restoreInProgressSession();
     renderBottomNav();
     initLiveWorkout();
     await restoreRoute();
+    if (needsProfile) showProfileSetup();
     startIdleWatch();
     checkLoginWhenShown();
 }

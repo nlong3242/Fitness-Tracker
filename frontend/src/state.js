@@ -8,6 +8,9 @@ export const state = {
     // ms timestamp of the last set change in that session (server-side
     // Session.lastActivityAt, kept current locally); drives idle auto-end.
     currentLastActivityAt: null,
+    // { name, birthDate, heightCm, weeklyGoal } from GET /profile; null until
+    // the account has one (main.js then shows the set-up page).
+    profile: null,
 };
 
 // Views navigate by workout id, not array position: positions shift when

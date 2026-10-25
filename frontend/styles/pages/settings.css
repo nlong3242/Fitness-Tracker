@@ -42,3 +42,16 @@
 .settings-notice.error {
     color: var(--danger);
 }
+
+.settings-name {
+    display: block;
+    color: var(--text-primary);
+    font-size: 1.15em;
+    font-weight: 600;
+    margin-bottom: 2px;
+    overflow-wrap: anywhere;
+}
+
+.settings-name[hidden] {
+    display: none;
+}

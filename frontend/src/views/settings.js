@@ -3,9 +3,11 @@ import { showConfirmModal } from "../components/modals.js";
 import { setRoute } from "../router.js";
 import { fetchMe, logout, logoutEverywhere, changePassword } from "../api.js";
 import { clearToken } from "../auth.js";
+import { state } from "../state.js";
+import { renderProfilePage } from "./profile.js";
 
-/* Settings — opened from the gear on Home: who's logged in, Change
-   password, Log out, and Log out everywhere. */
+/* Settings — opened from the gear on Home: who's logged in, Profile,
+   Change password, Log out, and Log out everywhere. */
 
 // Kept on this device for whoever is logged in; the next account mustn't
 // inherit them (see router.js, drafts.js, session.js).
@@ -24,16 +26,24 @@ export async function renderSettingsPage(notice = "") {
         <p class="settings-notice" id="settings-notice" role="status" hidden></p>
         <div class="settings-panel">
             <span class="settings-label">Logged in as</span>
+            <span class="settings-name" id="settings-name" hidden></span>
             <span class="settings-email" id="settings-email">…</span>
         </div>
         <div class="settings-actions">
+            <button class="btn-secondary" id="settings-profile-btn">Profile</button>
             <button class="btn-secondary" id="settings-password-btn">Change password</button>
             <button class="btn-danger" id="settings-logout-btn">Log out</button>
             <button class="btn-danger" id="settings-logout-all-btn">Log out everywhere</button>
         </div>
     `;
     showNotice(notice);
+    if (state.profile) {
+        const name = document.getElementById("settings-name");
+        name.textContent = state.profile.name;
+        name.hidden = false;
+    }
     document.getElementById("settings-back-btn").onclick = function() { setActiveTab("home"); };
+    document.getElementById("settings-profile-btn").onclick = function() { renderProfilePage(); };
     document.getElementById("settings-password-btn").onclick = function() { renderChangePasswordPage(); };
     document.getElementById("settings-logout-btn").onclick = logOut;
     document.getElementById("settings-logout-all-btn").onclick = logOutEverywhere;

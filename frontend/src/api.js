@@ -64,6 +64,24 @@ export function logoutEverywhere() {
     return requestOk("POST", "/auth/logout-all");
 }
 
+// --- Profile ---
+
+// { name, birthDate, heightCm, weeklyGoal }, or null before it's first saved.
+export async function fetchProfile() {
+    const response = await request("GET", "/profile");
+    if (response.status === 204) return null;
+    if (!response.ok) throw new ApiError(response);
+    return response.json();
+}
+
+// Saves every field (a blank one is cleared). Answers { ok, status, data }
+// like changePassword: a 400's errors[0] says what to fix.
+export async function saveProfile(profile) {
+    const response = await request("PUT", "/profile", profile);
+    const data = await response.json().catch(() => null);
+    return { ok: response.ok, status: response.status, data };
+}
+
 // { id, email } of the logged-in account.
 export function fetchMe() {
     return requestJson("GET", "/auth/me");

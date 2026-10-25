@@ -1,4 +1,4 @@
-import { fetchExercises } from "../api.js";
+import { fetchExercise, fetchExercises } from "../api.js";
 import { renderCategoryPillRow } from "../components/categoryPills.js";
 import { renderLibraryList } from "../components/libraryList.js";
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
@@ -38,7 +38,14 @@ export async function renderExerciseLibrary(initialCategory, initialQuery) {
     const groupsContainer = document.getElementById("library-groups");
     const pillContainer = document.getElementById("library-pill-row");
 
-    function onRowClick(exercise) {
+    // The list only has names and categories; the page needs the rest.
+    async function onRowClick(row) {
+        let exercise;
+        try {
+            exercise = await fetchExercise(row.id);
+        } catch (e) {
+            return;   // offline or gone: stay on the list
+        }
         renderExercisePage(exercise, {
             routeFor: id => `#/exercises/${id}`,
             onBack: function() { renderExerciseLibrary(selectedCategory, search.value); }

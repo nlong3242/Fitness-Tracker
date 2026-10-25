@@ -29,7 +29,7 @@ public class ExerciseController {
     // ----- Library endpoints -----
 
     @GetMapping("/exercises")
-    public List<Exercise> getAllExercises() {
+    public List<ExerciseService.ListItem> getAllExercises() {
         return exerciseService.findAll();
     }
 

@@ -11,6 +11,7 @@ public record UpdateExerciseRequest(
     @NotNull ExerciseCategory category,
     @Size(max = 255) String primaryMuscleGroups,
     @Size(max = 255) String exerciseType,
+    @Size(max = 50) String equipment,
     @Size(max = 4000) String cues,
     Boolean unilateral
 ) {}

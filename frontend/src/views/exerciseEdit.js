@@ -1,4 +1,4 @@
-import { CATEGORY_ORDER } from "../config.js";
+import { CATEGORY_ORDER, EQUIPMENT, EXERCISE_TYPES } from "../config.js";
 import { clearNavGuard, getNavGuard, setNavGuard } from "../components/bottomNav.js";
 import { showConfirmModal } from "../components/modals.js";
 import {
@@ -27,7 +27,7 @@ export function renderExerciseEditPage(exercise, opts) {
         title: "Edit Exercise",
         saveLabel: "Save",
         initial: exercise,
-        placeholders: { muscles: "None", type: "None" },
+        musclesPlaceholder: "None",
         deleteLabel: workout ? "Remove from workout" : "Delete exercise"
     });
     setNavGuard(form.confirmLeave);
@@ -77,7 +77,7 @@ export function renderExerciseCreatePage(opts) {
         title: "New Exercise",
         saveLabel: "Create",
         initial: { category: CATEGORY_ORDER.includes(opts.category) ? opts.category : null },
-        placeholders: { muscles: "e.g. Chest, Triceps", type: "e.g. Compound, Isolation" },
+        musclesPlaceholder: "e.g. Chest, Triceps",
         alwaysSavable: true
     });
     setNavGuard(async function() {
@@ -108,9 +108,14 @@ function renderExerciseForm(cfg) {
         category: cfg.initial.category || null,
         primaryMuscleGroups: cfg.initial.primaryMuscleGroups || "",
         exerciseType: cfg.initial.exerciseType || "",
+        equipment: cfg.initial.equipment || "",
         cues: cfg.initial.cues || "",
         unilateral: cfg.initial.unilateral === true
     };
+
+    // Equipment from before (or not in the list) stays a choice, so it's kept.
+    const equipmentChoices = original.equipment && !EQUIPMENT.includes(original.equipment)
+        ? [...EQUIPMENT, original.equipment] : EQUIPMENT;
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
@@ -132,11 +137,22 @@ function renderExerciseForm(cfg) {
             </div>
             <div class="modal-field">
                 <label class="modal-field-label" for="exe-muscles">Primary Muscle Groups</label>
-                <input type="text" id="exe-muscles" maxlength="255" placeholder="${escapeHtml(cfg.placeholders.muscles)}">
+                <input type="text" id="exe-muscles" maxlength="255" placeholder="${escapeHtml(cfg.musclesPlaceholder)}">
             </div>
             <div class="modal-field">
-                <label class="modal-field-label" for="exe-type">Exercise Type</label>
-                <input type="text" id="exe-type" maxlength="255" placeholder="${escapeHtml(cfg.placeholders.type)}">
+                <span class="modal-field-label">Exercise Type</span>
+                <div class="modal-pill-row">
+                    ${EXERCISE_TYPES.map(t => `<button type="button" class="modal-pill" data-type="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("")}
+                </div>
+            </div>
+            <div class="modal-field">
+                <label class="modal-field-label" for="exe-equipment">Equipment</label>
+                <span class="modal-select">
+                    <select id="exe-equipment">
+                        <option value="">None</option>
+                        ${equipmentChoices.map(e => `<option value="${escapeHtml(e)}">${escapeHtml(e)}</option>`).join("")}
+                    </select>
+                </span>
             </div>
             <div class="modal-field">
                 <label class="modal-field-label" for="exe-cues">Cues</label>
@@ -157,23 +173,27 @@ function renderExerciseForm(cfg) {
 
     const nameInput = document.getElementById("exe-name");
     const musclesInput = document.getElementById("exe-muscles");
-    const typeInput = document.getElementById("exe-type");
+    const equipmentSelect = document.getElementById("exe-equipment");
     const cuesInput = document.getElementById("exe-cues");
     const saveBtn = document.getElementById("exe-save-btn");
     const errorEl = document.getElementById("exe-error");
     nameInput.value = original.name;
     musclesInput.value = original.primaryMuscleGroups;
-    typeInput.value = original.exerciseType;
+    equipmentSelect.value = original.equipment;
     cuesInput.value = original.cues;
     let category = original.category;
     let unilateral = original.unilateral;
+    // A type from before the pills (typed in) shows no pill and is kept
+    // until another is picked.
+    let exerciseType = original.exerciseType;
 
     function current() {
         return {
             name: nameInput.value,
             category: category,
             primaryMuscleGroups: musclesInput.value,
-            exerciseType: typeInput.value,
+            exerciseType: exerciseType,
+            equipment: equipmentSelect.value,
             cues: cuesInput.value,
             unilateral: unilateral
         };
@@ -191,6 +211,9 @@ function renderExerciseForm(cfg) {
         for (const b of container.querySelectorAll("[data-unilateral]")) {
             b.classList.toggle("selected", (b.dataset.unilateral === "yes") === unilateral);
         }
+        for (const b of container.querySelectorAll("[data-type]")) {
+            b.classList.toggle("selected", b.dataset.type === exerciseType);
+        }
     }
     // The cues box grows with the text (up to about half the screen, then
     // it scrolls; modals.css).
@@ -205,9 +228,16 @@ function renderExerciseForm(cfg) {
     for (const b of container.querySelectorAll("[data-unilateral]")) {
         b.onclick = function() { unilateral = b.dataset.unilateral === "yes"; refresh(); };
     }
+    // Optional: tapping the picked type again clears it.
+    for (const b of container.querySelectorAll("[data-type]")) {
+        b.onclick = function() {
+            exerciseType = exerciseType === b.dataset.type ? "" : b.dataset.type;
+            refresh();
+        };
+    }
     nameInput.oninput = refresh;
     musclesInput.oninput = refresh;
-    typeInput.oninput = refresh;
+    equipmentSelect.onchange = refresh;
     cuesInput.oninput = function() { fitCues(); refresh(); };
     refresh();
     requestAnimationFrame(fitCues);
@@ -235,7 +265,8 @@ function renderExerciseForm(cfg) {
                 name: name,
                 category: category,
                 primaryMuscleGroups: musclesInput.value.trim() || null,
-                exerciseType: typeInput.value.trim() || null,
+                exerciseType: exerciseType.trim() || null,
+                equipment: equipmentSelect.value || null,
                 cues: cuesInput.value.trim() || null,
                 unilateral: unilateral
             });

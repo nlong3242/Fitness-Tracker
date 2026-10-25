@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.tsu2track.fitness_tracker.Exercise;
+import com.tsu2track.fitness_tracker.ExerciseCategory;
 import com.tsu2track.fitness_tracker.ExerciseRepository;
 import com.tsu2track.fitness_tracker.Workout;
 import com.tsu2track.fitness_tracker.WorkoutExercise;
@@ -53,8 +54,13 @@ public class ExerciseService {
         this.entityManager = entityManager;
     }
 
+    // A row of the library list: just enough to list, search and filter.
+    // The rest (cues, notes, ...) comes with findById when one is opened,
+    // so the list of hundreds stays small.
+    public record ListItem(Long id, String name, ExerciseCategory category, boolean builtIn) {}
+
     // The library: Custom and built-in together (less the hidden ones), A-Z.
-    public List<Exercise> findAll() {
+    public List<ListItem> findAll() {
         Long userId = CurrentUser.id();
         Set<Long> hiddenIds = hidden.ids(userId);
         List<Exercise> all = new ArrayList<>(exerciseRepository.findByUserIdAndDeletedFalseOrderByNameAsc(userId));
@@ -62,8 +68,9 @@ public class ExerciseService {
             if (!hiddenIds.contains(builtIn.getId())) all.add(builtIn);
         }
         all.sort(Comparator.comparing(Exercise::getName, String.CASE_INSENSITIVE_ORDER));
-        notes.show(userId, all);
-        return all;
+        return all.stream()
+            .map(e -> new ListItem(e.getId(), e.getName(), e.getCategory(), e.isBuiltIn()))
+            .toList();
     }
 
     public Exercise findById(Long id) {
@@ -85,6 +92,7 @@ public class ExerciseService {
         existing.setCategory(body.category());
         existing.setPrimaryMuscleGroups(body.primaryMuscleGroups());
         existing.setExerciseType(body.exerciseType());
+        existing.setEquipment(body.equipment());
         existing.setCues(body.cues());
         existing.setUnilateral(body.unilateral());
         return exerciseRepository.save(existing);
@@ -249,6 +257,7 @@ public class ExerciseService {
         exercise.setCategory(req.category());
         exercise.setPrimaryMuscleGroups(req.primaryMuscleGroups());
         exercise.setExerciseType(req.exerciseType());
+        exercise.setEquipment(req.equipment());
         exercise.setCues(req.cues());
         exercise.setNotes(req.notes());
         exercise.setUnilateral(req.unilateral());

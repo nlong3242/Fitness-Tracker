@@ -132,6 +132,7 @@
 
 .modal-field input[type="text"],
 .modal-field input[type="date"],
+.modal-field select,
 .modal-field textarea {
     background-color: var(--input-bg);
     color: var(--text-primary);
@@ -149,9 +150,36 @@
    their own min width and height, so the box poked out of the modal and
    stood taller than the text inputs: drop the native look, text left. */
 .modal-field input[type="text"],
-.modal-field input[type="date"] {
+.modal-field input[type="date"],
+.modal-field select {
     line-height: 1.2;
     height: calc(1.2em + 24px);
+}
+
+/* A drop-down (the iPhone shows its own picker): drawn like the text
+   boxes, with an arrow from .modal-select since a select can't have one. */
+.modal-field select {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    padding-right: 36px;
+}
+
+.modal-select {
+    position: relative;
+    display: block;
+}
+
+.modal-select::after {
+    content: "";
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    margin-top: -3px;
+    border: 6px solid transparent;
+    border-bottom: 0;
+    border-top-color: var(--text-primary);
+    pointer-events: none;
 }
 
 .modal-field input[type="date"] {
@@ -168,11 +196,16 @@
 
 .modal-field input[type="text"]:focus,
 .modal-field input[type="date"]:focus,
+.modal-field select:focus,
 .modal-field textarea:focus {
     outline: none;
     border-color: var(--accent-pink-deep);
     border-width: 4px;
     padding: 8px 10px;
+}
+
+.modal-field select:focus {
+    padding-right: 34px;
 }
 
 .modal-field textarea {

@@ -20,4 +20,15 @@ export const API_BASE = window.Capacitor?.isNativePlatform?.()
     ? nativeApiBase()
     : `${location.protocol}//${location.hostname}:8080`;
 
-export const CATEGORY_ORDER = ["CHEST", "ARMS", "BACK", "LEGS", "SHOULDERS", "CORE"];
+export const CATEGORY_ORDER = ["CHEST", "ARMS", "BACK", "LEGS", "SHOULDERS", "CORE", "OTHER"];
+
+// Exercise Type choices. Saved as plain text, so more (e.g. Isometric) can
+// just be added here.
+export const EXERCISE_TYPES = ["Compound", "Isolation"];
+
+// Equipment choices, spelled as the built-in exercises have them
+// (BuiltInExercises, which also renames "e-z curl bar"), most used first.
+export const EQUIPMENT = [
+    "Barbell", "Dumbbell", "Cable", "Machine", "Kettlebells", "Body only",
+    "Bands", "EZ Bar", "Exercise ball", "Medicine ball", "Other"
+];

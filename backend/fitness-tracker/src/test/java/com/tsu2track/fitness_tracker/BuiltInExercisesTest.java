@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jayway.jsonpath.JsonPath;
 import com.tsu2track.fitness_tracker.service.BuiltInExercises;
 
-/* Built-in exercises (builtin-exercises.json): in everyone's list, usable
+/* Built-in exercises (the test file, builtin-exercises-test.json): in everyone's list, usable
    without copying, read-only. History, last-time numbers and notes stay
    each account's own; Delete hides one for that account; a Custom copy
    takes over the account's workouts, sets and note. Full stack. */
@@ -71,6 +71,8 @@ class BuiltInExercisesTest {
             .andExpect(jsonPath("$.cues", containsString("This will be your starting position.\nFrom the starting position")));
         call(a, get("/exercises/" + builtInId(a, "One-Arm Dumbbell Row"))).andExpect(jsonPath("$.unilateral").value(true));
         call(a, get("/exercises/" + builtInId(a, "Plank"))).andExpect(jsonPath("$.category").value("CORE"));
+        // Moved: with the other deadlifts, not in Back (lower back).
+        call(a, get("/exercises/" + builtInId(a, "Barbell Deadlift"))).andExpect(jsonPath("$.category").value("LEGS"));
     }
 
     @Test
@@ -83,6 +85,17 @@ class BuiltInExercisesTest {
     }
 
     @Test
+    void theListIsSlimTheDetailsComeWithOne() throws Exception {
+        send(a, put("/exercises/" + bench + "/note"), "{\"content\": \"a's note\"}");
+        call(a, get("/exercises"))
+            .andExpect(jsonPath("$[?(@.id == " + bench + ")].name", contains(BENCH)))
+            .andExpect(jsonPath("$[?(@.id == " + bench + ")].category", contains("CHEST")))
+            .andExpect(jsonPath("$[0].cues").doesNotExist())
+            .andExpect(jsonPath("$[0].notes").doesNotExist());
+        call(a, get("/exercises/" + bench)).andExpect(jsonPath("$.notes").value("a's note"));
+    }
+
+    @Test
     void startingAgainDoesNotAddThemTwice() throws Exception {
         builtInExercises.run(null);
         call(a, get("/exercises")).andExpect(jsonPath("$[?(@.builtIn == true)]", hasSize(IN_FILE)));
@@ -91,11 +104,26 @@ class BuiltInExercisesTest {
     @Test
     void customAndBuiltInSortedTogether() throws Exception {
         send(a, post("/exercises"), "{\"name\": \"Cable Fly\", \"category\": \"CHEST\"}");
+        send(a, post("/exercises"), "{\"name\": \"Rowing Machine\", \"category\": \"OTHER\"}").andExpect(status().isOk());
         String json = call(a, get("/exercises")).andReturn().getResponse().getContentAsString();
         List<String> names = JsonPath.read(json, "$[*].name");
         List<String> sorted = names.stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
         org.junit.jupiter.api.Assertions.assertEquals(sorted, names);
         call(a, get("/exercises")).andExpect(jsonPath("$[?(@.name == 'Cable Fly')].builtIn", contains(false)));
+    }
+
+    @Test
+    void customExercisesHaveTypeAndEquipmentToo() throws Exception {
+        long mine = id(send(a, post("/exercises"),
+            "{\"name\": \"Cable Fly\", \"category\": \"CHEST\", \"exerciseType\": \"Isolation\", \"equipment\": \"Cable\"}"));
+        call(a, get("/exercises/" + mine))
+            .andExpect(jsonPath("$.exerciseType").value("Isolation"))
+            .andExpect(jsonPath("$.equipment").value("Cable"));
+        send(a, put("/exercises/" + mine), "{\"name\": \"Cable Fly\", \"category\": \"CHEST\", \"equipment\": \"Machine\"}")
+            .andExpect(status().isOk());
+        call(a, get("/exercises/" + mine))
+            .andExpect(jsonPath("$.exerciseType").value(nullValue()))
+            .andExpect(jsonPath("$.equipment").value("Machine"));
     }
 
     @Test
@@ -126,10 +154,8 @@ class BuiltInExercisesTest {
         // Notes: a's own, nowhere for b.
         call(a, get("/exercises/" + bench)).andExpect(jsonPath("$.notes").value("a's note"));
         call(a, get("/workouts/" + workoutA + "/exercises")).andExpect(jsonPath("$[0].notes").value("a's note"));
-        call(a, get("/exercises")).andExpect(jsonPath("$[?(@.id == " + bench + ")].notes", contains("a's note")));
         call(b, get("/exercises/" + bench)).andExpect(jsonPath("$.notes").value(nullValue()));
         call(b, get("/workouts/" + workoutB + "/exercises")).andExpect(jsonPath("$[0].notes").value(nullValue()));
-        call(b, get("/exercises")).andExpect(jsonPath("$[?(@.id == " + bench + ")].notes", contains((Object) null)));
     }
 
     @Test

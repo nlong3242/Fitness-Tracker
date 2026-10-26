@@ -1,14 +1,15 @@
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 import { groupExercisesByCategory } from "./categoryPills.js";
 
-/* The exercises a list shows: those in the chosen pill (a muscle group,
-   "ALL", or "CUSTOM" = the user's own) whose name has every word typed in
-   the search box, in any order. Used by the library and the picker. */
-export function filterExercises(exercises, category, query) {
+/* The exercises a list shows: those in the chosen pill (a muscle group or
+   "ALL"), only the user's own with Custom only on, whose name has every
+   word typed in the search box, in any order. Used by the library and the
+   picker. */
+export function filterExercises(exercises, category, query, customOnly) {
     const words = (query || "").toLowerCase().split(/\s+/).filter(Boolean);
     return exercises.filter(function(e) {
-        if (category === "CUSTOM" && e.builtIn) return false;
-        if (category !== "ALL" && category !== "CUSTOM" && (e.category || "CHEST") !== category) return false;
+        if (customOnly && e.builtIn) return false;
+        if (category !== "ALL" && (e.category || "CHEST") !== category) return false;
         const name = (e.name || "").toLowerCase();
         return words.every(w => name.includes(w));
     });
@@ -21,11 +22,11 @@ export function exerciseNameHtml(exercise) {
 }
 
 // Nothing to show: say why.
-export function emptyListMessage(category, query) {
-    if (query && query.trim()) return `No exercises match "${escapeHtml(query.trim())}".`;
-    if (category === "CUSTOM") return "No Custom exercises yet.";
-    if (category !== "ALL") return `No exercises in ${formatCategoryLabel(category)}.`;
-    return "No exercises yet.";
+export function emptyListMessage(category, query, customOnly) {
+    const what = customOnly ? "Custom exercises" : "exercises";
+    if (query && query.trim()) return `No ${what} match "${escapeHtml(query.trim())}".`;
+    if (category !== "ALL") return `No ${what} in ${formatCategoryLabel(category)}.`;
+    return `No ${what} yet.`;
 }
 
 function buildLibraryRow(exercise, onRowClick) {
@@ -37,16 +38,16 @@ function buildLibraryRow(exercise, onRowClick) {
     return li;
 }
 
-export function renderLibraryList(container, exercises, selectedCategory, onRowClick, query) {
+export function renderLibraryList(container, exercises, selectedCategory, onRowClick, query, customOnly) {
     container.innerHTML = "";
-    const shown = filterExercises(exercises, selectedCategory, query);
+    const shown = filterExercises(exercises, selectedCategory, query, customOnly);
     if (shown.length === 0) {
-        container.innerHTML = `<div class="empty-sessions">${emptyListMessage(selectedCategory, query)}</div>`;
+        container.innerHTML = `<div class="empty-sessions">${emptyListMessage(selectedCategory, query, customOnly)}</div>`;
         return;
     }
 
-    // A single muscle group is one list; everything else is grouped.
-    if (selectedCategory === "ALL" || selectedCategory === "CUSTOM") {
+    // A single muscle group is one list; All is grouped.
+    if (selectedCategory === "ALL") {
         const grouped = groupExercisesByCategory(shown);
         for (const [category, list] of grouped) {
             if (list.length === 0) continue;

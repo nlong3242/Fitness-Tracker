@@ -34,3 +34,47 @@
     color: var(--text-primary);
     box-shadow: inset -2px -2px 0 var(--accent-pink-shade), inset 2px 2px 0 var(--accent-pink-light);
 }
+
+/* The eye at the right end of the Create row (categoryPills.js
+   renderCustomToggle): just the icon, no button around it; closed while
+   built-ins are hidden, with a note under the search box. The padding is
+   invisible and keeps the tap target finger-sized. */
+.eye-btn,
+.eye-btn:hover,
+.eye-btn:active {
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+
+.eye-btn {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    padding: 8px 4px;
+}
+
+.eye-icon {
+    display: block;
+    width: 39px;
+    height: 27px;
+}
+
+/* A pink strip under the search box while built-ins are hidden, so the
+   shorter list isn't mistaken for missing exercises. */
+.custom-only-note {
+    margin: -4px 0 12px;
+    padding: 6px 10px;
+    background-color: var(--accent-pink-light);
+    border: 2px solid var(--accent-pink-shade);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 1em;
+}
+
+/* display: block on a <p> would otherwise beat the hidden attribute. */
+.custom-only-note[hidden] {
+    display: none;
+}

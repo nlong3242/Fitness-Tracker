@@ -10,6 +10,7 @@ import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 import { renderExerciseCreatePage } from "./exerciseEdit.js";
 import {
     renderCategoryPillRow,
+    renderCustomToggle,
     groupExercisesByCategory
 } from "../components/categoryPills.js";
 import { filterExercises, exerciseNameHtml, emptyListMessage } from "../components/libraryList.js";
@@ -26,9 +27,11 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
         <div class="page-actions">
             <button id="picker-create-btn">Create Exercise</button>
             <button class="btn-secondary" id="picker-cancel-btn">Cancel</button>
+            <button type="button" class="btn-secondary eye-btn" id="picker-eye-btn" aria-label="Hide built-in exercises"></button>
         </div>
         <input type="search" id="picker-search" class="library-search" placeholder="Search exercises"
                autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <p class="custom-only-note" id="picker-custom-note" hidden>Showing your Custom exercises only.</p>
         <div id="picker-pill-row" class="library-pill-row"></div>
         <div id="picker-list"></div>
         <div class="picker-action-bar">
@@ -46,10 +49,13 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
     const available = allExercises.filter(e => !excludedIds.has(e.id));
 
     const pillContainer = document.getElementById("picker-pill-row");
+    const toggleButton = document.getElementById("picker-eye-btn");
+    const customNote = document.getElementById("picker-custom-note");
     const listContainer = document.getElementById("picker-list");
     const addBtn = document.getElementById("picker-add-btn");
 
     let selectedCategory = kept?.category || "ALL";
+    let customOnly = !!kept?.customOnly;
     const selectedIds = new Set(kept?.selectedIds || []);
 
     // The button floats in only once something is ticked. Its text stays
@@ -92,12 +98,12 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
             listContainer.innerHTML = `<div class="empty-sessions">${allExercises.length === 0 ? 'No exercises in your library yet. Click "Create Exercise" to add one.' : 'Every library exercise is already in this workout.'}</div>`;
             return;
         }
-        const shown = filterExercises(available, selectedCategory, search.value);
+        const shown = filterExercises(available, selectedCategory, search.value, customOnly);
         if (shown.length === 0) {
-            listContainer.innerHTML = `<div class="empty-sessions">${emptyListMessage(selectedCategory, search.value)}</div>`;
+            listContainer.innerHTML = `<div class="empty-sessions">${emptyListMessage(selectedCategory, search.value, customOnly)}</div>`;
             return;
         }
-        if (selectedCategory === "ALL" || selectedCategory === "CUSTOM") {
+        if (selectedCategory === "ALL") {
             const grouped = groupExercisesByCategory(shown);
             for (const [category, list] of grouped) {
                 if (list.length === 0) continue;
@@ -126,6 +132,10 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
             selectedCategory = cat;
             rerender();
         });
+        renderCustomToggle(toggleButton, customNote, customOnly, function(on) {
+            customOnly = on;
+            rerender();
+        });
         renderList();
     }
     rerender();
@@ -134,7 +144,7 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
     // Create Exercise is a page of its own; coming back redraws the picker
     // with the ticks and filters kept (and a new exercise ticked).
     document.getElementById("picker-create-btn").onclick = function() {
-        const kept = { selectedIds: [...selectedIds], category: selectedCategory, query: search.value };
+        const kept = { selectedIds: [...selectedIds], category: selectedCategory, customOnly, query: search.value };
         renderExerciseCreatePage({
             category: selectedCategory,
             onCancel: function() { renderMultiSelectExercisePicker(opts, kept); },
@@ -142,6 +152,7 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
                 renderMultiSelectExercisePicker(opts, {
                     selectedIds: opts.single ? [created.id] : [...kept.selectedIds, created.id],
                     category: created.category,
+                    customOnly: kept.customOnly,
                     query: ""   // so the new one shows
                 });
             }

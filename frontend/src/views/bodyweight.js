@@ -80,12 +80,17 @@ function showChart(entries, today) {
     for (const btn of document.querySelectorAll(".bw-range")) {
         btn.classList.toggle("selected", btn.dataset.range === range);
     }
+    // The range's last N days, or from the first weigh-in if that's later
+    // (so a short history fills the width), up to today. Entries are oldest
+    // first; ISO dates compare as text.
     const days = RANGES.find(r => r.key === range).days;
-    const from = days === null ? null : addDays(today, -(days - 1));
-    const shown = from === null ? entries : entries.filter(e => e.date >= from);
+    const rangeStart = days === null ? "" : addDays(today, -(days - 1));
+    const first = entries.length > 0 ? entries[0].date : "";
+    const from = first > rangeStart ? first : rangeStart;
+    const shown = entries.filter(e => e.date >= from);
     document.getElementById("bw-chart").innerHTML = shown.length < 2
         ? `<p class="bw-chart-empty">${entries.length < 2 ? "Log a couple of days to see a chart." : "Not enough weigh-ins in this range."}</p>`
-        : chartSvg(shown, from || shown[0].date, today);
+        : chartSvg(shown, from, today);
 }
 
 /* Line chart in viewBox units: one square marker on the latest weigh-in

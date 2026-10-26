@@ -197,10 +197,16 @@ public class SessionService {
     }
 
     // Type changes made during a workout (Exercise.pendingLogType) take
-    // effect once no workout being done still has the exercise.
+    // effect once no workout being done still has the exercise. A built-in's
+    // (BuiltInExercises) waits for every account's workouts.
     private void applyPendingLogTypes() {
         Long userId = CurrentUser.id();
-        for (Exercise ex : exerciseRepository.findByUserIdAndPendingLogTypeIsNotNull(userId)) {
+        applyPendingLogTypes(exerciseRepository.findByUserIdAndPendingLogTypeIsNotNull(userId), userId);
+        applyPendingLogTypes(exerciseRepository.findByBuiltInTrueAndPendingLogTypeIsNotNull(), null);
+    }
+
+    private void applyPendingLogTypes(List<Exercise> waiting, Long userId) {
+        for (Exercise ex : waiting) {
             if (sessionRepository.existsOpenSessionWith(userId, ex.getId())) continue;
             ex.setLogType(ex.getPendingLogType());
             ex.setPendingLogType(null);

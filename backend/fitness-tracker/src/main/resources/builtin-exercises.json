@@ -1420,6 +1420,47 @@
     "id": "Bent_Press"
   },
   {
+    "name": "Bicycling",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "other",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, seat yourself on the bike and adjust the seat to your height."
+    ],
+    "category": "cardio",
+    "id": "Bicycling"
+  },
+  {
+    "name": "Bicycling, Stationary",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, seat yourself on the bike and adjust the seat to your height.",
+      "Select the desired option from the menu. You may have to start pedaling to turn it on. You can use the manual setting, or you can select a program to use. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise. The level of resistance can be changed throughout the workout. The handles can be used to monitor your heart rate to help you stay at an appropriate intensity."
+    ],
+    "category": "cardio",
+    "id": "Bicycling_Stationary"
+  },
+  {
     "name": "Body-Up",
     "force": "push",
     "level": "intermediate",
@@ -4063,6 +4104,27 @@
     "id": "Elevated_Cable_Rows"
   },
   {
+    "name": "Elliptical Trainer",
+    "force": null,
+    "level": "intermediate",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, step onto the elliptical and select the desired option from the menu. Most ellipticals have a manual setting, or you can select a program to run. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise. Elevation can be adjusted to change the intensity of the workout.",
+      "The handles can be used to monitor your heart rate to help you stay at an appropriate intensity."
+    ],
+    "category": "cardio",
+    "id": "Elliptical_Trainer"
+  },
+  {
     "name": "Exercise Ball Crunch",
     "force": "pull",
     "level": "beginner",
@@ -5554,6 +5616,26 @@
     ],
     "category": "strength",
     "id": "Jefferson_Squats"
+  },
+  {
+    "name": "Jogging, Treadmill",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, step onto the treadmill and select the desired option from the menu. Most treadmills have a manual setting, or you can select a program to run. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise. Elevation can be adjusted to change the intensity of the workout.",
+      "Treadmills offer convenience, cardiovascular benefits, and usually have less impact than jogging outside. A 150 lb person will burn almost 250 calories jogging for 30 minutes, compared to more than 450 calories running. Maintain proper posture as you jog, and only hold onto the handles when necessary, such as when dismounting or checking your heart rate."
+    ],
+    "category": "cardio",
+    "id": "Jogging_Treadmill"
   },
   {
     "name": "Kettlebell Arnold Press",
@@ -8492,6 +8574,30 @@
     "id": "Prone_Manual_Hamstring"
   },
   {
+    "name": "Prowler Sprint",
+    "force": "push",
+    "level": "beginner",
+    "mechanic": "compound",
+    "equipment": "other",
+    "primaryMuscles": [
+      "hamstrings"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "chest",
+      "glutes",
+      "quadriceps",
+      "shoulders"
+    ],
+    "instructions": [
+      "Place your sled on an appropriate surface, loaded to a suitable weight. The sled should provide enough resistance to require effort, but not so heavy that you are significantly slowed down.",
+      "You may use the upright or the low handles for this exercise. Place your hands on the handles with your arms extended, leaning into the implement.",
+      "With good posture, drive through the ground with alternating, short steps. Move as fast as you can for a short distance."
+    ],
+    "category": "cardio",
+    "id": "Prowler_Sprint"
+  },
+  {
     "name": "Pull Through",
     "force": "pull",
     "level": "beginner",
@@ -8692,6 +8798,28 @@
     ],
     "category": "strength",
     "id": "Pushups_Close_and_Wide_Hand_Positions"
+  },
+  {
+    "name": "Recumbent Bike",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, seat yourself on the bike and adjust the seat to your height.",
+      "Select the desired option from the menu. You may have to start pedaling to turn it on. You can use the manual setting, or you can select a program to use. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise. The level of resistance can be changed throughout the workout. The handles can be used to monitor your heart rate to help you stay at an appropriate intensity.",
+      "Recumbent bikes offer convenience, cardiovascular benefits, and have less impact than other activities. A 150 lb person will burn about 230 calories cycling at a moderate rate for 30 minutes, compared to 450 calories or more running."
+    ],
+    "category": "cardio",
+    "id": "Recumbent_Bike"
   },
   {
     "name": "Reverse Barbell Curl",
@@ -9091,6 +9219,26 @@
     "id": "Rope_Crunch"
   },
   {
+    "name": "Rope Jumping",
+    "force": null,
+    "level": "intermediate",
+    "mechanic": null,
+    "equipment": "other",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Hold an end of the rope in each hand. Position the rope behind you on the ground. Raise your arms up and turn the rope over your head bringing it down in front of you. When it reaches the ground, jump over it. Find a good turning pace that can be maintained. Different speeds and techniques can be used to introduce variation.",
+      "Rope jumping is exciting, challenges your coordination, and requires a lot of energy. A 150 lb person will burn about 350 calories jumping rope for 30 minutes, compared to over 450 calories running."
+    ],
+    "category": "cardio",
+    "id": "Rope_Jumping"
+  },
+  {
     "name": "Rope Straight-Arm Pulldown",
     "force": "pull",
     "level": "beginner",
@@ -9108,6 +9256,52 @@
     ],
     "category": "strength",
     "id": "Rope_Straight-Arm_Pulldown"
+  },
+  {
+    "name": "Rowing, Stationary",
+    "force": null,
+    "level": "intermediate",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "biceps",
+      "calves",
+      "glutes",
+      "hamstrings",
+      "lower back",
+      "middle back"
+    ],
+    "instructions": [
+      "To begin, seat yourself on the rower. Make sure that your heels are resting comfortably against the base of the foot pedals and that the straps are secured. Select the program that you wish to use, if applicable. Sit up straight and bend forward at the hips.",
+      "There are three phases of movement when using a rower. The first phase is when you come forward on the rower. Your knees are bent and against your chest. Your upper body is leaning slightly forward while still maintaining good posture. Next, push against the foot pedals and extend your legs while bringing your hands to your upper abdominal area, squeezing your shoulders back as you do so. To avoid straining your back, use primarily your leg and hip muscles.",
+      "The recovery phase simply involves straightening your arms, bending the knees, and bringing your body forward again as you transition back into the first phase."
+    ],
+    "category": "cardio",
+    "id": "Rowing_Stationary"
+  },
+  {
+    "name": "Running, Treadmill",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, step onto the treadmill and select the desired option from the menu. Most treadmills have a manual setting, or you can select a program to run. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise. Elevation can be adjusted to change the intensity of the workout.",
+      "Treadmills offer convenience, cardiovascular benefits, and usually have less impact than running outside. A 150 lb person will burn over 450 calories running 8 miles per hour for 30 minutes. Maintain proper posture as you run, and only hold onto the handles when necessary, such as when dismounting or checking your heart rate."
+    ],
+    "category": "cardio",
+    "id": "Running_Treadmill"
   },
   {
     "name": "Russian Twist",
@@ -10051,6 +10245,29 @@
     "id": "Sit-Up"
   },
   {
+    "name": "Skating",
+    "force": null,
+    "level": "intermediate",
+    "mechanic": null,
+    "equipment": "other",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "abductors",
+      "adductors",
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Roller skating is a fun activity which can be effective in improving cardiorespiratory fitness and muscular endurance. It requires relatively good balance and coordination. It is necessary to learn the basics of skating including turning and stopping and to wear protective gear to avoid possible injury.",
+      "You can skate at a comfortable pace for 30 minutes straight. If you want a cardio challenge, do interval skating — speed skate two minutes of every five minutes, using the remaining three minutes to recover. A 150 lb person will typically burn about 175 calories in 30 minutes skating at a comfortable pace, similar to brisk walking."
+    ],
+    "category": "cardio",
+    "id": "Skating"
+  },
+  {
     "name": "Sled Overhead Backward Walk",
     "force": "pull",
     "level": "beginner",
@@ -10808,6 +11025,28 @@
     "id": "Squats_-_With_Bands"
   },
   {
+    "name": "Stairmaster",
+    "force": null,
+    "level": "intermediate",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, step onto the stairmaster and select the desired option from the menu. You can choose a manual setting, or you can select a program to run. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise.",
+      "Pump your legs up and down in an established rhythm, driving the pedals down but not all the way to the floor. It is recommended that you maintain your grip on the handles so that you don't fall. The handles can be used to monitor your heart rate to help you stay at an appropriate intensity.",
+      "Stairmasters offer convenience, cardiovascular benefits, and usually have less impact than running outside. They are typically much harder than other cardio equipment. A 150 lb person will typically burn over 300 calories in 30 minutes, compared to about 175 calories walking."
+    ],
+    "category": "cardio",
+    "id": "Stairmaster"
+  },
+  {
     "name": "Standing Alternating Dumbbell Press",
     "force": "push",
     "level": "beginner",
@@ -11557,6 +11796,27 @@
     "id": "Step-up_with_Knee_Raise"
   },
   {
+    "name": "Step Mill",
+    "force": null,
+    "level": "intermediate",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, step onto the stepmill and select the desired option from the menu. You can choose a manual setting, or you can select a program to run. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise. Use caution so that you don't trip as you climb the stairs. It is recommended that you maintain your grip on the handles so that you don't fall.",
+      "Stepmills offer convenience, cardiovascular benefits, and usually have less impact than running outside while offering a similar rate of calories burned. They are typically much harder than other cardio equipment. A 150 lb person will typically burn over 300 calories in 30 minutes, compared to about 175 calories walking."
+    ],
+    "category": "cardio",
+    "id": "Step_Mill"
+  },
+  {
     "name": "Stiff-Legged Barbell Deadlift",
     "force": "pull",
     "level": "intermediate",
@@ -11937,6 +12197,27 @@
     "id": "Thigh_Adductor"
   },
   {
+    "name": "Trail Running/Walking",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": null,
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "Running or hiking on trails will get the blood pumping and heart beating almost immediately. Make sure you have good shoes. While you use the muscles in your calves and buttocks to pull yourself up a hill, the knees, joints and ankles absorb the bulk of the pounding coming back down. Take smaller steps as you walk downhill, keep your knees bent to reduce the impact and slow down to avoid falling.",
+      "A 150 lb person can burn over 200 calories for 30 minutes walking uphill, compared to 175 on a flat surface. If running the trail, a 150 lb person can burn well over 500 calories in 30 minutes."
+    ],
+    "category": "cardio",
+    "id": "Trail_Running_Walking"
+  },
+  {
     "name": "Trap Bar Deadlift",
     "force": "pull",
     "level": "beginner",
@@ -12315,6 +12596,27 @@
     ],
     "category": "strength",
     "id": "V-Bar_Pullup"
+  },
+  {
+    "name": "Walking, Treadmill",
+    "force": null,
+    "level": "beginner",
+    "mechanic": null,
+    "equipment": "machine",
+    "primaryMuscles": [
+      "quadriceps"
+    ],
+    "secondaryMuscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "instructions": [
+      "To begin, step onto the treadmill and select the desired option from the menu. Most treadmills have a manual setting, or you can select a program to run. Typically, you can enter your age and weight to estimate the amount of calories burned during exercise. Elevation can be adjusted to change the intensity of the workout.",
+      "Treadmills offer convenience, cardiovascular benefits, and usually have less impact than walking outside. When walking, you should move at a moderate to fast pace, not a leisurely one. Being an activity of lower intensity, walking doesn't burn as many calories as some other activities, but still provides great benefit. A 150 lb person will burn about 175 calories walking 4 miles per hour for 30 minutes, compared to 450 calories running twice as fast. Maintain proper posture as you walk, and only hold onto the handles when necessary, such as when dismounting or checking your heart rate."
+    ],
+    "category": "cardio",
+    "id": "Walking_Treadmill"
   },
   {
     "name": "Weighted Ball Hyperextension",

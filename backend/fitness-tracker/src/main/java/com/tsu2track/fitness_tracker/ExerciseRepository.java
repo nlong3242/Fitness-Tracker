@@ -15,6 +15,7 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
     List<Exercise> findByBuiltInTrue();
 
     List<Exercise> findByUserIdAndPendingLogTypeIsNotNull(Long userId);
+    List<Exercise> findByBuiltInTrueAndPendingLogTypeIsNotNull();
 
     // What an account can use (add to workouts, log, look at): its own
     // exercises and the built-in ones. Changing one needs findByIdAndUserId.

@@ -27,9 +27,10 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     // Whether the exercise is in a workout the account is still doing: in
     // that workout, or with a set logged in it (since removed from it).
+    // A null userId asks about every account (built-ins are shared).
     @Query("""
         SELECT COUNT(s) > 0 FROM Session s
-        WHERE s.userId = :userId AND s.finished = false
+        WHERE (:userId IS NULL OR s.userId = :userId) AND s.finished = false
           AND (EXISTS (SELECT 1 FROM WorkoutExercise we
                        WHERE we.workout = s.workout AND we.exercise.id = :exerciseId)
                OR EXISTS (SELECT 1 FROM ExerciseSet es

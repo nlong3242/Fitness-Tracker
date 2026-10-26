@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -21,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.tsu2track.fitness_tracker.Exercise;
 import com.tsu2track.fitness_tracker.ExerciseCategory;
 import com.tsu2track.fitness_tracker.ExerciseRepository;
+import com.tsu2track.fitness_tracker.LogType;
+import com.tsu2track.fitness_tracker.SessionRepository;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -30,7 +33,11 @@ import tools.jackson.databind.ObjectMapper;
    its own format. Each one is added once (matched on the dataset's id)
    and brought up to date on later starts, so a newer file just replaces
    the old one. Exercises taken out of the file stay: people may have
-   logged them. Only strength exercises are used.
+   logged them. Only strength and cardio exercises are used; cardio
+   ones go in Cardio, whatever muscle they work.
+   Each is logged as Weight & reps unless listed below; a type change
+   waits while anyone has the exercise in a workout being done, as an
+   edit does (ExerciseService).
    It runs once the app is set up but before the server takes requests,
    so the list never comes back without them; a broken file stops the
    start. */
@@ -71,20 +78,32 @@ public class BuiltInExercises implements SmartInitializingSingleton {
         "Battling_Ropes", ExerciseCategory.OTHER,
         "Sled_Overhead_Backward_Walk", ExerciseCategory.OTHER);
 
+    // Held for time, by dataset id (the dataset calls most of these "static").
+    private static final Set<String> TIMED = Set.of(
+        "Plank", "Side_Bridge",
+        "Isometric_Neck_Exercise_-_Front_And_Back", "Isometric_Neck_Exercise_-_Sides",
+        "Balance_Board", "Battling_Ropes", "Downward_Facing_Balance");
+
+    // Walked for a distance. Bodyweight ("body only") ones that aren't
+    // timed are logged as Reps.
+    private static final Set<String> DISTANCED = Set.of("Sled_Overhead_Backward_Walk");
+
     // "One-Arm Dumbbell Row", "Single Leg Squat": logged a side at a time.
     private static final Pattern ONE_SIDE = Pattern.compile("\\b(one|single)[- ]?(arm|leg)", Pattern.CASE_INSENSITIVE);
 
     private static final int MAX_CUES = 4000;
 
     private final ExerciseRepository exercises;
+    private final SessionRepository sessions;
     private final ObjectMapper objectMapper;
     private final Resource file;
     private final TransactionTemplate transaction;
 
-    public BuiltInExercises(ExerciseRepository exercises, ObjectMapper objectMapper,
+    public BuiltInExercises(ExerciseRepository exercises, SessionRepository sessions, ObjectMapper objectMapper,
                             @Value("${app.builtin-exercises}") Resource file,
                             PlatformTransactionManager transactions) {
         this.exercises = exercises;
+        this.sessions = sessions;
         this.objectMapper = objectMapper;
         this.file = file;
         this.transaction = new TransactionTemplate(transactions);
@@ -114,15 +133,16 @@ public class BuiltInExercises implements SmartInitializingSingleton {
         List<Exercise> added = new ArrayList<>();
 
         for (Entry entry : entries) {
-            if (!"strength".equals(entry.category()) || entry.primaryMuscles() == null
-                    || entry.primaryMuscles().isEmpty()) continue;
-            ExerciseCategory group = MOVED.getOrDefault(entry.id(), GROUPS.get(entry.primaryMuscles().get(0)));
+            ExerciseCategory group = categoryOf(entry);
             if (group == null) continue;
 
             Exercise exercise = existing.get(entry.id());
             if (exercise == null) {
                 exercise = new Exercise();
+                exercise.setLogType(logTypeOf(entry));
                 added.add(exercise);
+            } else {
+                changeLogType(exercise, logTypeOf(entry));
             }
             exercise.setBuiltIn(true);
             exercise.setSourceId(entry.id());
@@ -139,6 +159,32 @@ public class BuiltInExercises implements SmartInitializingSingleton {
                 : steps.length() > MAX_CUES ? steps.substring(0, MAX_CUES) : steps);
         }
         exercises.saveAll(added);
+    }
+
+    private static ExerciseCategory categoryOf(Entry entry) {
+        if ("cardio".equals(entry.category())) return ExerciseCategory.CARDIO;
+        if (!"strength".equals(entry.category()) || entry.primaryMuscles() == null
+                || entry.primaryMuscles().isEmpty()) return null;
+        return MOVED.getOrDefault(entry.id(), GROUPS.get(entry.primaryMuscles().get(0)));
+    }
+
+    private static LogType logTypeOf(Entry entry) {
+        if ("cardio".equals(entry.category())) return LogType.DISTANCE_TIME;
+        if (TIMED.contains(entry.id())) return LogType.TIME;
+        if (DISTANCED.contains(entry.id())) return LogType.DISTANCE_TIME;
+        if ("body only".equals(entry.equipment())) return LogType.REPS;
+        return LogType.WEIGHT_REPS;
+    }
+
+    private void changeLogType(Exercise exercise, LogType wanted) {
+        if (wanted == exercise.getLogType()) {
+            exercise.setPendingLogType(null);
+        } else if (sessions.existsOpenSessionWith(null, exercise.getId())) {
+            exercise.setPendingLogType(wanted);
+        } else {
+            exercise.setLogType(wanted);
+            exercise.setPendingLogType(null);
+        }
     }
 
     private static List<String> capitalized(List<String> words) {

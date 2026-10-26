@@ -37,7 +37,7 @@ import com.tsu2track.fitness_tracker.service.BuiltInExercises;
 class BuiltInExercisesTest {
 
     private static final String BENCH = "Barbell Bench Press - Medium Grip";
-    private static final int IN_FILE = 10;
+    private static final int IN_FILE = 11;
 
     @Autowired MockMvc mvc;
     @Autowired BuiltInExercises builtInExercises;
@@ -113,6 +113,60 @@ class BuiltInExercisesTest {
             .andExpect(jsonPath("$.name").value(BENCH))
             .andExpect(jsonPath("$.equipment").value("Barbell"));
         call(a, get("/exercises")).andExpect(jsonPath("$[?(@.builtIn == true)]", hasSize(IN_FILE)));
+    }
+
+    @Test
+    void eachIsLoggedItsOwnWay() throws Exception {
+        call(a, get("/exercises/" + bench)).andExpect(jsonPath("$.logType").value("WEIGHT_REPS"));
+        // Bodyweight: Reps. Held: Time.
+        call(a, get("/exercises/" + builtInId(a, "Pullups"))).andExpect(jsonPath("$.logType").value("REPS"));
+        call(a, get("/exercises/" + builtInId(a, "Plank"))).andExpect(jsonPath("$.logType").value("TIME"));
+        // Cardio: its own category (not Legs, its muscle), Distance & time.
+        call(a, get("/exercises/" + builtInId(a, "Running, Treadmill")))
+            .andExpect(jsonPath("$.category").value("CARDIO"))
+            .andExpect(jsonPath("$.logType").value("DISTANCE_TIME"));
+    }
+
+    @Test
+    void startingAgainPutsBackTheType() throws Exception {
+        long plank = builtInId(a, "Plank");
+        Exercise stored = exerciseRepository.findById(plank).orElseThrow();
+        stored.setLogType(LogType.WEIGHT_REPS);
+        exerciseRepository.flush();
+        builtInExercises.loadFile();
+        Exercise after = exerciseRepository.findById(plank).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(LogType.TIME, after.getLogType());
+        org.junit.jupiter.api.Assertions.assertNull(after.getPendingLogType());
+    }
+
+    /* A new type from the file waits while anyone has the exercise in a
+       workout being done, and applies once the last of those ends. */
+    @Test
+    void aNewTypeWaitsForWorkoutsBeingDone() throws Exception {
+        long plank = builtInId(a, "Plank");
+        Exercise stored = exerciseRepository.findById(plank).orElseThrow();
+        stored.setLogType(LogType.WEIGHT_REPS);
+        exerciseRepository.flush();
+        long workoutA = id(send(a, post("/workouts"), "{\"name\": \"Core\"}"));
+        call(a, post("/workouts/" + workoutA + "/exercises/" + plank + "/link")).andExpect(status().isOk());
+        long sessionA = id(call(a, post("/workouts/" + workoutA + "/sessions")));
+
+        builtInExercises.loadFile();
+        exerciseRepository.flush();
+        call(a, get("/exercises/" + plank))
+            .andExpect(jsonPath("$.logType").value("WEIGHT_REPS"))
+            .andExpect(jsonPath("$.pendingLogType").value("TIME"));
+
+        // b finishing a workout of their own doesn't apply it: a's is still open.
+        long workoutB = id(send(b, post("/workouts"), "{\"name\": \"Other\"}"));
+        long sessionB = id(call(b, post("/workouts/" + workoutB + "/sessions")));
+        call(b, post("/sessions/" + sessionB + "/finish")).andExpect(status().isOk());
+        call(a, get("/exercises/" + plank)).andExpect(jsonPath("$.logType").value("WEIGHT_REPS"));
+
+        call(a, post("/sessions/" + sessionA + "/finish")).andExpect(status().isOk());
+        call(b, get("/exercises/" + plank))
+            .andExpect(jsonPath("$.logType").value("TIME"))
+            .andExpect(jsonPath("$.pendingLogType").value(nullValue()));
     }
 
     @Test

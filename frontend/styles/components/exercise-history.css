@@ -181,9 +181,9 @@
     margin-bottom: 20px;
 }
 
-/* Exercise page (views/exercisePage.js): Back, then Edit on the right;
-   Overview / History tabs side by side. */
-.exp-actions #exp-edit-btn,
+/* Exercise page (views/exercisePage.js): Overview / History tabs side by
+   side. Its top is .page-top (Back and the ⋮). The edit page: Cancel,
+   then Save on the right. */
 .exp-actions #exe-save-btn {
     margin-left: auto;
 }
@@ -199,16 +199,9 @@
     padding: 8px 0;
 }
 
-/* Edit page (views/exerciseEdit.js): the popup's fields on a page, with
-   Delete (or Remove from workout) on its own below the form. */
+/* Edit page (views/exerciseEdit.js): the popup's fields on a page. */
 .exe-form .modal-field:last-of-type {
     margin-bottom: 4px;
-}
-
-.exe-delete-btn {
-    display: block;
-    width: 100%;
-    margin: 0 0 24px;
 }
 
 /* Under Logged as: the change waits for the open workout to end. */

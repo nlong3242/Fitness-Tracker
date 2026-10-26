@@ -4,7 +4,6 @@ import { showConfirmModal } from "../components/modals.js";
 import {
     copyExercise,
     createExercise,
-    deleteExercise,
     fetchExercise,
     updateExercise,
     updateWorkoutExercise
@@ -13,9 +12,9 @@ import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 import { setRoute } from "../router.js";
 import { renderExercisePage } from "./exercisePage.js";
 
-/* Edit an exercise: Edit on the exercise page, or the workout page's ⋮
-   menu. A built-in exercise can't be changed, so this first offers a
-   Custom copy (which takes over the user's workouts and history for it,
+/* Edit an exercise: from the ⋮ on the exercise page or the workout page.
+   A built-in exercise can't be changed, so this first offers a Custom
+   copy (which takes over the user's workouts and history for it,
    see ExerciseService.copyBuiltIn) and edits that. */
 export async function editExercise(exercise, opts) {
     let target = exercise;
@@ -37,8 +36,7 @@ export async function editExercise(exercise, opts) {
 
 /* Edit a Custom exercise, as a page of its own. Cancel and Save go back to
    opts.onDone() if given (the workout page, from its ⋮ menu), else to the
-   exercise page. Delete goes back to where the exercise page was opened
-   from; from a workout there's no Delete (the ⋮ menu has Remove). Leaving
+   exercise page. Delete is in the exercise page's ⋮, not here. Leaving
    by a tab with unsaved changes asks first. opts: as renderExercisePage. */
 export function renderExerciseEditPage(exercise, opts) {
     clearNavGuard();
@@ -50,7 +48,6 @@ export function renderExerciseEditPage(exercise, opts) {
         saveLabel: "Save",
         initial: exercise,
         musclesPlaceholder: "None",
-        deleteLabel: workout ? null : "Delete exercise",
         confirmTypeChange: true
     });
     setNavGuard(form.confirmLeave);
@@ -74,12 +71,6 @@ export function renderExerciseEditPage(exercise, opts) {
         done(saved);
     };
 
-    form.onDelete = async function() {
-        if (!(await showConfirmModal(`Delete "${exercise.name}" permanently?`, "Delete"))) return;
-        await deleteExercise(exercise.id);
-        clearNavGuard();
-        opts.onBack();
-    };
 }
 
 /* Create a Custom exercise, as a page of its own (Create Exercise on the
@@ -118,7 +109,7 @@ export function renderExerciseCreatePage(opts) {
 }
 
 /* The exercise form page shared by Create and Edit. Draws the page and
-   returns { confirmLeave, onCancel, onSave(data), onDelete } - the caller
+   returns { confirmLeave, onCancel, onSave(data) } - the caller
    fills in the handlers. Save is off until the name and category are set
    and (unless alwaysSavable) something changed; onSave throwing shows an
    error and lets the user try again. */
@@ -143,7 +134,7 @@ function renderExerciseForm(cfg) {
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <div class="page-actions exp-actions">
+        <div class="page-actions page-top exp-actions">
             <button class="btn-secondary" id="exe-cancel-btn">Cancel</button>
             <button id="exe-save-btn" disabled>${escapeHtml(cfg.saveLabel)}</button>
         </div>
@@ -200,7 +191,6 @@ function renderExerciseForm(cfg) {
             </div>
             <p class="auth-error" id="exe-error" role="alert" hidden></p>
         </form>
-        ${cfg.deleteLabel ? `<button class="btn-danger exe-delete-btn" id="exe-delete-btn">${escapeHtml(cfg.deleteLabel)}</button>` : ""}
     `;
     document.getElementById("app-scroll").scrollTo(0, 0);
 
@@ -295,8 +285,7 @@ function renderExerciseForm(cfg) {
             return !isDirty() || await showConfirmModal("Discard unsaved changes?", "Discard");
         },
         onCancel: null,
-        onSave: null,
-        onDelete: null
+        onSave: null
     };
 
     document.getElementById("exe-cancel-btn").onclick = function() { form.onCancel(); };
@@ -328,9 +317,6 @@ function renderExerciseForm(cfg) {
             refresh();
         }
     };
-
-    const deleteBtn = document.getElementById("exe-delete-btn");
-    if (deleteBtn) deleteBtn.onclick = function() { form.onDelete(); };
 
     return form;
 }

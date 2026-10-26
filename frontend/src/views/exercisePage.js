@@ -1,14 +1,18 @@
+import { deleteExercise } from "../api.js";
+import { createMoreButton } from "../components/actionMenu.js";
 import { clearNavGuard } from "../components/bottomNav.js";
 import { renderExerciseHistory } from "../components/exerciseHistory.js";
 import { exerciseOverviewHtml } from "../components/exerciseOverview.js";
+import { showConfirmModal } from "../components/modals.js";
 import { escapeHtml } from "../utils/format.js";
 import { setRoute } from "../router.js";
 import { editExercise } from "./exerciseEdit.js";
 
 /* An exercise's page, opened from the Exercises tab or a workout's page:
    read-only, with Overview (cues and details) and History tabs. From the
-   Exercises tab, Edit opens the edit page (editExercise); from a workout,
-   editing is in the workout page's ⋮ menu, so there's no Edit here.
+   Exercises tab, its ⋮ has Edit (the edit page, editExercise) and, for a
+   Custom exercise, Delete; from a workout, those are in the workout
+   page's ⋮ menu (Edit, Remove), so there's no ⋮ here.
 
    opts:
      routeFor(id) - this page's hash route for an exercise id (router.js);
@@ -23,9 +27,8 @@ export function renderExercisePage(exercise, opts) {
     let tab = opts.tab === "history" ? "history" : "overview";
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <div class="page-actions exp-actions">
+        <div class="page-actions page-top">
             <button class="btn-secondary" id="exp-back-btn">Back</button>
-            ${opts.workout ? "" : `<button id="exp-edit-btn">Edit</button>`}
         </div>
         <h2 class="exh-page-title">${escapeHtml(exercise.name)}</h2>
         <div class="exp-tabs" role="tablist">
@@ -58,8 +61,23 @@ export function renderExercisePage(exercise, opts) {
 
     document.getElementById("exp-back-btn").onclick = function() { opts.onBack(); };
 
-    // Edit is a page of its own (exerciseEdit.js). From a workout it's in
-    // the workout page's ⋮ menu instead.
-    const editBtn = document.getElementById("exp-edit-btn");
-    if (editBtn) editBtn.onclick = function() { editExercise(exercise, { ...opts, tab: "overview" }); };
+    if (!opts.workout) {
+        container.querySelector(".page-top").appendChild(createMoreButton(`Options for ${exercise.name}`, function() {
+            return exerciseMenu(exercise, opts);
+        }));
+    }
+}
+
+// Built-ins can't be deleted (Edit offers a Custom copy instead).
+function exerciseMenu(exercise, opts) {
+    return [
+        { label: "Edit exercise", onSelect: function() { editExercise(exercise, { ...opts, tab: "overview" }); } },
+        ...(exercise.builtIn ? [] : [{ label: "Delete exercise", danger: true, onSelect: function() { removeExercise(exercise, opts); } }])
+    ];
+}
+
+async function removeExercise(exercise, opts) {
+    if (!(await showConfirmModal(`Delete "${exercise.name}" permanently?`, "Delete"))) return;
+    await deleteExercise(exercise.id);
+    opts.onBack();
 }

@@ -88,9 +88,10 @@ function showChart(entries, today) {
         : chartSvg(shown, from || shown[0].date, today);
 }
 
-/* Line chart in viewBox units: square markers on each weigh-in, a dashed
-   line at the range's highest and lowest weight, labels in HTML below so
-   the pixel font isn't scaled with the SVG. */
+/* Line chart in viewBox units: one square marker on the latest weigh-in
+   (one on every weigh-in ran together: daily ones on 1M sit ~10px apart),
+   a dashed line at the range's highest and lowest weight, labels in HTML
+   below so the pixel font isn't scaled with the SVG. */
 function chartSvg(points, fromIso, toIso) {
     const W = 300, H = 120, PAD = 8;
     const kgs = points.map(p => p.weightKg);
@@ -101,8 +102,7 @@ function chartSvg(points, fromIso, toIso) {
     const y = kg => PAD + ((hi - kg) / (hi - lo)) * (H - 2 * PAD);
     const coords = points.map(p => [x(p.date), y(p.weightKg)]);
     const line = coords.map(([cx, cy]) => `${cx.toFixed(1)},${cy.toFixed(1)}`).join(" ");
-    const marks = coords.map(([cx, cy]) =>
-        `<rect x="${(cx - 2.5).toFixed(1)}" y="${(cy - 2.5).toFixed(1)}" width="5" height="5"/>`).join("");
+    const [lastX, lastY] = coords[coords.length - 1];
     const first = points[0], last = points[points.length - 1];
     const change = Math.round((last.weightKg - first.weightKg) * 10) / 10;
     return `
@@ -115,7 +115,7 @@ function chartSvg(points, fromIso, toIso) {
             <line class="bw-chart-guide" x1="0" x2="${W}" y1="${y(Math.max(...kgs)).toFixed(1)}" y2="${y(Math.max(...kgs)).toFixed(1)}"/>
             <line class="bw-chart-guide" x1="0" x2="${W}" y1="${y(Math.min(...kgs)).toFixed(1)}" y2="${y(Math.min(...kgs)).toFixed(1)}"/>
             <polyline class="bw-chart-line" points="${line}"/>
-            <g class="bw-chart-marks">${marks}</g>
+            <rect class="bw-chart-mark" x="${(lastX - 2.5).toFixed(1)}" y="${(lastY - 2.5).toFixed(1)}" width="5" height="5"/>
         </svg>
         <div class="bw-chart-axis"><span>${shortDate(fromIso)}</span><span>${shortDate(toIso)}</span></div>
     `;

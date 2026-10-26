@@ -61,7 +61,7 @@
     vector-effect: non-scaling-stroke;
 }
 
-.bw-chart-marks rect {
+.bw-chart-mark {
     fill: var(--accent-pink-light);
     stroke: var(--frame);
     stroke-width: 1.5;

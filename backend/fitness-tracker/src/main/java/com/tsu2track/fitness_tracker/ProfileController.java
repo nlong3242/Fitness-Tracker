@@ -1,10 +1,13 @@
 package com.tsu2track.fitness_tracker;
 
+import java.time.LocalDate;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.tsu2track.fitness_tracker.dto.ProfileRequest;
@@ -29,9 +32,11 @@ public class ProfileController {
             .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    // PUT: one profile per account, saved whole each time.
+    // PUT: one profile per account, saved whole each time. weekStart (the
+    // Monday of the user's week) dates a weekly goal change.
     @PutMapping
-    public UserProfile save(@Valid @RequestBody ProfileRequest body) {
-        return profileService.save(body);
+    public UserProfile save(@Valid @RequestBody ProfileRequest body,
+                            @RequestParam(required = false) LocalDate weekStart) {
+        return profileService.save(body, weekStart);
     }
 }

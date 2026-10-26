@@ -18,12 +18,13 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     Optional<Session> findFirstByUserIdAndFinishedTrueOrderByDateDescIdDesc(Long userId);
     long countByUserIdAndFinishedTrueAndDateBetween(Long userId, LocalDate from, LocalDate to);
 
+    // One date per finished session (two on a day: that date twice).
     @Query("""
-        SELECT DISTINCT s.date FROM Session s
+        SELECT s.date FROM Session s
         WHERE s.userId = :userId AND s.finished = true AND s.date <= :until
         ORDER BY s.date DESC
         """)
-    List<LocalDate> findFinishedDatesUpTo(@Param("userId") Long userId, @Param("until") LocalDate until);
+    List<LocalDate> findFinishedSessionDatesUpTo(@Param("userId") Long userId, @Param("until") LocalDate until);
 
     // Whether the exercise is in a workout the account is still doing: in
     // that workout, or with a set logged in it (since removed from it).

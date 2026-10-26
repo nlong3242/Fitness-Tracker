@@ -3,6 +3,7 @@ package com.tsu2track.fitness_tracker;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,19 +14,23 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
 import com.tsu2track.fitness_tracker.service.ExerciseNotes;
+import com.tsu2track.fitness_tracker.security.CurrentUser;
 import com.tsu2track.fitness_tracker.service.SessionService;
+import com.tsu2track.fitness_tracker.service.WeeklyGoals;
 
 /* Home page stats: finished sessions in a Monday–Sunday week, the
-   most recent finished session, the week streak and the next plan. */
+   most recent finished session, the week streak (weeks that met their
+   weekly goal) and the next plan. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
-@Import({ SessionService.class, ExerciseNotes.class })
+@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class })
 class HomeOverviewTest {
 
     private static final LocalDate MONDAY = LocalDate.of(2026, 10, 19);
 
     @Autowired TestEntityManager em;
     @Autowired SessionService sessionService;
+    @Autowired WeeklyGoals weeklyGoals;
 
     private Workout upper;
     private Workout legs;
@@ -120,6 +125,77 @@ class HomeOverviewTest {
     @Test
     void streakIsBrokenByAMissedWeek() {
         session(upper, MONDAY.minusWeeks(2), true);
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isZero();
+    }
+
+    @Test
+    void withAGoalAWeekNeedsThatMany() {
+        weeklyGoals.record(MONDAY.minusWeeks(10), 2);
+        session(upper, MONDAY.plusDays(1), true);         // this week: 2
+        session(legs, MONDAY.plusDays(1), true);          // same day: counts twice
+        session(upper, MONDAY.minusDays(2), true);        // last week: 2
+        session(upper, MONDAY.minusDays(5), true);
+        session(upper, MONDAY.minusWeeks(2), true);       // two weeks back: only 1, breaks it
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(2);
+    }
+
+    @Test
+    void thisWeekBelowTheGoalDoesNotBreakIt() {
+        weeklyGoals.record(MONDAY.minusWeeks(10), 2);
+        session(upper, MONDAY, true);                     // this week: 1 of 2 so far
+        session(upper, MONDAY.minusDays(1), true);        // last week: 2
+        session(legs, MONDAY.minusDays(3), true);
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(1);
+    }
+
+    @Test
+    void pastWeeksKeepTheGoalTheyHad() {
+        weeklyGoals.record(MONDAY.minusWeeks(10), 1);
+        session(upper, MONDAY.minusWeeks(1), true);       // 1 a week, met
+        session(upper, MONDAY.minusWeeks(2), true);
+        session(upper, MONDAY, true);                     // this week: 1
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(3);
+
+        // Raised to 2 this week: only this week needs 2 now.
+        weeklyGoals.record(MONDAY, 2);
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(2);
+        session(legs, MONDAY.plusDays(2), true);
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(3);
+    }
+
+    @Test
+    void theLastChangeInAWeekCounts() {
+        weeklyGoals.record(MONDAY.minusWeeks(10), 3);
+        session(upper, MONDAY.minusWeeks(1), true);       // last week: 1
+        weeklyGoals.record(MONDAY.minusWeeks(1), 2);
+        weeklyGoals.record(MONDAY.minusWeeks(1), 1);      // lowered again the same week
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(1);
+    }
+
+    @Test
+    void removingTheGoalGoesBackToOneAWeek() {
+        weeklyGoals.record(MONDAY.minusWeeks(10), 3);
+        weeklyGoals.record(MONDAY.minusWeeks(1), null);
+        session(upper, MONDAY.minusWeeks(1), true);
+        session(upper, MONDAY, true);
+
+        assertThat(sessionService.countWeekStreak(MONDAY)).isEqualTo(2);
+    }
+
+    @Test
+    void withNoRecordedChangeTheProfilesGoalStands() {
+        UserProfile profile = new UserProfile(CurrentUser.id());
+        profile.setName("Long");
+        profile.setWeeklyGoal(2);
+        profile.setUpdatedAt(LocalDateTime.now());
+        em.persist(profile);
+        session(upper, MONDAY.minusWeeks(1), true);       // 1 of 2: not met
+        session(upper, MONDAY.minusWeeks(2), true);
+        session(legs, MONDAY.minusWeeks(2), true);
 
         assertThat(sessionService.countWeekStreak(MONDAY)).isZero();
     }

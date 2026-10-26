@@ -2,13 +2,16 @@ package com.tsu2track.fitness_tracker.service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +52,7 @@ public class SessionService {
     private final WorkoutExerciseRepository workoutExerciseRepository;
     private final ScheduledWorkoutRepository scheduledWorkoutRepository;
     private final ExerciseNotes exerciseNotes;
+    private final WeeklyGoals weeklyGoals;
 
     public SessionService(SessionRepository sessionRepository,
                           WorkoutRepository workoutRepository,
@@ -57,7 +61,8 @@ public class SessionService {
                           SessionExerciseRepository sessionExerciseRepository,
                           WorkoutExerciseRepository workoutExerciseRepository,
                           ScheduledWorkoutRepository scheduledWorkoutRepository,
-                          ExerciseNotes exerciseNotes) {
+                          ExerciseNotes exerciseNotes,
+                          WeeklyGoals weeklyGoals) {
         this.sessionRepository = sessionRepository;
         this.workoutRepository = workoutRepository;
         this.exerciseRepository = exerciseRepository;
@@ -66,6 +71,7 @@ public class SessionService {
         this.workoutExerciseRepository = workoutExerciseRepository;
         this.scheduledWorkoutRepository = scheduledWorkoutRepository;
         this.exerciseNotes = exerciseNotes;
+        this.weeklyGoals = weeklyGoals;
     }
 
     public Page<Session> findSessions(Long workoutId, Pageable pageable) {
@@ -90,22 +96,24 @@ public class SessionService {
         return sessionRepository.findFirstByUserIdAndFinishedTrueOrderByDateDescIdDesc(CurrentUser.id());
     }
 
-    /* Weeks in a row (Monday start) with at least one finished session,
-       counting back from weekStart. A week with nothing yet doesn't break
-       the streak while it's still the current one: it starts from last week. */
+    /* Weeks in a row (Monday start) that met that week's goal (finished
+       sessions; WeeklyGoals, one with no goal), counting back from
+       weekStart. The current week doesn't break the streak before it's met:
+       then it starts from last week. */
     public int countWeekStreak(LocalDate weekStart) {
-        // Newest first, so each week's dates come in one run.
-        List<LocalDate> dates = sessionRepository.findFinishedDatesUpTo(CurrentUser.id(), weekStart.plusDays(6));
-        LocalDate week = weekStart;
-        if (dates.isEmpty() || dates.get(0).isBefore(week)) {
-            week = week.minusWeeks(1);
+        // Finished sessions per week: [0] this week, [1] last week, ...
+        Map<Long, Integer> perWeek = new HashMap<>();
+        for (LocalDate date : sessionRepository.findFinishedSessionDatesUpTo(CurrentUser.id(), weekStart.plusDays(6))) {
+            long weeksBack = Math.floorDiv(ChronoUnit.DAYS.between(date, weekStart) + 6, 7);
+            perWeek.merge(weeksBack, 1, Integer::sum);
         }
+        Function<LocalDate, Integer> goal = weeklyGoals.forWeeks();
+        long back = 0;
+        if (perWeek.getOrDefault(0L, 0) < goal.apply(weekStart)) back = 1;
         int streak = 0;
-        int i = 0;
-        while (i < dates.size() && !dates.get(i).isBefore(week)) {
+        while (perWeek.getOrDefault(back, 0) >= goal.apply(weekStart.minusWeeks(back))) {
             streak++;
-            while (i < dates.size() && !dates.get(i).isBefore(week)) i++;
-            week = week.minusWeeks(1);
+            back++;
         }
         return streak;
     }

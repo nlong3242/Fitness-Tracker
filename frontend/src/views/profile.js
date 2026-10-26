@@ -56,6 +56,12 @@ function localIso(date) {
     return date.toLocaleDateString("en-CA"); // YYYY-MM-DD, local time
 }
 
+// This week's Monday (Monday-start weeks, like Home and the calendar).
+function thisMonday() {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
+}
+
 // Fills the form from `profile` (or leaves it blank) and saves on submit;
 // onSaved gets the saved profile.
 function wireForm(profile, onSaved) {
@@ -143,7 +149,7 @@ function wireForm(profile, onSaved) {
                 birthDate: birth.value || null,
                 heightCm: height.value.trim() ? Number(height.value.trim()) : null,
                 weeklyGoal: goalNumber(),
-            });
+            }, localIso(thisMonday()));
             if (!result.ok) {
                 const first = result.data && result.data.errors && result.data.errors[0];
                 showError(first && first.message ? first.message : "Something went wrong. Please try again.");

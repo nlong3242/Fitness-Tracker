@@ -25,6 +25,7 @@ import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.service.ExerciseService;
 import com.tsu2track.fitness_tracker.service.HiddenExercises;
 import com.tsu2track.fitness_tracker.service.SessionService;
+import com.tsu2track.fitness_tracker.service.WeeklyGoals;
 
 /* Exercises that aren't weight × reps (LogType): which numbers a set
    takes, Cardio, a type change waiting for the workout being done, and
@@ -32,7 +33,7 @@ import com.tsu2track.fitness_tracker.service.SessionService;
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
 @Import({ SessionService.class, ExerciseService.class, ExerciseHistoryService.class,
-          ExerciseNotes.class, HiddenExercises.class })
+          ExerciseNotes.class, HiddenExercises.class, WeeklyGoals.class })
 class LogTypeTest {
 
     @Autowired TestEntityManager em;

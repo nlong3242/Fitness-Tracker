@@ -317,8 +317,13 @@ async function loadStats() {
     if (overview.weekStreak !== undefined) {
         const weeks = overview.weekStreak;
         document.getElementById("home-streak").innerHTML = withUnit(weeks, weeks === 1 ? "week" : "weeks");
+        // This week counts once it meets the weekly goal (one with none).
+        const goal = state.profile && state.profile.weeklyGoal;
+        const left = (goal || 1) - n;
         document.getElementById("home-streak-note").textContent =
-            n > 0 ? "This week done" : weeks > 0 ? "Train to keep it" : "Train to start one";
+            left <= 0 ? "This week done"
+            : goal ? `${left} more this week`
+            : weeks > 0 ? "Train to keep it" : "Train to start one";
     }
     if (overview.nextPlanned !== undefined) showNextUp(overview.nextPlanned, overview.plannedThatDay || 0, today);
 

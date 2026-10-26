@@ -75,9 +75,10 @@ export async function fetchProfile() {
 }
 
 // Saves every field (a blank one is cleared). Answers { ok, status, data }
-// like changePassword: a 400's errors[0] says what to fix.
-export async function saveProfile(profile) {
-    const response = await request("PUT", "/profile", profile);
+// like changePassword: a 400's errors[0] says what to fix. weekStart (local
+// Monday, YYYY-MM-DD) is the week a new weekly goal counts from.
+export async function saveProfile(profile, weekStart) {
+    const response = await request("PUT", `/profile?weekStart=${weekStart}`, profile);
     const data = await response.json().catch(() => null);
     return { ok: response.ok, status: response.status, data };
 }

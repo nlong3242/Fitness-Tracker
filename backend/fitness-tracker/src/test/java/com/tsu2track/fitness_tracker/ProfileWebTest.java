@@ -1,5 +1,6 @@
 package com.tsu2track.fitness_tracker;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -7,7 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,13 +25,15 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jayway.jsonpath.JsonPath;
 
 /* The profile: none until first saved, only the name required, each
-   account sees only its own. Full stack. */
+   account sees only its own; a new weekly goal is recorded for its week.
+   Full stack. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 class ProfileWebTest {
 
     @Autowired MockMvc mvc;
+    @Autowired WeeklyGoalChangeRepository goalChanges;
 
     private String bearer;
 
@@ -107,6 +112,23 @@ class ProfileWebTest {
     }
 
     @Test
+    void aNewWeeklyGoalIsRecordedForItsWeek() throws Exception {
+        LocalDate week = LocalDate.of(2026, 10, 19);
+        save(bearer, "{\"name\": \"Long\", \"weeklyGoal\": 3}", week);
+        save(bearer, "{\"name\": \"Longy\", \"weeklyGoal\": 3}", week.plusWeeks(1));   // same goal: nothing new
+        save(bearer, "{\"name\": \"Long\", \"weeklyGoal\": 4}", week.plusWeeks(2));
+        save(bearer, "{\"name\": \"Long\", \"weeklyGoal\": 2}", week.plusWeeks(2));    // same week: replaces it
+        save(bearer, "{\"name\": \"Long\"}", week.plusWeeks(3));                          // goal removed
+        assertThat(goals()).containsExactly(week + "=3", week.plusWeeks(2) + "=2", week.plusWeeks(3) + "=null");
+    }
+
+    @Test
+    void withoutAWeekTheServersWeekIsUsed() throws Exception {
+        save(bearer, "{\"name\": \"Long\", \"weeklyGoal\": 3}");
+        assertThat(goals()).containsExactly(LocalDate.now().with(DayOfWeek.MONDAY) + "=3");
+    }
+
+    @Test
     void needsALogin() throws Exception {
         mvc.perform(get("/profile")).andExpect(status().isUnauthorized());
         mvc.perform(put("/profile").contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"Long\"}"))
@@ -123,6 +145,18 @@ class ProfileWebTest {
     private ResultActions save(String bearer, String body) throws Exception {
         return mvc.perform(put("/profile").header("Authorization", bearer)
             .contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    private ResultActions save(String bearer, String body, LocalDate weekStart) throws Exception {
+        return mvc.perform(put("/profile").param("weekStart", weekStart.toString()).header("Authorization", bearer)
+            .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk());
+    }
+
+    // "week=goal", oldest first (only this test's account has any).
+    private List<String> goals() {
+        return goalChanges.findAll().stream()
+            .sorted((x, y) -> x.getWeekStart().compareTo(y.getWeekStart()))
+            .map(c -> c.getWeekStart() + "=" + c.getWeeklyGoal()).toList();
     }
 
     private String signup(String email) throws Exception {

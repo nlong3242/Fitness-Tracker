@@ -18,12 +18,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.service.SessionService;
+import com.tsu2track.fitness_tracker.service.WeeklyGoals;
 
 /* finishSession writes the permanent history snapshot (SessionExercise rows):
    which exercises the session shows, in what order, under what name. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
-@Import({ SessionService.class, ExerciseNotes.class })
+@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class })
 class SessionServiceFinishTest {
 
     @Autowired TestEntityManager em;

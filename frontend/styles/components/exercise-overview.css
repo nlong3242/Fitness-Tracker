@@ -103,3 +103,9 @@
     color: var(--text-muted);
     margin: 0;
 }
+
+.exo-pending {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}

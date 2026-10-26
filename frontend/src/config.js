@@ -20,7 +20,21 @@ export const API_BASE = window.Capacitor?.isNativePlatform?.()
     ? nativeApiBase()
     : `${location.protocol}//${location.hostname}:8080`;
 
-export const CATEGORY_ORDER = ["CHEST", "ARMS", "BACK", "LEGS", "SHOULDERS", "CORE", "OTHER"];
+export const CATEGORY_ORDER = ["CHEST", "ARMS", "BACK", "LEGS", "SHOULDERS", "CORE", "CARDIO", "OTHER"];
+
+// How an exercise's sets are logged (the backend's LogType). Cardio is
+// always Distance & time, so the form hides the choice for it.
+export const LOG_TYPES = [
+    { value: "WEIGHT_REPS", label: "Weight & reps" },
+    { value: "REPS", label: "Reps" },
+    { value: "TIME", label: "Time" },
+    { value: "DISTANCE_TIME", label: "Distance & time" }
+];
+
+export function logTypeLabel(value) {
+    const t = LOG_TYPES.find(t => t.value === value);
+    return t ? t.label : "Weight & reps";
+}
 
 // Exercise Type choices. Saved as plain text, so more (e.g. Isometric) can
 // just be added here.

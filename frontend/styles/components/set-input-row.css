@@ -182,3 +182,80 @@
     font-weight: 700;
     margin-top: -2px;
 }
+
+/* Time (Time and Distance & time exercises): a min box and a sec box
+   joined by ":" so they read as one time, like a treadmill screen. The
+   cell is wider than the others and its boxes have less side padding, so
+   km + time still fit a phone row. Side padding shrinks by 2px wherever
+   the border grows by 2px (focus, saved, failed), so the text never moves. */
+.set-time-cell {
+    flex: 1.7 1 0;
+    max-width: 170px;
+}
+
+.set-time {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.set-time .set-input {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+}
+
+.set-time .set-input {
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.set-time .set-input:focus,
+.set-input-row.saved .set-time .set-input,
+.set-input-row.save-failed .set-time .set-input {
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.set-time-colon {
+    flex: 0 0 auto;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+/* The time's headings, "min" over its min box and "sec" over its sec box.
+   The ":" is there (hidden) so they line up with the boxes below. */
+.set-time-head {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+}
+
+.set-header-row .set-time-colon {
+    visibility: hidden;
+}
+
+/* The km box (setInputRow.js refreshKmBox). It has the same padding as
+   weight and reps; a distance too wide for it at the usual size (999.99)
+   gets smaller text (.km-long, set only while it doesn't fit). The box
+   fills the row's height, so smaller text doesn't make it shorter than
+   the min and sec boxes beside it.
+   Empty, it may show a centred "–": faint when it's last time's hint (no
+   distance then), dark like a value on a logged set with no distance. */
+.set-input-cell[data-col="km"] {
+    align-self: stretch;
+    display: flex;
+}
+
+.set-input.km-input.km-long {
+    font-size: 0.9em;
+}
+
+.set-input.km-input.km-dash:placeholder-shown {
+    text-align: center;
+}
+
+.set-input-row.saved .set-input.km-input::placeholder {
+    color: var(--text-primary);
+    font-weight: bold;
+}

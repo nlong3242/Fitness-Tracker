@@ -210,3 +210,10 @@
     width: 100%;
     margin: 0 0 24px;
 }
+
+/* Under Logged as: the change waits for the open workout to end. */
+.exe-field-note {
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}

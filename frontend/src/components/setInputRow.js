@@ -3,43 +3,153 @@ import { createSet, updateSet, deleteSet } from "../api.js";
 import { ensureCurrentSession, maybeCleanupOrphanSession, touchActivity } from "../session.js";
 import { saveExerciseDrafts } from "../drafts.js";
 
+/* The boxes a set has, by how its exercise is logged (logType, config.js
+   LOG_TYPES). "time" is one value in seconds typed into two boxes,
+   min : sec. km is the only optional one. */
+const COLUMNS = {
+    WEIGHT_REPS: ["weight", "reps"],
+    REPS: ["reps"],
+    TIME: ["time"],
+    DISTANCE_TIME: ["km", "time"]
+};
+const HEADERS = { weight: "Weight", reps: "Reps", km: "km" };
+
+function columnsFor(exercise) {
+    return COLUMNS[exercise.logType] || COLUMNS.WEIGHT_REPS;
+}
+
+/* The raw box values ("" when empty) of a set's numbers, as a row shows
+   them: w, r, km, and the time as m and s. */
+function boxValues(set) {
+    const v = { w: String(set.weight), r: String(set.reps), km: "", m: "", s: "" };
+    if (set.distanceKm != null) v.km = String(set.distanceKm);
+    if (set.durationSeconds != null) {
+        v.m = String(Math.floor(set.durationSeconds / 60));
+        v.s = String(set.durationSeconds % 60).padStart(2, "0");
+    }
+    return v;
+}
+
+// 75 → "1:15"; with a sign for the last-time arrows.
+function formatSeconds(total) {
+    const abs = Math.abs(total);
+    return `${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, "0")}`;
+}
+
+/* A long distance can be wider than the km box: it depends on the digits
+   (999.99 is wider than 160.25) and the phone's font, so the box is
+   measured. Its text is smaller (.km-long) only while it doesn't fit. */
+function fitKmText(box) {
+    box.classList.remove("km-long");
+    if (box.scrollWidth > box.clientWidth) box.classList.add("km-long");
+}
+
+// A hidden card's boxes have no width to measure, so each km box is
+// measured again when its size changes, e.g. when its card is shown.
+const kmBoxResizes = new ResizeObserver(function(entries) {
+    for (const entry of entries) fitKmText(entry.target);
+});
+
+function cellHtml(col) {
+    if (col === "time") {
+        return `
+        <div class="set-input-cell set-time-cell" data-col="time">
+            <div class="set-time">
+                <input type="text" inputmode="numeric" autocomplete="off" maxlength="3" class="set-input min-input" aria-label="Minutes">
+                <span class="set-time-colon">:</span>
+                <input type="text" inputmode="numeric" autocomplete="off" maxlength="2" class="set-input sec-input" aria-label="Seconds">
+            </div>
+            <span class="set-input-delta"></span>
+        </div>`;
+    }
+    const input = {
+        weight: `<input type="text" inputmode="decimal" autocomplete="off" maxlength="6" class="set-input weight-input">`,
+        reps: `<input type="text" inputmode="numeric" autocomplete="off" maxlength="3" class="set-input reps-input">`,
+        km: `<input type="text" inputmode="decimal" autocomplete="off" maxlength="6" class="set-input km-input">`
+    }[col];
+    return `
+        <div class="set-input-cell" data-col="${col}">
+            ${input}
+            <span class="set-input-delta"></span>
+        </div>`;
+}
+
 /* savedSet (optional): an already-persisted set to show in the row, used
    when resuming an in-progress session. */
 export function createInputRow(workout, exercise, exerciseIndex, side, savedSet) {
     const isUnilateral = exercise.unilateral === true;
+    const columns = columnsFor(exercise);
     const row = document.createElement("div");
     row.className = "set-input-row";
     if (side) row.dataset.side = side;
     row._savedSet = null;
+    row._columns = columns;
     row.innerHTML = `
         <div class="set-input-num"></div>
-        <div class="set-input-cell">
-            <input type="text" inputmode="decimal" autocomplete="off" maxlength="6" class="set-input weight-input">
-            <span class="set-input-delta weight-delta"></span>
-        </div>
-        <div class="set-input-cell">
-            <input type="text" inputmode="numeric" autocomplete="off" maxlength="3" class="set-input reps-input">
-            <span class="set-input-delta reps-delta"></span>
-        </div>
+        ${columns.map(cellHtml).join("")}
         <button class="set-input-retry" aria-label="Retry">&#8635;</button>
         <button class="set-input-cancel">&#10005;</button>
         <div class="set-input-error"></div>
     `;
-    const weightInput = row.querySelector(".weight-input");
-    const repsInput = row.querySelector(".reps-input");
-    const weightDelta = row.querySelector(".weight-delta");
-    const repsDelta = row.querySelector(".reps-delta");
+    // The row's boxes by value key; those the type doesn't use are absent.
+    const boxes = {
+        w: row.querySelector(".weight-input"),
+        r: row.querySelector(".reps-input"),
+        km: row.querySelector(".km-input"),
+        m: row.querySelector(".min-input"),
+        s: row.querySelector(".sec-input")
+    };
+    for (const key of Object.keys(boxes)) if (!boxes[key]) delete boxes[key];
+    const deltaFor = col => row.querySelector(`[data-col="${col}"] .set-input-delta`);
     const cancelBtn = row.querySelector(".set-input-cancel");
     const retryBtn = row.querySelector(".set-input-retry");
     const errorEl = row.querySelector(".set-input-error");
     const numEl = row.querySelector(".set-input-num");
 
+    const val = key => boxes[key] ? boxes[key].value : "";
+    // Whether a column has something typed in. A time needs more than 0:00
+    // (either box may be blank), so 0:00 counts as no time, like blank boxes.
+    function filled(col) {
+        if (col === "weight") return val("w") !== "";
+        if (col === "reps") return val("r") !== "";
+        if (col === "km") return val("km") !== "";
+        return Number(val("m") || 0) * 60 + Number(val("s") || 0) > 0;
+    }
+    // Every column the type needs (km is optional).
+    function isComplete() {
+        return columns.every(col => col === "km" || filled(col));
+    }
+
+    /* The row's numbers, as the API takes them: only the type's own, with
+       NaN for one that isn't a valid number and null for a blank km. A
+       blank min or sec counts as 0 (2 min, sec blank = 2:00). */
+    function numbers() {
+        const n = {};
+        if (columns.includes("weight")) n.weight = val("w") === "" ? NaN : parseFloat(val("w"));
+        if (columns.includes("reps")) n.reps = val("r") === "" ? NaN : Number(val("r"));
+        if (columns.includes("km")) n.distanceKm = val("km") === "" ? null : parseFloat(val("km"));
+        if (columns.includes("time")) n.durationSeconds = filled("time")
+            ? Number(val("m") || 0) * 60 + Number(val("s") || 0) : NaN;
+        return n;
+    }
+    function isValid(n) {
+        if ("weight" in n && !(n.weight >= 0)) return false;
+        if ("reps" in n && !(Number.isInteger(n.reps) && n.reps > 0)) return false;
+        if ("durationSeconds" in n && !(n.durationSeconds > 0)) return false;
+        if ("distanceKm" in n && n.distanceKm !== null && !(n.distanceKm > 0 && n.distanceKm <= 1000)) return false;
+        return true;
+    }
+    function matchesSaved(n) {
+        const saved = row._savedSet;
+        return Object.keys(n).every(k => (saved[k] ?? null) === n[k]);
+    }
+
     /* The label is a "log last time" button only while there is something
-       to fill: .complete (both fields have a value) turns it back into
+       to fill: .complete (every needed field has a value) turns it back into
        plain text. Whether a last-time hint exists (.has-hint) is set by
        renumberSetRows, which knows the row's position. */
     function refreshTapState() {
-        numEl.classList.toggle("complete", weightInput.value !== "" && repsInput.value !== "");
+        numEl.classList.toggle("complete", isComplete());
     }
     let persisting = false;
 
@@ -58,30 +168,39 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     row._setFailed = setFailed;
     row._clearFailed = clearFailed;
 
+    function fill(values, onlyEmpty) {
+        for (const key of Object.keys(boxes)) {
+            if (values[key] === undefined) continue;
+            if (onlyEmpty && boxes[key].value !== "") continue;
+            boxes[key].value = values[key];
+        }
+    }
+
     if (savedSet) {
-        weightInput.value = savedSet.weight;
-        repsInput.value = savedSet.reps;
+        fill(boxValues(savedSet));
         row._savedSet = savedSet;
         row.classList.add("saved");
     }
     refreshTapState();
 
-    function disableWheelScroll(input) {
-        input.addEventListener("wheel", function() { this.blur(); });
+    for (const box of Object.values(boxes)) {
+        box.addEventListener("wheel", function() { this.blur(); });
     }
-    disableWheelScroll(weightInput);
-    disableWheelScroll(repsInput);
 
-    function renderDeltaSpan(el, delta) {
+    function renderDeltaSpan(el, delta, format) {
         if (delta === 0) {
             el.textContent = "";
             el.classList.remove("pos", "neg");
             return;
         }
-        const sign = delta > 0 ? "+" : "";
-        el.textContent = `${sign}${delta}`;
+        const sign = delta > 0 ? "+" : "-";
+        el.textContent = `${sign}${format(Math.abs(delta))}`;
         el.classList.toggle("pos", delta > 0);
         el.classList.toggle("neg", delta < 0);
+    }
+    function clearDelta(el) {
+        el.textContent = "";
+        el.classList.remove("pos", "neg");
     }
 
     function lookupPrev() {
@@ -98,32 +217,48 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         }
     }
 
+    // Last time's value per column; time compares the whole time (▲0:15).
+    const COMPARE = {
+        weight: [n => n.weight, p => p.weight, d => String(Math.round(d * 100) / 100)],
+        reps: [n => n.reps, p => p.reps, String],
+        km: [n => n.distanceKm, p => p.distanceKm, d => String(Math.round(d * 100) / 100)],
+        time: [n => n.durationSeconds, p => p.durationSeconds, formatSeconds]
+    };
     function updateDeltas() {
         const prev = lookupPrev();
-        if (!prev) {
-            weightDelta.textContent = "";
-            repsDelta.textContent = "";
-            weightDelta.classList.remove("pos", "neg");
-            repsDelta.classList.remove("pos", "neg");
-            return;
-        }
-        const w = parseFloat(weightInput.value);
-        const r = parseInt(repsInput.value);
-        if (isNaN(w)) {
-            weightDelta.textContent = "";
-            weightDelta.classList.remove("pos", "neg");
-        } else {
-            renderDeltaSpan(weightDelta, w - prev.weight);
-        }
-        if (isNaN(r)) {
-            repsDelta.textContent = "";
-            repsDelta.classList.remove("pos", "neg");
-        } else {
-            renderDeltaSpan(repsDelta, r - prev.reps);
+        const n = numbers();
+        for (const col of columns) {
+            const el = deltaFor(col);
+            const [now, then, format] = COMPARE[col];
+            const a = now(n), b = prev ? then(prev) : null;
+            if (b == null || a == null || Number.isNaN(a)) clearDelta(el);
+            else renderDeltaSpan(el, Math.round((a - b) * 100) / 100, format);
         }
     }
 
     row._updateDeltas = updateDeltas;
+
+    // Placeholders show last time's values (or nothing). Last time without
+    // a distance hints "–" in km.
+    let hint = {};
+    row._setHint = function(prev) {
+        hint = prev ? boxValues(prev) : {};
+        if (prev && prev.distanceKm == null) hint.km = "–";
+        for (const key of Object.keys(boxes)) boxes[key].placeholder = hint[key] ?? "";
+        refreshKmBox();
+    };
+
+    /* The km box (set-input-row.css):
+       - a logged set with no distance shows "–" (dark) rather than last
+         time's distance, which would look logged; a "–" is centred (.km-dash)
+       - a distance too wide for the box gets smaller text (fitKmText). */
+    function refreshKmBox() {
+        if (!boxes.km) return;
+        boxes.km.placeholder = row._savedSet ? "–" : (hint.km ?? "");
+        boxes.km.classList.toggle("km-dash", boxes.km.placeholder === "–");
+        fitKmText(boxes.km);
+    }
+    if (boxes.km) kmBoxResizes.observe(boxes.km);
 
     // Unsaved typed values survive a reload (drafts.js); re-snapshotted on
     // every change so saving or emptying a row drops its draft.
@@ -132,34 +267,38 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         if (container) saveExerciseDrafts(workout.id, exercise.id, container);
     }
 
+    // What drafts.js keeps of this row: the typed boxes, or null if none.
+    row._draftValues = function() {
+        const d = {};
+        for (const key of Object.keys(boxes)) if (boxes[key].value !== "") d[key] = boxes[key].value;
+        return Object.keys(d).length ? d : null;
+    };
+
     // Restore a draft into this (unsaved) row; a complete one was a failed
     // save, so it is retried.
-    row._applyDraft = function(w, r) {
-        weightInput.value = w;
-        repsInput.value = r;
+    row._applyDraft = function(d) {
+        fill(d);
         onInputChange();
-        if (w !== "" && r !== "") persist();
+        if (isComplete()) persist();
     };
 
     function refreshSavedClass() {
         if (!row._savedSet) return;
-        const w = parseFloat(weightInput.value);
-        const r = Number(repsInput.value);
-        const matches = w === row._savedSet.weight && r === row._savedSet.reps;
-        row.classList.toggle("saved", matches);
+        row.classList.toggle("saved", matchesSaved(numbers()));
     }
 
     function onInputChange() {
         updateDeltas();
         refreshSavedClass();
+        refreshKmBox();
         refreshTapState();
         saveDraft();
     }
 
     /* Plain text boxes (so tapping in puts the cursor at the end, see
-       utils/caretAtEnd.js), kept to numbers: weight takes one decimal
+       utils/caretAtEnd.js), kept to numbers: weight and km take one decimal
        point, and a comma counts as one (some iPhone regions type "72,5");
-       reps take digits only. */
+       the rest take digits only, and seconds stop at 59. */
     function keepNumber(input, decimal) {
         let v = input.value;
         if (decimal) {
@@ -169,43 +308,53 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         } else {
             v = v.replace(/\D/g, "");
         }
+        if (input === boxes.s && Number(v) > 59) v = v.slice(0, -1);
         if (v !== input.value) input.value = v;
     }
 
-    weightInput.oninput = function() { keepNumber(weightInput, true); onInputChange(); };
-    repsInput.oninput = function() { keepNumber(repsInput, false); onInputChange(); };
+    for (const [key, box] of Object.entries(boxes)) {
+        const decimal = key === "w" || key === "km";
+        box.oninput = function() { keepNumber(box, decimal); onInputChange(); };
+    }
 
-    /* A saved set exists only while both fields are filled: emptying either
-       one deletes it (the remaining value stays on screen, unsaved), and
-       filling both again saves a new set. Without this, persist ignored
-       the incomplete row, so the set stayed logged and came back on reload. */
+    /* A saved set exists only while every needed field is filled: emptying
+       one deletes it (the rest stays on screen, unsaved), and filling them
+       again saves a new set. Without this, persist ignored the incomplete
+       row, so the set stayed logged and came back on reload. */
     async function persist() {
         if (persisting) return;
-        if (row._savedSet && (weightInput.value === "" || repsInput.value === "")) {
+        if (row._savedSet && !isComplete()) {
             await unlogSavedSet();
             return;
         }
-        const w = parseFloat(weightInput.value);
-        const r = Number(repsInput.value);
-        if (isNaN(w) || w < 0) return;
-        if (!Number.isInteger(r) || r <= 0) return;
-        if (row._savedSet && w === row._savedSet.weight && r === row._savedSet.reps) return;
+        const n = numbers();
+        if (!isComplete() || !isValid(n)) return;
+        // A blank min or sec counts as 0; show it, so the row reads as the
+        // time that's saved (3 : blank → 3 : 00).
+        if (boxes.m && boxes.m.value === "") boxes.m.value = "0";
+        if (boxes.s && boxes.s.value === "") boxes.s.value = "00";
+        if (row._savedSet && matchesSaved(n)) return;
         persisting = true;
         try {
             if (row._savedSet) {
-                const updated = await updateSet(row._savedSet.id, { weight: w, reps: r });
-                row._savedSet.weight = updated.weight;
-                row._savedSet.reps = updated.reps;
+                const updated = await updateSet(row._savedSet.id, n);
+                Object.assign(row._savedSet, {
+                    weight: updated.weight,
+                    reps: updated.reps,
+                    durationSeconds: updated.durationSeconds,
+                    distanceKm: updated.distanceKm
+                });
                 row.classList.add("saved");
             } else {
                 await ensureCurrentSession(workout);
-                const body = { weight: w, reps: r };
+                const body = { ...n };
                 if (side) body.side = side;
                 row._savedSet = await createSet(state.currentSessionId, exercise.id, body);
                 exercise.sets.push(row._savedSet);
                 row.classList.add("saved");
             }
             clearFailed();
+            refreshKmBox();
             saveDraft();
             touchActivity();
         } catch (e) {
@@ -216,8 +365,15 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         }
     }
 
-    weightInput.onchange = persist;
-    repsInput.onchange = persist;
+    /* Saves when focus leaves the row, so min then sec (or km then time)
+       save once, together, rather than box by box. */
+    function persistOnLeave() {
+        setTimeout(function() {
+            if (!row.contains(document.activeElement)) persist();
+        }, 0);
+    }
+    row.addEventListener("change", persistOnLeave);
+    row.addEventListener("focusout", persistOnLeave);
 
     // Deletes the row's saved set but keeps the row and whatever it shows.
     async function unlogSavedSet() {
@@ -244,14 +400,16 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
 
     /* Tap the "Set 01" label to log last time's values (the placeholder
        hints) in one go. Only empty fields are filled, so a stray tap never
-       overwrites a logged value, and "new weight, same reps" is one tap. */
+       overwrites a logged value, and "new weight, same reps" is one tap.
+       The time is one value: it's filled only if both its boxes are empty. */
     numEl.onclick = function() {
         const prev = lookupPrev();
         if (!prev) return;
-        let filled = false;
-        if (weightInput.value === "") { weightInput.value = prev.weight; filled = true; }
-        if (repsInput.value === "") { repsInput.value = prev.reps; filled = true; }
-        if (!filled) return;
+        const before = JSON.stringify(row._draftValues());
+        const hint = boxValues(prev);
+        if (filled("time")) { delete hint.m; delete hint.s; }
+        fill(hint, true);
+        if (JSON.stringify(row._draftValues()) === before) return;
         onInputChange();
         persist();
     };
@@ -263,6 +421,8 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
             const idx = exercise.sets.indexOf(r._savedSet);
             if (idx >= 0) exercise.sets.splice(idx, 1);
         }
+        const km = r.querySelector(".km-input");
+        if (km) kmBoxResizes.unobserve(km);
         r.remove();
     }
 
@@ -309,21 +469,29 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
 export function updateHeaderVisibility(exerciseIndex) {
     const container = document.getElementById("sets-" + exerciseIndex);
     const existingHeader = container.querySelector(".set-header-row");
-    const hasRows = Array.from(container.children).some(c => !c.classList.contains("set-header-row"));
-    if (hasRows && !existingHeader) {
-        container.insertBefore(createHeaderRow(), container.firstChild);
-    } else if (!hasRows && existingHeader) {
+    const firstRow = Array.from(container.children).find(c => !c.classList.contains("set-header-row"));
+    if (firstRow && !existingHeader) {
+        container.insertBefore(createHeaderRow(firstRow._columns), container.firstChild);
+    } else if (!firstRow && existingHeader) {
         existingHeader.remove();
     }
 }
 
-function createHeaderRow() {
+// Headings over the boxes, laid out like a row so each sits over its own;
+// the time has one over each of its boxes, min and sec.
+function createHeaderRow(columns) {
     const row = document.createElement("div");
     row.className = "set-header-row";
     row.innerHTML = `
         <div class="set-input-num"></div>
-        <div class="set-header-cell">Weight</div>
-        <div class="set-header-cell">Reps</div>
+        ${columns.map(col => col === "time" ? `
+        <div class="set-header-cell set-time-cell">
+            <div class="set-time">
+                <span class="set-time-head">min</span>
+                <span class="set-time-colon" aria-hidden="true">:</span>
+                <span class="set-time-head">sec</span>
+            </div>
+        </div>` : `<div class="set-header-cell">${HEADERS[col]}</div>`).join("")}
     `;
     return row;
 }
@@ -350,12 +518,7 @@ export function renumberSetRows(exerciseIndex, exercise) {
             const numEl = child.querySelector(".set-num, .set-input-num");
             if (numEl) numEl.textContent = label;
             if (numEl) numEl.classList.toggle("has-hint", Boolean(prev));
-            const weightInput = child.querySelector("input.weight-input");
-            const repsInput = child.querySelector("input.reps-input");
-            if (weightInput && repsInput) {
-                weightInput.placeholder = prev ? prev.weight : "";
-                repsInput.placeholder = prev ? prev.reps : "";
-            }
+            if (child._setHint) child._setHint(prev);
             if (child._updateDeltas) child._updateDeltas();
         }
     } else {
@@ -368,12 +531,7 @@ export function renumberSetRows(exerciseIndex, exercise) {
             const numEl = child.querySelector(".set-num, .set-input-num");
             if (numEl) numEl.textContent = label;
             if (numEl) numEl.classList.toggle("has-hint", Boolean(prev));
-            const weightInput = child.querySelector("input.weight-input");
-            const repsInput = child.querySelector("input.reps-input");
-            if (weightInput && repsInput) {
-                weightInput.placeholder = prev ? prev.weight : "";
-                repsInput.placeholder = prev ? prev.reps : "";
-            }
+            if (child._setHint) child._setHint(prev);
             if (child._updateDeltas) child._updateDeltas();
         }
     }

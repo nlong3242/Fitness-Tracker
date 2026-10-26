@@ -1,3 +1,4 @@
+import { logTypeLabel } from "../config.js";
 import { escapeHtml, formatCategoryLabel } from "../utils/format.js";
 
 /* An exercise's Overview, read-only: a row of tags (group, type,
@@ -33,6 +34,7 @@ export function exerciseOverviewHtml(exercise) {
                 <span class="exo-fact-label">Muscles</span>
                 <span class="exo-fact-value">${exercise.primaryMuscleGroups ? escapeHtml(exercise.primaryMuscleGroups) : `<span class="exo-empty">None</span>`}</span>
             </div>
+            ${loggedAsHtml(exercise)}
             <div class="exo-fact">
                 <span class="exo-fact-label">Unilateral</span>
                 <span class="exo-fact-value">${exercise.unilateral === true ? "Yes" : "No"}</span>
@@ -44,4 +46,19 @@ export function exerciseOverviewHtml(exercise) {
             <p class="exo-notes">${escapeHtml(exercise.notes)}</p>
         </section>` : ""}
     `;
+}
+
+/* "Weight & reps", or "Weight & reps" with "Time after your current
+   workout" under it while a change waits for the open workout to end.
+   Past sessions' copies without a type show nothing. */
+function loggedAsHtml(exercise) {
+    if (!exercise.logType) return "";
+    const pending = exercise.pendingLogType
+        ? `<span class="exo-pending">${logTypeLabel(exercise.pendingLogType)} after your current workout</span>`
+        : "";
+    return `
+            <div class="exo-fact">
+                <span class="exo-fact-label">Logged as</span>
+                <span class="exo-fact-value">${logTypeLabel(exercise.logType)}${pending}</span>
+            </div>`;
 }

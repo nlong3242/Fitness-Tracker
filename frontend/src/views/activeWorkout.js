@@ -364,7 +364,7 @@ export async function startWorkout(workoutId, options) {
                 updateHeaderVisibility(i);
                 renumberSetRows(i, exercise);
                 const rows = unsavedRows(key);
-                list.forEach((d, k) => rows[k]._applyDraft(d.w, d.r));
+                list.forEach((d, k) => rows[k]._applyDraft(d));
             }
         });
     }

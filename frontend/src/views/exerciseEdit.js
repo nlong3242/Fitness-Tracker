@@ -1,4 +1,4 @@
-import { CATEGORY_ORDER, EQUIPMENT, EXERCISE_TYPES } from "../config.js";
+import { CATEGORY_ORDER, EQUIPMENT, EXERCISE_TYPES, LOG_TYPES } from "../config.js";
 import { clearNavGuard, getNavGuard, setNavGuard } from "../components/bottomNav.js";
 import { showConfirmModal } from "../components/modals.js";
 import {
@@ -50,7 +50,8 @@ export function renderExerciseEditPage(exercise, opts) {
         saveLabel: "Save",
         initial: exercise,
         musclesPlaceholder: "None",
-        deleteLabel: workout ? null : "Delete exercise"
+        deleteLabel: workout ? null : "Delete exercise",
+        confirmTypeChange: true
     });
     setNavGuard(form.confirmLeave);
     const done = opts.onDone || function(shown) { renderExercisePage(shown, opts); };
@@ -129,8 +130,12 @@ function renderExerciseForm(cfg) {
         exerciseType: cfg.initial.exerciseType || "",
         equipment: cfg.initial.equipment || "",
         cues: cfg.initial.cues || "",
-        unilateral: cfg.initial.unilateral === true
+        unilateral: cfg.initial.unilateral === true,
+        // A change still waiting for the open workout to end shows as the
+        // choice, with a note (ExerciseService.changeLogType).
+        logType: cfg.initial.pendingLogType || cfg.initial.logType || "WEIGHT_REPS"
     };
+    const loggedNow = cfg.initial.logType || "WEIGHT_REPS";
 
     // Equipment from before (or not in the list) stays a choice, so it's kept.
     const equipmentChoices = original.equipment && !EQUIPMENT.includes(original.equipment)
@@ -153,6 +158,15 @@ function renderExerciseForm(cfg) {
                 <div class="modal-pill-row" id="exe-categories">
                     ${CATEGORY_ORDER.map(c => `<button type="button" class="modal-pill" data-category="${c}">${escapeHtml(formatCategoryLabel(c))}</button>`).join("")}
                 </div>
+            </div>
+            <div class="modal-field" id="exe-logtype-field">
+                <label class="modal-field-label" for="exe-logtype">Logged as</label>
+                <span class="modal-select">
+                    <select id="exe-logtype">
+                        ${LOG_TYPES.map(t => `<option value="${t.value}">${escapeHtml(t.label)}</option>`).join("")}
+                    </select>
+                </span>
+                <p class="exe-field-note" id="exe-logtype-note" hidden>Applies after your current workout</p>
             </div>
             <div class="modal-field">
                 <label class="modal-field-label" for="exe-muscles">Primary Muscle Groups</label>
@@ -193,18 +207,27 @@ function renderExerciseForm(cfg) {
     const nameInput = document.getElementById("exe-name");
     const musclesInput = document.getElementById("exe-muscles");
     const equipmentSelect = document.getElementById("exe-equipment");
+    const logTypeSelect = document.getElementById("exe-logtype");
+    const logTypeField = document.getElementById("exe-logtype-field");
+    const logTypeNote = document.getElementById("exe-logtype-note");
     const cuesInput = document.getElementById("exe-cues");
     const saveBtn = document.getElementById("exe-save-btn");
     const errorEl = document.getElementById("exe-error");
     nameInput.value = original.name;
     musclesInput.value = original.primaryMuscleGroups;
     equipmentSelect.value = original.equipment;
+    logTypeSelect.value = original.logType;
     cuesInput.value = original.cues;
     let category = original.category;
     let unilateral = original.unilateral;
     // A type from before the pills (typed in) shows no pill and is kept
     // until another is picked.
     let exerciseType = original.exerciseType;
+
+    // Cardio is always Distance & time, whatever the drop-down says.
+    function logType() {
+        return category === "CARDIO" ? "DISTANCE_TIME" : logTypeSelect.value;
+    }
 
     function current() {
         return {
@@ -214,7 +237,8 @@ function renderExerciseForm(cfg) {
             exerciseType: exerciseType,
             equipment: equipmentSelect.value,
             cues: cuesInput.value,
-            unilateral: unilateral
+            unilateral: unilateral,
+            logType: logType()
         };
     }
     function isDirty() {
@@ -233,6 +257,9 @@ function renderExerciseForm(cfg) {
         for (const b of container.querySelectorAll("[data-type]")) {
             b.classList.toggle("selected", b.dataset.type === exerciseType);
         }
+        logTypeField.hidden = category === "CARDIO";
+        // Still waiting, or another change that will wait the same way.
+        logTypeNote.hidden = !(cfg.initial.pendingLogType && logType() !== loggedNow);
     }
     // The cues box grows with the text (up to about half the screen, then
     // it scrolls; modals.css).
@@ -257,6 +284,7 @@ function renderExerciseForm(cfg) {
     nameInput.oninput = refresh;
     musclesInput.oninput = refresh;
     equipmentSelect.onchange = refresh;
+    logTypeSelect.onchange = refresh;
     cuesInput.oninput = function() { fitCues(); refresh(); };
     refresh();
     requestAnimationFrame(fitCues);
@@ -277,6 +305,10 @@ function renderExerciseForm(cfg) {
     saveBtn.onclick = async function() {
         const name = nameInput.value.trim();
         if (!name || !category) return;
+        // Moving into or out of Cardio changes the type too.
+        if (cfg.confirmTypeChange && logType() !== original.logType && !(await showConfirmModal(
+                "Past sets stay in History, but this exercise starts fresh: no \"last time\" or bests from before.",
+                "Change"))) return;
         saveBtn.disabled = true;
         errorEl.hidden = true;
         try {
@@ -287,7 +319,8 @@ function renderExerciseForm(cfg) {
                 exerciseType: exerciseType.trim() || null,
                 equipment: equipmentSelect.value || null,
                 cues: cuesInput.value.trim() || null,
-                unilateral: unilateral
+                unilateral: unilateral,
+                logType: logType()
             });
         } catch (err) {
             errorEl.textContent = "Couldn't save. Check your connection and try again.";

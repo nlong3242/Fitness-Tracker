@@ -4,17 +4,18 @@ import { fetchBodyWeightHistory, logBodyWeight, deleteBodyWeight } from "../api.
 import { showWeighInModal } from "../components/modals.js";
 
 /* Bodyweight history — opened by tapping the Bodyweight tile on Home.
-   A chart over the chosen range (1M / 3M / All), then every weigh-in by
+   A chart over the chosen range (1W / 1M / 3M / All), then every weigh-in by
    month, newest first, with the change since the one before. Tap a row to
    fix or delete it; "Add Weigh-in" fills in a missed day. */
 
 const RANGES = [
+    { key: "1W", days: 7 },
     { key: "1M", days: 30 },
     { key: "3M", days: 90 },
     { key: "All", days: null },
 ];
 
-let range = "1M";   // kept while the app is open
+let range = "1W";   // kept while the app is open
 
 export async function renderBodyWeightPage() {
     clearNavGuard();
@@ -88,8 +89,12 @@ function showChart(entries, today) {
     const first = entries.length > 0 ? entries[0].date : "";
     const from = first > rangeStart ? first : rangeStart;
     const shown = entries.filter(e => e.date >= from);
+    // Fewer than 2 in range only happens with a set number of days: All
+    // shows every weigh-in.
+    const missing = entries.length < 2 ? "Log a couple of days to see a chart."
+        : `${shown.length === 0 ? "No weigh-ins" : "Only 1 weigh-in"} in the last ${days} days.`;
     document.getElementById("bw-chart").innerHTML = shown.length < 2
-        ? `<p class="bw-chart-empty">${entries.length < 2 ? "Log a couple of days to see a chart." : "Not enough weigh-ins in this range."}</p>`
+        ? `<p class="bw-chart-empty">${missing}</p>`
         : chartSvg(shown, from, today);
 }
 

@@ -129,7 +129,7 @@ class ExerciseSetRepositoryTest {
         em.flush();
         em.clear();
         return repository.findLastSetsForExercise(
-            workout.getId(), exercise.getId(),
+            workout.getId(), exercise.getId(), exercise.getLogType(),
             before == null ? null : before.getId(),
             before == null ? null : before.getDate());
     }

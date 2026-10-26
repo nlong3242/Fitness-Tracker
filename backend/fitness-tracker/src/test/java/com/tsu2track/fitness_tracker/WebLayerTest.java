@@ -53,12 +53,8 @@ class WebLayerTest {
         verify(sessionService, never()).createSet(anyLong(), anyLong(), any());
     }
 
-    @Test
-    void missingRequiredFieldIsReported() throws Exception {
-        mvc.perform(createSet("{\"weight\": 20}"))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.errors[0].field").value("reps"));
-    }
+    // Which numbers a set needs depends on its exercise's type, so a missing
+    // one is the service's to report: LogTypeTest.missingRepsAreReported.
 
     // --- HttpMessageNotReadableException branch ---
 

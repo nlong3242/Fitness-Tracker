@@ -36,9 +36,9 @@ class ExerciseHistoryWebTest {
 
     @Test
     void returnsRecordsAndOnePageOfSessions() throws Exception {
-        Record top = new Record(80, 5, DAY);
-        when(service.history(3L, 0, 10)).thenReturn(new History(new Records(top, top, null, top),
-            List.of(new HistorySession(7L, DAY, 2L, List.of(new HistorySet(80, 5, null, true)))), true));
+        Record top = new Record(80, 5, null, null, DAY);
+        when(service.history(3L, 0, 10)).thenReturn(new History(new Records(LogType.WEIGHT_REPS, top, top, null, top, null),
+            List.of(new HistorySession(7L, DAY, 2L, LogType.WEIGHT_REPS, List.of(new HistorySet(80, 5, null, null, null, true)))), true));
 
         mvc.perform(get("/exercises/3/history").header("Authorization", TestAuth.BEARER))
             .andExpect(status().isOk())

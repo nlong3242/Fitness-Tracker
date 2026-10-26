@@ -54,7 +54,7 @@ class SessionActivityTest {
     void loggingASetCountsAsActivity() {
         Session s = idleSession();
 
-        sessionService.createSet(s.getId(), bench.getId(), new CreateSetRequest(60.0, 8, null));
+        sessionService.createSet(s.getId(), bench.getId(), new CreateSetRequest(60.0, 8, null, null, null));
 
         assertThat(reload(s).getLastActivityAt()).isAfter(LONG_AGO.plus(1, ChronoUnit.DAYS));
     }
@@ -64,7 +64,7 @@ class SessionActivityTest {
         Session s = idleSession();
         ExerciseSet set = setIn(s);
 
-        sessionService.updateSet(set.getId(), new UpdateSetRequest(65.0, 8));
+        sessionService.updateSet(set.getId(), new UpdateSetRequest(65.0, 8, null, null));
 
         assertThat(reload(s).getLastActivityAt()).isAfter(LONG_AGO.plus(1, ChronoUnit.DAYS));
     }

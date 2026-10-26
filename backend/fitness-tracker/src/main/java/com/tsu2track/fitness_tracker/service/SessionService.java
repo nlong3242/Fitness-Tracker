@@ -17,10 +17,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.tsu2track.fitness_tracker.ApiFieldException;
 import com.tsu2track.fitness_tracker.Exercise;
 import com.tsu2track.fitness_tracker.ExerciseRepository;
 import com.tsu2track.fitness_tracker.ExerciseSet;
 import com.tsu2track.fitness_tracker.ExerciseSetRepository;
+import com.tsu2track.fitness_tracker.LogType;
 import com.tsu2track.fitness_tracker.ScheduleStatus;
 import com.tsu2track.fitness_tracker.ScheduledWorkout;
 import com.tsu2track.fitness_tracker.ScheduledWorkoutRepository;
@@ -184,11 +186,26 @@ public class SessionService {
             snapshot.setExerciseType(ex.getExerciseType());
             snapshot.setCues(ex.getCues());
             snapshot.setUnilateral(ex.getUnilateral());
+            snapshot.setLogType(ex.getLogType());
             sessionExerciseRepository.save(snapshot);
         }
 
         session.setFinished(true);
-        return sessionRepository.save(session);
+        Session saved = sessionRepository.save(session);
+        applyPendingLogTypes();
+        return saved;
+    }
+
+    // Type changes made during a workout (Exercise.pendingLogType) take
+    // effect once no workout being done still has the exercise.
+    private void applyPendingLogTypes() {
+        Long userId = CurrentUser.id();
+        for (Exercise ex : exerciseRepository.findByUserIdAndPendingLogTypeIsNotNull(userId)) {
+            if (sessionRepository.existsOpenSessionWith(userId, ex.getId())) continue;
+            ex.setLogType(ex.getPendingLogType());
+            ex.setPendingLogType(null);
+            exerciseRepository.save(ex);
+        }
     }
 
     @Transactional
@@ -202,6 +219,7 @@ public class SessionService {
             scheduledWorkoutRepository.save(sw);
         });
         sessionRepository.delete(session);
+        applyPendingLogTypes();
     }
 
     public List<SessionExercise> findSessionExercises(Long sessionId) {
@@ -228,10 +246,15 @@ public class SessionService {
         java.util.Set<Long> uniqueExercises = new HashSet<>();
         int repsTotal = 0;
         double volumeTotal = 0;
+        int durationTotal = 0;
+        double distanceTotal = 0;
+        // Numbers a set's type doesn't use are 0 or null, so they add nothing.
         for (ExerciseSet set : sets) {
             uniqueExercises.add(set.getExerciseId());
             repsTotal += set.getReps();
             volumeTotal += set.getWeight() * set.getReps();
+            if (set.getDurationSeconds() != null) durationTotal += set.getDurationSeconds();
+            if (set.getDistanceKm() != null) distanceTotal += set.getDistanceKm();
         }
 
         SessionController.SessionTotals totals = new SessionController.SessionTotals();
@@ -239,6 +262,8 @@ public class SessionService {
         totals.setSets(sets.size());
         totals.setReps(repsTotal);
         totals.setVolume(volumeTotal);
+        totals.setDurationSeconds(durationTotal);
+        totals.setDistanceKm(distanceTotal);
         return Optional.of(totals);
     }
 
@@ -251,6 +276,10 @@ public class SessionService {
         if (workoutRepository.findByIdAndUserId(workoutId, CurrentUser.id()).isEmpty()) {
             return Collections.emptyList();
         }
+        Optional<Exercise> exercise = exerciseRepository.findUsable(exerciseId, CurrentUser.id());
+        if (exercise.isEmpty()) {
+            return Collections.emptyList();
+        }
         LocalDate beforeDate = null;
         if (beforeSessionId != null) {
             Optional<Session> anchor = sessionRepository.findByIdAndUserId(beforeSessionId, CurrentUser.id());
@@ -259,7 +288,8 @@ public class SessionService {
             }
             beforeDate = anchor.get().getDate();
         }
-        return exerciseSetRepository.findLastSetsForExercise(workoutId, exerciseId, beforeSessionId, beforeDate);
+        return exerciseSetRepository.findLastSetsForExercise(
+            workoutId, exerciseId, exercise.get().getLogType(), beforeSessionId, beforeDate);
     }
 
     public ExerciseSet createSet(Long sessionId, Long exerciseId, CreateSetRequest req) {
@@ -277,8 +307,8 @@ public class SessionService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side must not be set for bilateral exercises");
             }
             ExerciseSet set = new ExerciseSet();
-            set.setWeight(req.weight());
-            set.setReps(req.reps());
+            set.setLogType(exercise.get().getLogType());
+            setNumbers(set, req.weight(), req.reps(), req.durationSeconds(), req.distanceKm());
             set.setSide(req.side());
             set.setExercise(exercise.get());
             set.setSession(session.get());
@@ -295,8 +325,7 @@ public class SessionService {
             if (set.getSession() != null && set.getSession().isFinished()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
             }
-            set.setWeight(req.weight());
-            set.setReps(req.reps());
+            setNumbers(set, req.weight(), req.reps(), req.durationSeconds(), req.distanceKm());
             if (set.getSession() != null) touch(set.getSession());
             return exerciseSetRepository.save(set);
         }
@@ -311,6 +340,35 @@ public class SessionService {
         if (existing.isEmpty()) return;
         if (existing.get().getSession() != null) touch(existing.get().getSession());
         exerciseSetRepository.delete(existing.get());
+    }
+
+    /* Puts the numbers on a set, checked against its logType: each type
+       needs its own numbers (distance is optional) and takes no others.
+       Unused weight and reps are stored as 0. */
+    private static void setNumbers(ExerciseSet set, Double weight, Integer reps,
+                                   Integer durationSeconds, Double distanceKm) {
+        LogType type = set.getLogType();
+        boolean weighted = type == LogType.WEIGHT_REPS;
+        boolean counted = weighted || type == LogType.REPS;
+        boolean timed = type == LogType.TIME || type == LogType.DISTANCE_TIME;
+        boolean distanced = type == LogType.DISTANCE_TIME;
+        checkNumber("weight", weight, weighted, true, type);
+        checkNumber("reps", reps, counted, true, type);
+        checkNumber("durationSeconds", durationSeconds, timed, true, type);
+        checkNumber("distanceKm", distanceKm, distanced, false, type);
+        set.setWeight(weighted ? weight : 0);
+        set.setReps(counted ? reps : 0);
+        set.setDurationSeconds(durationSeconds);
+        set.setDistanceKm(distanceKm);
+    }
+
+    private static void checkNumber(String field, Object value, boolean used, boolean required, LogType type) {
+        if (used && required && value == null) {
+            throw new ApiFieldException(HttpStatus.BAD_REQUEST, field, "is required for " + type);
+        }
+        if (!used && value != null) {
+            throw new ApiFieldException(HttpStatus.BAD_REQUEST, field, "must be empty for " + type);
+        }
     }
 
     // Another account's workout or session is "not found", same as a missing one.

@@ -25,11 +25,13 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
     List<ExerciseSet> findFinishedSetsOldestFirst(@Param("exerciseId") Long exerciseId, @Param("userId") Long userId);
 
     // Ordered by id (= logging order): the live workout maps these onto
-    // set rows by position, so the order is part of the contract.
+    // set rows by position, so the order is part of the contract. Only
+    // sets of logType count: after a type change the exercise starts fresh.
     @Query("""
         SELECT s FROM ExerciseSet s
         WHERE s.exercise.id = :exerciseId
           AND s.session.workout.id = :workoutId
+          AND s.logType = :logType
           AND (:beforeSessionId IS NULL
                OR s.session.date < :beforeDate
                OR (s.session.date = :beforeDate AND s.session.id < :beforeSessionId))
@@ -37,6 +39,7 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
             SELECT s2.session.id FROM ExerciseSet s2
             WHERE s2.exercise.id = :exerciseId
               AND s2.session.workout.id = :workoutId
+              AND s2.logType = :logType
               AND (:beforeSessionId IS NULL
                    OR s2.session.date < :beforeDate
                    OR (s2.session.date = :beforeDate AND s2.session.id < :beforeSessionId))
@@ -48,6 +51,7 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
     List<ExerciseSet> findLastSetsForExercise(
         @Param("workoutId") Long workoutId,
         @Param("exerciseId") Long exerciseId,
+        @Param("logType") LogType logType,
         @Param("beforeSessionId") Long beforeSessionId,
         @Param("beforeDate") LocalDate beforeDate
     );

@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker.dto;
 
 import com.tsu2track.fitness_tracker.ExerciseCategory;
+import com.tsu2track.fitness_tracker.LogType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,5 +14,6 @@ public record UpdateExerciseRequest(
     @Size(max = 255) String exerciseType,
     @Size(max = 50) String equipment,
     @Size(max = 4000) String cues,
-    Boolean unilateral
+    Boolean unilateral,
+    LogType logType     // left out: unchanged; Cardio is always Distance & time
 ) {}

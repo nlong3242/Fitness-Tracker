@@ -1,5 +1,8 @@
 package com.tsu2track.fitness_tracker;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Entity;
@@ -16,8 +19,17 @@ public class ExerciseSet {
     @Id
     @GeneratedValue(strategy= GenerationType.IDENTITY)
     private Long id;
+    // The numbers a set has depend on logType (its exercise's type when it
+    // was logged); weight and reps are 0 when the type doesn't use them,
+    // durationSeconds and distanceKm null.
     private double weight;
     private int reps;
+    private Integer durationSeconds;
+    private Double distanceKm;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    private LogType logType = LogType.WEIGHT_REPS;
 
     @Enumerated(EnumType.STRING)
     private Side side;
@@ -56,6 +68,30 @@ public class ExerciseSet {
 
     public void setReps(int reps) {
         this.reps = reps;
+    }
+
+    public Integer getDurationSeconds() {
+        return durationSeconds;
+    }
+
+    public void setDurationSeconds(Integer durationSeconds) {
+        this.durationSeconds = durationSeconds;
+    }
+
+    public Double getDistanceKm() {
+        return distanceKm;
+    }
+
+    public void setDistanceKm(Double distanceKm) {
+        this.distanceKm = distanceKm;
+    }
+
+    public LogType getLogType() {
+        return logType;
+    }
+
+    public void setLogType(LogType logType) {
+        this.logType = logType;
     }
 
     public Side getSide() {

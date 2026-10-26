@@ -1,5 +1,8 @@
 package com.tsu2track.fitness_tracker;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
@@ -42,6 +45,10 @@ public class SessionExercise {
     private String cues;
 
     private Boolean unilateral;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    private LogType logType = LogType.WEIGHT_REPS;
 
     public SessionExercise() {}
 
@@ -131,6 +138,14 @@ public class SessionExercise {
 
     public void setUnilateral(Boolean unilateral) {
         this.unilateral = unilateral;
+    }
+
+    public LogType getLogType() {
+        return logType;
+    }
+
+    public void setLogType(LogType logType) {
+        this.logType = logType;
     }
 
     public String getNotes() {

@@ -25,6 +25,18 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
         """)
     List<LocalDate> findFinishedDatesUpTo(@Param("userId") Long userId, @Param("until") LocalDate until);
 
+    // Whether the exercise is in a workout the account is still doing: in
+    // that workout, or with a set logged in it (since removed from it).
+    @Query("""
+        SELECT COUNT(s) > 0 FROM Session s
+        WHERE s.userId = :userId AND s.finished = false
+          AND (EXISTS (SELECT 1 FROM WorkoutExercise we
+                       WHERE we.workout = s.workout AND we.exercise.id = :exerciseId)
+               OR EXISTS (SELECT 1 FROM ExerciseSet es
+                          WHERE es.session = s AND es.exercise.id = :exerciseId))
+        """)
+    boolean existsOpenSessionWith(@Param("userId") Long userId, @Param("exerciseId") Long exerciseId);
+
     @Query("""
         SELECT s FROM Session s
         WHERE s.workout.id = :workoutId

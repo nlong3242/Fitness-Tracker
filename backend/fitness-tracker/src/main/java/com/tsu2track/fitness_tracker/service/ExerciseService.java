@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.tsu2track.fitness_tracker.Exercise;
 import com.tsu2track.fitness_tracker.ExerciseCategory;
 import com.tsu2track.fitness_tracker.ExerciseRepository;
+import com.tsu2track.fitness_tracker.LogType;
+import com.tsu2track.fitness_tracker.SessionRepository;
 import com.tsu2track.fitness_tracker.Workout;
 import com.tsu2track.fitness_tracker.WorkoutExercise;
 import com.tsu2track.fitness_tracker.WorkoutExerciseRepository;
@@ -36,6 +38,7 @@ public class ExerciseService {
     private final ExerciseRepository exerciseRepository;
     private final WorkoutRepository workoutRepository;
     private final WorkoutExerciseRepository workoutExerciseRepository;
+    private final SessionRepository sessionRepository;
     private final ExerciseNotes notes;
     private final HiddenExercises hidden;
     private final EntityManager entityManager;
@@ -43,12 +46,14 @@ public class ExerciseService {
     public ExerciseService(ExerciseRepository exerciseRepository,
                            WorkoutRepository workoutRepository,
                            WorkoutExerciseRepository workoutExerciseRepository,
+                           SessionRepository sessionRepository,
                            ExerciseNotes notes,
                            HiddenExercises hidden,
                            EntityManager entityManager) {
         this.exerciseRepository = exerciseRepository;
         this.workoutRepository = workoutRepository;
         this.workoutExerciseRepository = workoutExerciseRepository;
+        this.sessionRepository = sessionRepository;
         this.notes = notes;
         this.hidden = hidden;
         this.entityManager = entityManager;
@@ -95,7 +100,31 @@ public class ExerciseService {
         existing.setEquipment(body.equipment());
         existing.setCues(body.cues());
         existing.setUnilateral(body.unilateral());
+        LogType current = existing.getPendingLogType() != null ? existing.getPendingLogType() : existing.getLogType();
+        changeLogType(existing, logTypeFor(body.category(), body.logType(), current));
         return exerciseRepository.save(existing);
+    }
+
+    /* A type change keeps the exercise's history, but it starts fresh: old
+       sets keep their own type, and "last time" and records only look at
+       the new one. While the exercise is in a workout being done, that
+       workout keeps the old type: the change waits as pendingLogType and
+       SessionService applies it when the workout is finished or discarded. */
+    private void changeLogType(Exercise exercise, LogType wanted) {
+        if (wanted == exercise.getLogType()) {
+            exercise.setPendingLogType(null);
+        } else if (sessionRepository.existsOpenSessionWith(CurrentUser.id(), exercise.getId())) {
+            exercise.setPendingLogType(wanted);
+        } else {
+            exercise.setLogType(wanted);
+            exercise.setPendingLogType(null);
+        }
+    }
+
+    // Cardio is always Distance & time; elsewhere the request picks, or it stays as it was.
+    private static LogType logTypeFor(ExerciseCategory category, LogType requested, LogType otherwise) {
+        if (category == ExerciseCategory.CARDIO) return LogType.DISTANCE_TIME;
+        return requested != null ? requested : otherwise;
     }
 
     public void softDelete(Long id) {
@@ -144,6 +173,7 @@ public class ExerciseService {
         copy.setUnilateral(original.getUnilateral());
         copy.setEquipment(original.getEquipment());
         copy.setLevel(original.getLevel());
+        copy.setLogType(original.getLogType());
         copy.setNotes(notes.get(userId, id));
         copy = exerciseRepository.saveAndFlush(copy);
         notes.set(userId, id, null);
@@ -278,6 +308,7 @@ public class ExerciseService {
         exercise.setCues(req.cues());
         exercise.setNotes(req.notes());
         exercise.setUnilateral(req.unilateral());
+        exercise.setLogType(logTypeFor(req.category(), req.logType(), LogType.WEIGHT_REPS));
         return exercise;
     }
 }

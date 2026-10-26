@@ -100,16 +100,22 @@ public class SessionController {
         private int sets;
         private int reps;
         private double volume;
+        private int durationSeconds;   // Time and Distance & time sets
+        private double distanceKm;
 
         public int getExercises() { return exercises; }
         public int getSets() { return sets; }
         public int getReps() { return reps; }
         public double getVolume() { return volume; }
+        public int getDurationSeconds() { return durationSeconds; }
+        public double getDistanceKm() { return distanceKm; }
 
         public void setExercises(int exercises) { this.exercises = exercises; }
         public void setSets(int sets) { this.sets = sets; }
         public void setReps(int reps) { this.reps = reps; }
         public void setVolume(double volume) { this.volume = volume; }
+        public void setDurationSeconds(int durationSeconds) { this.durationSeconds = durationSeconds; }
+        public void setDistanceKm(double distanceKm) { this.distanceKm = distanceKm; }
     }
 
     @GetMapping("/workouts/{workoutId}/sessions/{sessionId}/previous-totals")

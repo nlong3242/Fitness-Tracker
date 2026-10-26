@@ -3,6 +3,9 @@ package com.tsu2track.fitness_tracker;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;
@@ -48,6 +51,18 @@ public class Exercise extends Owned {
 
     private String equipment;
     private String level;
+
+    // Plain text in the table (V13), so a new type needs no migration.
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    private LogType logType = LogType.WEIGHT_REPS;
+
+    /* A type change made while the exercise is in a workout being done:
+       that workout keeps logType, and SessionService applies this one
+       when it's finished or discarded. Null when there's none. */
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    private LogType pendingLogType;
 
     // A built-in exercise's note is the viewer's own (exercise_note), put
     // here by ExerciseNotes before the exercise is sent.
@@ -149,6 +164,10 @@ public class Exercise extends Owned {
     public void setEquipment(String equipment) { this.equipment = equipment; }
     public String getLevel() { return level; }
     public void setLevel(String level) { this.level = level; }
+    public LogType getLogType() { return logType; }
+    public void setLogType(LogType logType) { this.logType = logType; }
+    public LogType getPendingLogType() { return pendingLogType; }
+    public void setPendingLogType(LogType pendingLogType) { this.pendingLogType = pendingLogType; }
 
     // Built-ins belong to no account (Owned).
     @Override

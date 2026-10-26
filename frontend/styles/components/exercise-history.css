@@ -217,3 +217,38 @@
     font-size: 0.85rem;
     color: var(--text-muted);
 }
+
+/* "Logged as … before …" between sessions logged different ways
+   (exerciseHistory.js dividerHtml): a label on a line. */
+.exh-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0 8px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    text-align: center;
+}
+
+.exh-divider::before,
+.exh-divider::after {
+    content: "";
+    flex: 1 1 0;
+    border-top: 2px solid var(--frame-soft);
+}
+
+/* The next session's dashed top line would double up under the divider. */
+.exh-divider + .exh-session {
+    border-top: none;
+    padding-top: 2px;
+}
+
+/* One PR card on its own (Most reps, Longest time) spans the width. */
+.exh-records-one {
+    grid-template-columns: 1fr;
+}
+
+/* A unilateral Reps or Time exercise has only the wide card. */
+.exh-record-wide:first-child {
+    margin-top: 0;
+}

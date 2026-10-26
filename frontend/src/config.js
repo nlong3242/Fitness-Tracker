@@ -31,6 +31,20 @@ export const LOG_TYPES = [
     { value: "DISTANCE_TIME", label: "Distance & time" }
 ];
 
+/* The numbers a set has, by type: "time" is one value in seconds (typed
+   as min : sec), and km is the only optional one. A set row's boxes
+   (components/setInputRow.js) and the summary's columns follow this. */
+export const LOG_COLUMNS = {
+    WEIGHT_REPS: ["weight", "reps"],
+    REPS: ["reps"],
+    TIME: ["time"],
+    DISTANCE_TIME: ["km", "time"]
+};
+
+export function logColumns(logType) {
+    return LOG_COLUMNS[logType] || LOG_COLUMNS.WEIGHT_REPS;
+}
+
 export function logTypeLabel(value) {
     const t = LOG_TYPES.find(t => t.value === value);
     return t ? t.label : "Weight & reps";

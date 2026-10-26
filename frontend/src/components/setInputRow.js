@@ -2,21 +2,10 @@ import { state } from "../state.js";
 import { createSet, updateSet, deleteSet } from "../api.js";
 import { ensureCurrentSession, maybeCleanupOrphanSession, touchActivity } from "../session.js";
 import { saveExerciseDrafts } from "../drafts.js";
+import { logColumns } from "../config.js";
 
-/* The boxes a set has, by how its exercise is logged (logType, config.js
-   LOG_TYPES). "time" is one value in seconds typed into two boxes,
-   min : sec. km is the only optional one. */
-const COLUMNS = {
-    WEIGHT_REPS: ["weight", "reps"],
-    REPS: ["reps"],
-    TIME: ["time"],
-    DISTANCE_TIME: ["km", "time"]
-};
+// A row's boxes are its exercise's logColumns; time's headings are min, sec.
 const HEADERS = { weight: "Weight", reps: "Reps", km: "km" };
-
-function columnsFor(exercise) {
-    return COLUMNS[exercise.logType] || COLUMNS.WEIGHT_REPS;
-}
 
 /* The raw box values ("" when empty) of a set's numbers, as a row shows
    them: w, r, km, and the time as m and s. */
@@ -78,7 +67,7 @@ function cellHtml(col) {
    when resuming an in-progress session. */
 export function createInputRow(workout, exercise, exerciseIndex, side, savedSet) {
     const isUnilateral = exercise.unilateral === true;
-    const columns = columnsFor(exercise);
+    const columns = logColumns(exercise.logType);
     const row = document.createElement("div");
     row.className = "set-input-row";
     if (side) row.dataset.side = side;

@@ -5,7 +5,8 @@ import {
     fetchLastSets,
     fetchPreviousTotals
 } from "../api.js";
-import { deltaSpan, formatSessionDate, escapeHtml } from "../utils/format.js";
+import { deltaSpan, formatDecimal, formatDuration, formatSessionDate, escapeHtml } from "../utils/format.js";
+import { logColumns } from "../config.js";
 import { showExerciseReadOnlyModal } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
 import { clearNavGuard } from "../components/bottomNav.js";
@@ -38,6 +39,49 @@ export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBa
 
     const back = onBack || function() { viewWorkout(workoutId); };
     await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: back });
+}
+
+/* A summary set table's columns (the set's logColumns): heading, value,
+   and the change from last time's set. */
+const SUMMARY_COLUMNS = {
+    weight: {
+        header: `Weight <span class="stat-unit">(kg)</span>`,
+        value: s => s.weight,
+        delta: (s, p) => deltaSpan(s.weight - p.weight, formatDecimal)
+    },
+    reps: {
+        header: "Reps",
+        value: s => s.reps,
+        delta: (s, p) => deltaSpan(s.reps - p.reps)
+    },
+    km: {
+        header: `Distance <span class="stat-unit">(km)</span>`,
+        value: s => s.distanceKm != null ? formatDecimal(s.distanceKm) : "–",
+        delta: (s, p) => s.distanceKm != null && p.distanceKm != null
+            ? deltaSpan(s.distanceKm - p.distanceKm, formatDecimal) : ""
+    },
+    time: {
+        header: "Time",
+        value: s => formatDuration(s.durationSeconds),
+        delta: (s, p) => deltaSpan(s.durationSeconds - p.durationSeconds, formatDuration)
+    }
+};
+
+/* One set's row; "-" in each column when there's no set (one side of a
+   unilateral pair). Last time's set is compared only if it was logged the
+   same way: "last time" follows the exercise's type now, and an older
+   session may have been logged as another. */
+function setRowHtml(label, columns, set, prev) {
+    const comparable = set && prev && (prev.logType || "WEIGHT_REPS") === (set.logType || "WEIGHT_REPS");
+    const cells = columns.map(col => set
+        ? `<div class="summary-set-cell">${SUMMARY_COLUMNS[col].value(set)}${comparable ? SUMMARY_COLUMNS[col].delta(set, prev) : ""}</div>`
+        : `<div class="summary-set-cell summary-set-empty">-</div>`).join("");
+    return `
+        <div class="summary-set-row" data-cols="${columns.length}">
+            <div class="summary-set-num">${label}</div>
+            ${cells}
+        </div>
+    `;
 }
 
 export function sessionSummaryRoute(workoutId, sessionId, sessionDate) {
@@ -148,6 +192,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
         const lastSets = await fetchLastSets(workout.id, exercise.id, sessionId);
         const isUnilateral = exercise.unilateral === true;
 
+        const columns = logColumns(exercise.logType);
         let setsTableHtml = "";
         if (exercise.sets.length > 0) {
             let rows = "";
@@ -158,75 +203,19 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
                 const prevLeft = lastSets.filter(s => s.side === "LEFT");
                 const prevRight = lastSets.filter(s => s.side === "RIGHT");
                 const pairs = Math.max(leftSets.length, rightSets.length);
-                const emptyCell = `<div class="summary-set-cell summary-set-empty">-</div>`;
                 for (let k = 0; k < pairs; k++) {
-                    const L = leftSets[k];
-                    const R = rightSets[k];
-                    if (L) {
-                        const prev = prevLeft[k];
-                        const wd = prev ? deltaSpan(L.weight - prev.weight) : "";
-                        const rd = prev ? deltaSpan(L.reps - prev.reps) : "";
-                        rows += `
-                            <div class="summary-set-row">
-                                <div class="summary-set-num">Set L${k + 1}</div>
-                                <div class="summary-set-cell">${L.weight}${wd}</div>
-                                <div class="summary-set-cell">${L.reps}${rd}</div>
-                            </div>
-                        `;
-                    } else {
-                        rows += `
-                            <div class="summary-set-row">
-                                <div class="summary-set-num">Set L${k + 1}</div>
-                                ${emptyCell}
-                                ${emptyCell}
-                            </div>
-                        `;
-                    }
-                    if (R) {
-                        const prev = prevRight[k];
-                        const wd = prev ? deltaSpan(R.weight - prev.weight) : "";
-                        const rd = prev ? deltaSpan(R.reps - prev.reps) : "";
-                        rows += `
-                            <div class="summary-set-row">
-                                <div class="summary-set-num">Set R${k + 1}</div>
-                                <div class="summary-set-cell">${R.weight}${wd}</div>
-                                <div class="summary-set-cell">${R.reps}${rd}</div>
-                            </div>
-                        `;
-                    } else {
-                        rows += `
-                            <div class="summary-set-row">
-                                <div class="summary-set-num">Set R${k + 1}</div>
-                                ${emptyCell}
-                                ${emptyCell}
-                            </div>
-                        `;
-                    }
+                    rows += setRowHtml(`Set L${k + 1}`, columns, leftSets[k], prevLeft[k]);
+                    rows += setRowHtml(`Set R${k + 1}`, columns, rightSets[k], prevRight[k]);
                 }
             } else {
                 for (let k = 0; k < exercise.sets.length; k++) {
-                    const set = exercise.sets[k];
-                    const prev = lastSets[k];
-                    let weightDelta = "";
-                    let repsDelta = "";
-                    if (prev) {
-                        weightDelta = deltaSpan(set.weight - prev.weight);
-                        repsDelta = deltaSpan(set.reps - prev.reps);
-                    }
-                    rows += `
-                        <div class="summary-set-row">
-                            <div class="summary-set-num">Set ${String(k + 1).padStart(2, "0")}</div>
-                            <div class="summary-set-cell">${set.weight}${weightDelta}</div>
-                            <div class="summary-set-cell">${set.reps}${repsDelta}</div>
-                        </div>
-                    `;
+                    rows += setRowHtml(`Set ${String(k + 1).padStart(2, "0")}`, columns, exercise.sets[k], lastSets[k]);
                 }
             }
             setsTableHtml = `
-                <div class="summary-set-header">
+                <div class="summary-set-header" data-cols="${columns.length}">
                     <div class="summary-set-num"></div>
-                    <div class="summary-set-cell">Weight <span class="stat-unit">(kg)</span></div>
-                    <div class="summary-set-cell">Reps</div>
+                    ${columns.map(col => `<div class="summary-set-cell">${SUMMARY_COLUMNS[col].header}</div>`).join("")}
                 </div>
                 ${rows}
             `;
@@ -237,7 +226,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
         if (onExerciseClick) exerciseCard.classList.add("clickable");
         exerciseCard.innerHTML = `
             <div class="summary-exercise-name">${escapeHtml(exercise.name)}</div>
-            <div class="summary-exercise-count">${exercise.sets.length} sets</div>
+            <div class="summary-exercise-count">${exercise.sets.length} ${exercise.sets.length === 1 ? "set" : "sets"}</div>
             ${setsTableHtml}
         `;
         if (onExerciseClick) {

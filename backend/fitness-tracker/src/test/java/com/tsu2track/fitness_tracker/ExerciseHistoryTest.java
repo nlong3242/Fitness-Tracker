@@ -19,9 +19,11 @@ import com.tsu2track.fitness_tracker.service.ExerciseHistoryService;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.History;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySession;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySet;
+import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.TrendPoint;
 
 /* Exercise history: finished sessions of an exercise across workouts,
-   newest first and paged, its PRs, and the single ★ on the Best set. */
+   newest first and paged, its PRs, the single ★ on the Best set, and the
+   chart's trend. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
 @Import(ExerciseHistoryService.class)
@@ -155,12 +157,67 @@ class ExerciseHistoryTest {
     }
 
     @Test
+    void theTrendIsEachSessionsBestEstimatedMaxOldestFirst() {
+        Session a = session(upper, DAY, true);
+        set(a, bench, 60, 8, null);                       // 76
+        set(a, bench, 70, 3, null);                       // 77: the session's best
+        set(session(push, DAY.plusDays(3), true), bench, 80, 5, null);    // 93.33 → 93.3
+        set(session(upper, DAY.plusDays(5), true), bench, 0, 12, null);   // bodyweight only: no point
+        set(session(upper, DAY.plusDays(6), false), bench, 100, 5, null); // unfinished
+
+        History h = service.history(bench.getId(), 0, 10);
+
+        assertThat(h.trend().metric()).isEqualTo("MAX_KG");
+        assertThat(h.trend().points()).extracting(TrendPoint::date, TrendPoint::value).containsExactly(
+            org.assertj.core.groups.Tuple.tuple(DAY, 77.0),
+            org.assertj.core.groups.Tuple.tuple(DAY.plusDays(3), 93.3));
+    }
+
+    @Test
+    void sessionsOnTheSameDayShareTheirTrendPoint() {
+        set(session(upper, DAY, true), bench, 60, 8, null);                 // 76
+        set(session(push, DAY, true), bench, 80, 5, null);                  // 93.3: the day's best
+        set(session(upper, DAY, true), bench, 70, 3, null);                 // 77
+        set(session(upper, DAY.plusDays(2), true), bench, 80, 6, null);     // 96
+
+        assertThat(service.history(bench.getId(), 0, 10).trend().points())
+            .extracting(TrendPoint::date, TrendPoint::value).containsExactly(
+                org.assertj.core.groups.Tuple.tuple(DAY, 93.3),
+                org.assertj.core.groups.Tuple.tuple(DAY.plusDays(2), 96.0));
+    }
+
+    @Test
+    void aUnilateralTrendHasAPointPerSide() {
+        Exercise curl = exercise("One-Arm Curl", true);
+        Session a = session(upper, DAY, true);
+        set(a, curl, 12, 10, Side.LEFT);
+        set(a, curl, 14, 6, Side.RIGHT);
+        set(a, curl, 14, 8, Side.RIGHT);
+        set(session(upper, DAY.plusDays(7), true), curl, 14, 10, Side.LEFT);
+
+        assertThat(service.history(curl.getId(), 0, 10).trend().points())
+            .extracting(TrendPoint::date, TrendPoint::side, TrendPoint::value).containsExactly(
+                org.assertj.core.groups.Tuple.tuple(DAY, Side.LEFT, 16.0),
+                org.assertj.core.groups.Tuple.tuple(DAY, Side.RIGHT, 17.7),
+                org.assertj.core.groups.Tuple.tuple(DAY.plusDays(7), Side.LEFT, 18.7));
+    }
+
+    @Test
+    void theTrendComesWithTheFirstPageOnly() {
+        for (int i = 0; i < 3; i++) set(session(upper, DAY.plusDays(i), true), bench, 60, 8, null);
+
+        assertThat(service.history(bench.getId(), 0, 2).trend().points()).hasSize(3);
+        assertThat(service.history(bench.getId(), 1, 2).trend()).isNull();
+    }
+
+    @Test
     void nothingFinishedYet() {
         History h = service.history(bench.getId(), 0, 10);
 
         assertThat(h.sessions()).isEmpty();
         assertThat(h.hasMore()).isFalse();
         assertThat(h.records().heaviest()).isNull();
+        assertThat(h.trend().points()).isEmpty();
     }
 
     @Test

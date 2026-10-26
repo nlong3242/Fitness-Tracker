@@ -34,8 +34,9 @@ import com.tsu2track.fitness_tracker.security.CurrentUser;
    set either).
 
    Every session is listed, each with the type it was logged as (the app
-   puts a divider where it changes), but records and ★ only count sets of
-   the exercise's current type: after a type change it starts fresh. */
+   puts a divider where it changes), but records, ★ and the trend only
+   count sets of the exercise's current type: after a type change it
+   starts fresh. */
 @Service
 public class ExerciseHistoryService {
     private final ExerciseRepository exerciseRepository;
@@ -66,7 +67,18 @@ public class ExerciseHistoryService {
        Each is null until it has a finished set; the earliest wins a tie. */
     public record Records(LogType logType, Record heaviest, Record bestSet, Record bestLeft, Record bestRight,
                           Record fastestPace) {}
-    public record History(Records records, List<HistorySession> sessions, boolean hasMore) {}
+    /* The History tab's chart: each day's best by the same measure as
+       Best set, one point per day and side (side null when two-sided),
+       oldest first. Sessions on the same day share a point: the chart shows
+       progress over time, and the list below it shows every session. metric says what value is:
+         MAX_KG   estimated one-rep max (Weight & reps, sets above 0 kg)
+         REPS     most reps
+         SECONDS  longest time (Time, and Distance & time with no distances)
+         KM       longest distance (Distance & time; sessions without one left out) */
+    public record TrendPoint(LocalDate date, Side side, double value) {}
+    public record Trend(String metric, List<TrendPoint> points) {}
+    // trend: only on the first page.
+    public record History(Records records, List<HistorySession> sessions, boolean hasMore, Trend trend) {}
 
     @Transactional(readOnly = true)
     public History history(Long exerciseId, int page, int size) {
@@ -115,7 +127,36 @@ public class ExerciseHistoryService {
         int to = Math.min(from + size, newestFirst.size());
         Records records = new Records(type, heaviest, best.get(null), best.get(Side.LEFT), best.get(Side.RIGHT),
             fastestPace);
-        return new History(records, newestFirst.subList(from, to), to < newestFirst.size());
+        return new History(records, newestFirst.subList(from, to), to < newestFirst.size(),
+            page == 0 ? trend(type, sets) : null);
+    }
+
+    private static Trend trend(LogType type, List<ExerciseSet> sets) {
+        boolean anyKm = type == LogType.DISTANCE_TIME
+            && sets.stream().anyMatch(set -> set.getLogType() == type && set.getDistanceKm() != null);
+        String metric = switch (type) {
+            case WEIGHT_REPS -> "MAX_KG";
+            case REPS -> "REPS";
+            case TIME -> "SECONDS";
+            case DISTANCE_TIME -> anyKm ? "KM" : "SECONDS";
+        };
+        // Sets come oldest first, so the points do too.
+        Map<String, TrendPoint> points = new LinkedHashMap<>();
+        for (ExerciseSet set : sets) {
+            if (set.getLogType() != type) continue;
+            Double value = switch (metric) {
+                case "MAX_KG" -> set.getWeight() > 0 ? oneRepMax(record(set)) : null;
+                case "REPS" -> (double) set.getReps();
+                case "KM" -> set.getDistanceKm();
+                default -> set.getDurationSeconds() == null ? null : (double) set.getDurationSeconds();
+            };
+            if (value == null) continue;
+            double rounded = Math.round(value * 10) / 10.0;
+            points.merge(set.getSession().getDate() + "/" + set.getSide(),
+                new TrendPoint(set.getSession().getDate(), set.getSide(), rounded),
+                (a, b) -> b.value() > a.value() ? b : a);
+        }
+        return new Trend(metric, new ArrayList<>(points.values()));
     }
 
     private static Record record(ExerciseSet set) {

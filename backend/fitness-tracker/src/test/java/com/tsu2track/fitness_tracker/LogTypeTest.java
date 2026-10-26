@@ -21,6 +21,7 @@ import com.tsu2track.fitness_tracker.service.ExerciseHistoryService;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.History;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySession;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySet;
+import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.TrendPoint;
 import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.service.ExerciseService;
 import com.tsu2track.fitness_tracker.service.HiddenExercises;
@@ -269,6 +270,61 @@ class LogTypeTest {
 
         assertThat(h.records().bestSet().durationSeconds()).isEqualTo(600);
         assertThat(h.records().fastestPace()).isNull();
+    }
+
+    // --- the History chart's trend by type ---
+
+    @Test
+    void repsAndTimeTrendsAreTheMostAndTheLongest() {
+        Exercise pushUp = inWorkout(exercise("Push-up", ExerciseCategory.CHEST, LogType.REPS));
+        finishedSession(pushUp, new CreateSetRequest(null, 20, null, null, null),
+                                new CreateSetRequest(null, 25, null, null, null));
+        assertThat(history.history(pushUp.getId(), 0, 10).trend())
+            .satisfies(t -> assertThat(t.metric()).isEqualTo("REPS"))
+            .satisfies(t -> assertThat(t.points()).extracting(TrendPoint::value).containsExactly(25.0));
+
+        Exercise plank = inWorkout(exercise("Plank", ExerciseCategory.CORE, LogType.TIME));
+        finishedSession(plank, new CreateSetRequest(null, null, 60, null, null),
+                               new CreateSetRequest(null, null, 105, null, null));
+        assertThat(history.history(plank.getId(), 0, 10).trend())
+            .satisfies(t -> assertThat(t.metric()).isEqualTo("SECONDS"))
+            .satisfies(t -> assertThat(t.points()).extracting(TrendPoint::value).containsExactly(105.0));
+    }
+
+    @Test
+    void aDistanceTrendLeavesOutSessionsWithNoDistance() {
+        Exercise run = inWorkout(exercise("Treadmill Run", ExerciseCategory.CARDIO, null));
+        finishedSession(run, new CreateSetRequest(null, null, 1800, 5.0, null),
+                             new CreateSetRequest(null, null, 900, 2.5, null));
+        finishedSession(run, new CreateSetRequest(null, null, 720, null, null));   // no distance: no point
+
+        assertThat(history.history(run.getId(), 0, 10).trend())
+            .satisfies(t -> assertThat(t.metric()).isEqualTo("KM"))
+            .satisfies(t -> assertThat(t.points()).extracting(TrendPoint::value).containsExactly(5.0));
+    }
+
+    @Test
+    void withNoDistancesTheTrendIsTime() {
+        Exercise rope = inWorkout(exercise("Rope Jumping", ExerciseCategory.CARDIO, null));
+        finishedSession(rope, new CreateSetRequest(null, null, 300, null, null));
+        finishedSession(rope, new CreateSetRequest(null, null, 600, null, null));
+
+        // Both sessions are today: one point, the longer.
+        assertThat(history.history(rope.getId(), 0, 10).trend())
+            .satisfies(t -> assertThat(t.metric()).isEqualTo("SECONDS"))
+            .satisfies(t -> assertThat(t.points()).extracting(TrendPoint::value).containsExactly(600.0));
+    }
+
+    @Test
+    void theTrendStartsFreshAfterATypeChange() {
+        Exercise plank = inWorkout(exercise("Plank", ExerciseCategory.CORE, LogType.REPS));
+        finishedSession(plank, new CreateSetRequest(null, 20, null, null, null));
+        update(plank, ExerciseCategory.CORE, LogType.TIME);
+        assertThat(history.history(plank.getId(), 0, 10).trend().points()).isEmpty();
+
+        finishedSession(plank, new CreateSetRequest(null, null, 90, null, null));
+        assertThat(history.history(plank.getId(), 0, 10).trend().points())
+            .extracting(TrendPoint::value).containsExactly(90.0);
     }
 
     // --- helpers ---

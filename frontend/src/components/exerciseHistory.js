@@ -2,8 +2,9 @@ import { fetchExerciseHistory } from "../api.js";
 import { findWorkout } from "../state.js";
 import { logTypeLabel } from "../config.js";
 import { escapeHtml, formatDuration } from "../utils/format.js";
+import { lineChartHtml } from "./lineChart.js";
 
-/* An exercise's PRs and past sessions, rendered into `container`. Used by
+/* An exercise's trend chart, PRs and past sessions, rendered into `container`. Used by
    the History tab of the exercise popup in a live workout (and the
    exercise page's History tab). Sessions come 10 at a time with "Load more".
    ★ marks the set shown in the Best set card, one per side for a
@@ -12,6 +13,15 @@ import { escapeHtml, formatDuration } from "../utils/format.js";
    type changed, a divider says how the older sessions were logged. */
 
 const PAGE_SIZE = 10;
+
+const RANGES = [
+    { key: "1M", days: 30 },
+    { key: "3M", days: 90 },
+    { key: "1Y", days: 365 },
+    { key: "All", days: null },
+];
+
+let trendRange = "3M";   // kept while the app is open
 
 export async function renderExerciseHistory(container, exerciseId) {
     container.innerHTML = `<p class="exh-empty">Loading…</p>`;
@@ -28,10 +38,25 @@ export async function renderExerciseHistory(container, exerciseId) {
     }
 
     container.innerHTML = `
+        <div class="exh-trend">
+            <div class="chart-range-row" role="group" aria-label="Chart range">
+                ${RANGES.map(r => `<button type="button" class="filter-pill exh-range" data-range="${r.key}">${r.key}</button>`).join("")}
+            </div>
+            <div class="exh-trend-chart"></div>
+        </div>
         ${recordsHtml(first.records)}
         <div class="exh-sessions"></div>
         <button type="button" class="btn-secondary exh-more" hidden>Load more</button>
     `;
+    const trend = first.trend || { metric: "MAX_KG", points: [] };
+    for (const btn of container.querySelectorAll(".exh-range")) {
+        btn.onclick = function() {
+            trendRange = btn.dataset.range;
+            showTrend(container, trend);
+        };
+    }
+    showTrend(container, trend);
+
     const list = container.querySelector(".exh-sessions");
     const more = container.querySelector(".exh-more");
     let page = 0;
@@ -63,6 +88,69 @@ export async function renderExerciseHistory(container, exerciseId) {
         }
         more.disabled = false;
     };
+}
+
+/* Each session's best over the chosen range, the same best as the PR
+   cards: Weight & reps the estimated max, Reps the most, Time the longest,
+   Distance & time the longest distance (or time, with no distances). A
+   unilateral exercise gets a line per side. The range starts at the first
+   session if that's later, so a short history fills the width. */
+function showTrend(container, trend) {
+    for (const btn of container.querySelectorAll(".exh-range")) {
+        btn.classList.toggle("selected", btn.dataset.range === trendRange);
+    }
+    const today = new Date().toLocaleDateString("en-CA");
+    const days = RANGES.find(r => r.key === trendRange).days;
+    const points = trend.points;   // oldest first
+    const dates = ps => new Set(ps.map(p => p.date)).size;
+    const rangeStart = days === null ? "" : addDays(today, -(days - 1));
+    const first = points.length > 0 ? points[0].date : "";
+    const from = first > rangeStart ? first : rangeStart;
+    const shown = points.filter(p => p.date >= from);
+    const chart = container.querySelector(".exh-trend-chart");
+    if (dates(shown) < 2) {
+        const n = dates(shown);
+        chart.innerHTML = `<p class="chart-empty">${dates(points) < 2 ? "Log sessions on a couple of days to see a chart."
+            : `${n === 0 ? "No sessions" : "Only 1 session"} in the last ${days} days.`}</p>`;
+        return;
+    }
+
+    const m = METRICS[trend.metric] || METRICS.MAX_KG;
+    // Both sides (a two-sided past, before it became unilateral), L, R.
+    const lines = [[null, "Both", "chart-line-both"], ["LEFT", "L", ""], ["RIGHT", "R", "chart-line-r"]]
+        .map(([side, label, cls]) => ({ label, cls, points: shown.filter(p => (p.side || null) === side) }))
+        .filter(l => l.points.length > 0);
+    if (lines.length === 1) lines[0].cls = "";   // a line on its own is the chart's colour
+    const change = function(l) {
+        const d = Math.round((l.points[l.points.length - 1].value - l.points[0].value) * 10) / 10;
+        if (l.points.length < 2 || d === 0) return `<span class="exh-trend-change">–</span>`;
+        return `<span class="exh-trend-change${d > 0 ? " up" : ""}">${d > 0 ? "▲" : "▼"} ${m.format(Math.abs(d))}</span>`;
+    };
+    // One line: its change. More: a key, each side with its change.
+    const right = lines.length === 1 ? change(lines[0]) : `<span class="exh-trend-key">${lines.map(l => `
+        <span class="exh-trend-side"><i class="exh-trend-swatch ${l.cls}"></i>${l.label} ${change(l)}</span>`).join("")}</span>`;
+    const best = Math.max(...shown.map(p => p.value));
+    chart.innerHTML = lineChartHtml({
+        head: { left: `${m.label} ${m.format(best)}`, right },
+        lines: lines.map(l => ({ cls: l.cls, points: l.points })),
+        fromIso: from, toIso: today,
+        minSpan: m.minSpan,
+        label: `${m.label} per session, best ${m.format(best)}`,
+    });
+}
+
+// The trend's metric (ExerciseHistoryService.trend): its head label, how a
+// value reads, and the smallest value range drawn.
+const METRICS = {
+    MAX_KG: { label: "Best est. max", format: v => `${kg(v)} kg`, minSpan: 5 },
+    REPS: { label: "Most reps", format: v => `${kg(v)} reps`, minSpan: 2 },
+    SECONDS: { label: "Longest", format: v => formatDuration(Math.round(v)), minSpan: 10 },
+    KM: { label: "Longest", format: v => `${kg(v)} km`, minSpan: 0.5 },
+};
+
+function addDays(iso, n) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d + n).toLocaleDateString("en-CA");
 }
 
 /* The PR cards, for the exercise's type now (records.logType; older

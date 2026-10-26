@@ -1,5 +1,5 @@
 /* Bodyweight history — views/bodyweight.js.
-   Chart panel (range pills + line chart), then weigh-ins grouped by month. */
+   Chart panel (range pills + components/lineChart.js), then weigh-ins grouped by month. */
 
 .bw-chart-panel {
     background-color: var(--surface);
@@ -8,25 +8,6 @@
     box-shadow: var(--panel-shadow);
     padding: 12px 14px 10px;
     margin-bottom: 20px;
-}
-
-.bw-range-row {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 10px;
-}
-
-.bw-chart-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.bw-chart-range {
-    color: var(--text-muted);
-    font-size: 0.9em;
 }
 
 .bw-chart-change,
@@ -39,44 +20,6 @@
     color: var(--action-text);
 }
 
-.bw-chart {
-    display: block;
-    width: 100%;
-    height: 130px;
-    overflow: visible;
-}
-
-.bw-chart-guide {
-    stroke: var(--frame-soft);
-    stroke-width: 1.5;
-    stroke-dasharray: 4 4;
-    vector-effect: non-scaling-stroke;
-}
-
-.bw-chart-line {
-    fill: none;
-    stroke: var(--accent-pink-deep);
-    stroke-width: 2.5;
-    stroke-linejoin: miter;
-    vector-effect: non-scaling-stroke;
-}
-
-.bw-chart-mark {
-    fill: var(--accent-pink-light);
-    stroke: var(--frame);
-    stroke-width: 1.5;
-    vector-effect: non-scaling-stroke;
-}
-
-.bw-chart-axis {
-    display: flex;
-    justify-content: space-between;
-    color: var(--text-muted);
-    font-size: 0.85em;
-    margin-top: 4px;
-}
-
-.bw-chart-empty,
 .bw-empty {
     color: var(--text-muted);
     margin: 8px 0;

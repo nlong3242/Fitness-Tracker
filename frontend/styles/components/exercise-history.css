@@ -245,3 +245,60 @@
 .exh-record-wide:first-child {
     margin-top: 0;
 }
+
+/* Trend chart (exerciseHistory.js showTrend) above the PR cards. ▲ is
+   better (more weight, reps, time or distance). L is the chart's own
+   colour; R is dark brown; a two-sided past is dashed. */
+.exh-trend {
+    margin-bottom: 14px;
+}
+
+.exh-trend-change {
+    color: var(--accent-pink-deep);
+    white-space: nowrap;
+}
+
+.exh-trend-change.up {
+    color: var(--action-text);
+}
+
+.exh-trend-key {
+    display: flex;
+    gap: 10px;
+}
+
+.exh-trend-side {
+    white-space: nowrap;
+}
+
+.exh-trend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 3px;
+    margin-right: 4px;
+    vertical-align: middle;
+    background-color: var(--accent-pink-deep);
+}
+
+.chart-line.chart-line-r,
+.exh-trend-swatch.chart-line-r {
+    stroke: var(--frame);
+    background-color: var(--frame);
+}
+
+.chart-mark.chart-line-r {
+    fill: var(--surface-sunk);
+}
+
+.chart-line.chart-line-both {
+    stroke: var(--text-muted);
+    stroke-dasharray: 4 3;
+}
+
+.exh-trend-swatch.chart-line-both {
+    background-color: var(--text-muted);
+}
+
+.chart-mark.chart-line-both {
+    fill: var(--surface);
+}

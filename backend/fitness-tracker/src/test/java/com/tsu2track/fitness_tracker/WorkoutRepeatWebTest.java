@@ -197,6 +197,20 @@ class WorkoutRepeatWebTest {
     }
 
     @Test
+    void homeShowsTheRuleDayAsNextUp() throws Exception {
+        set(MON, "{\"weekdays\": " + MON_THU + "}").andExpect(status().isOk());
+
+        // Wednesday: Thursday's Upper is next, the only plan that day.
+        mvc.perform(get("/sessions/overview?weekStart=" + MON + "&today=2026-03-04").header("Authorization", bearer))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nextPlanned.workoutId").value(workout))
+            .andExpect(jsonPath("$.nextPlanned.date").value("2026-03-05"))
+            .andExpect(jsonPath("$.nextPlanned.id", nullValue()))
+            .andExpect(jsonPath("$.nextPlanned.repeatDate").value("2026-03-05"))
+            .andExpect(jsonPath("$.plannedThatDay").value(1));
+    }
+
+    @Test
     void aMissingWorkoutIsNotFound() throws Exception {
         mvc.perform(get("/workouts/999999/repeat").header("Authorization", bearer)).andExpect(status().isNotFound());
     }

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.stereotype.Component;
@@ -23,6 +24,10 @@ import com.tsu2track.fitness_tracker.security.CurrentUser;
    unsaved entries: no id, PLANNED, repeatDate = date. */
 @Component
 public class CalendarPlans {
+    // How far ahead Home looks for the next plan when only rules could
+    // supply one (a rule plans at least once every 365 days).
+    private static final int NEXT_LOOKAHEAD_DAYS = 400;
+
     private final ScheduledWorkoutRepository scheduled;
     private final WorkoutRepeatRepository repeats;
 
@@ -56,6 +61,25 @@ public class CalendarPlans {
 
     public List<ScheduledWorkout> on(LocalDate date) {
         return between(date, date);
+    }
+
+    /* The earliest plan still to do from today: a saved PLANNED entry or a
+       rule's day, saved ones first within a day. A saved plan bounds the
+       search, so rules are only expanded up to it. */
+    public Optional<ScheduledWorkout> next(LocalDate today) {
+        LocalDate until = scheduled
+            .findFirstByUserIdAndStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(
+                CurrentUser.id(), ScheduleStatus.PLANNED, today)
+            .map(ScheduledWorkout::getDate)
+            .orElse(today.plusDays(NEXT_LOOKAHEAD_DAYS));
+        return between(today, until).stream()
+            .filter(s -> s.getStatus() == ScheduleStatus.PLANNED)
+            .findFirst();
+    }
+
+    // Plans still to do on a day, saved and from rules.
+    public long countPlannedOn(LocalDate date) {
+        return on(date).stream().filter(s -> s.getStatus() == ScheduleStatus.PLANNED).count();
     }
 
     // Whether a rule of this workout plans this day.

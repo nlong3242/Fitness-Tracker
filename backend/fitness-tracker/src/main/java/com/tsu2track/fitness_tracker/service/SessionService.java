@@ -26,7 +26,6 @@ import com.tsu2track.fitness_tracker.ExerciseRepository;
 import com.tsu2track.fitness_tracker.ExerciseSet;
 import com.tsu2track.fitness_tracker.ExerciseSetRepository;
 import com.tsu2track.fitness_tracker.LogType;
-import com.tsu2track.fitness_tracker.ScheduleStatus;
 import com.tsu2track.fitness_tracker.ScheduledWorkout;
 import com.tsu2track.fitness_tracker.ScheduledWorkoutRepository;
 import com.tsu2track.fitness_tracker.Session;
@@ -53,6 +52,7 @@ public class SessionService {
     private final ScheduledWorkoutRepository scheduledWorkoutRepository;
     private final ExerciseNotes exerciseNotes;
     private final WeeklyGoals weeklyGoals;
+    private final CalendarPlans calendarPlans;
 
     public SessionService(SessionRepository sessionRepository,
                           WorkoutRepository workoutRepository,
@@ -62,7 +62,8 @@ public class SessionService {
                           WorkoutExerciseRepository workoutExerciseRepository,
                           ScheduledWorkoutRepository scheduledWorkoutRepository,
                           ExerciseNotes exerciseNotes,
-                          WeeklyGoals weeklyGoals) {
+                          WeeklyGoals weeklyGoals,
+                          CalendarPlans calendarPlans) {
         this.sessionRepository = sessionRepository;
         this.workoutRepository = workoutRepository;
         this.exerciseRepository = exerciseRepository;
@@ -72,6 +73,7 @@ public class SessionService {
         this.scheduledWorkoutRepository = scheduledWorkoutRepository;
         this.exerciseNotes = exerciseNotes;
         this.weeklyGoals = weeklyGoals;
+        this.calendarPlans = calendarPlans;
     }
 
     public Page<Session> findSessions(Long workoutId, Pageable pageable) {
@@ -118,15 +120,15 @@ public class SessionService {
         return streak;
     }
 
-    // The earliest workout still planned for today or later.
+    // The earliest workout still planned for today or later, repeat rules
+    // included (unsaved: no id).
     public Optional<ScheduledWorkout> findNextPlanned(LocalDate today) {
-        return scheduledWorkoutRepository.findFirstByUserIdAndStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(
-            CurrentUser.id(), ScheduleStatus.PLANNED, today);
+        return calendarPlans.next(today);
     }
 
     // Plans still to do on a day (the next one included).
     public long countPlannedOn(LocalDate date) {
-        return scheduledWorkoutRepository.countByUserIdAndStatusAndDate(CurrentUser.id(), ScheduleStatus.PLANNED, date);
+        return calendarPlans.countPlannedOn(date);
     }
 
     public Session createSession(Long workoutId) {

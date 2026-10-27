@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.tsu2track.fitness_tracker.service.CalendarPlans;
 import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.service.SessionService;
 import com.tsu2track.fitness_tracker.service.WeeklyGoals;
@@ -24,7 +25,7 @@ import com.tsu2track.fitness_tracker.service.WeeklyGoals;
    which exercises the session shows, in what order, under what name. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
-@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class })
+@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class, CalendarPlans.class })
 class SessionServiceFinishTest {
 
     @Autowired TestEntityManager em;

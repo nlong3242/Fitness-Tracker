@@ -17,6 +17,7 @@ import com.tsu2track.fitness_tracker.dto.CreateExerciseRequest;
 import com.tsu2track.fitness_tracker.dto.CreateSetRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateExerciseRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateSetRequest;
+import com.tsu2track.fitness_tracker.service.CalendarPlans;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.History;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySession;
@@ -34,7 +35,7 @@ import com.tsu2track.fitness_tracker.service.WeeklyGoals;
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
 @Import({ SessionService.class, ExerciseService.class, ExerciseHistoryService.class,
-          ExerciseNotes.class, HiddenExercises.class, WeeklyGoals.class })
+          ExerciseNotes.class, HiddenExercises.class, WeeklyGoals.class, CalendarPlans.class })
 class LogTypeTest {
 
     @Autowired TestEntityManager em;

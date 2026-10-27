@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Import;
 
 import com.tsu2track.fitness_tracker.dto.CreateSetRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateSetRequest;
+import com.tsu2track.fitness_tracker.service.CalendarPlans;
 import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.service.SessionService;
 import com.tsu2track.fitness_tracker.service.WeeklyGoals;
@@ -23,7 +24,7 @@ import com.tsu2track.fitness_tracker.service.WeeklyGoals;
    every set change, and only then. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
-@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class })
+@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class, CalendarPlans.class })
 class SessionActivityTest {
 
     private static final Instant LONG_AGO = Instant.parse("2026-01-01T08:00:00Z");

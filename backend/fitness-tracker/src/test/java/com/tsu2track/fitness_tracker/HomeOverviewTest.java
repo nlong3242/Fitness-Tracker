@@ -13,6 +13,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
+import com.tsu2track.fitness_tracker.service.CalendarPlans;
 import com.tsu2track.fitness_tracker.service.ExerciseNotes;
 import com.tsu2track.fitness_tracker.security.CurrentUser;
 import com.tsu2track.fitness_tracker.service.SessionService;
@@ -23,10 +24,11 @@ import com.tsu2track.fitness_tracker.service.WeeklyGoals;
    weekly goal) and the next plan. */
 @DataJpaTest
 @ExtendWith(LoggedIn.class)
-@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class })
+@Import({ SessionService.class, ExerciseNotes.class, WeeklyGoals.class, CalendarPlans.class })
 class HomeOverviewTest {
 
     private static final LocalDate MONDAY = LocalDate.of(2026, 10, 19);
+    private static final int MON_THU = 0b0001001;
 
     @Autowired TestEntityManager em;
     @Autowired SessionService sessionService;
@@ -235,6 +237,106 @@ class HomeOverviewTest {
         plan(legs, MONDAY.plusDays(1), ScheduleStatus.PLANNED);  // other day
 
         assertThat(sessionService.countPlannedOn(MONDAY)).isEqualTo(2);
+    }
+
+    // --- Repeat rules (V15): their days count as plans until saved. ---
+
+    @Test
+    void aRuleDayIsNextWhenNothingIsSaved() {
+        repeat(upper, MON_THU, MONDAY, null);
+
+        // Tuesday: Thursday is next, unsaved (no id).
+        assertThat(sessionService.findNextPlanned(MONDAY.plusDays(1))).get()
+            .satisfies(next -> {
+                assertThat(next.getId()).isNull();
+                assertThat(next.getWorkoutId()).isEqualTo(upper.getId());
+                assertThat(next.getDate()).isEqualTo(MONDAY.plusDays(3));
+                assertThat(next.getRepeatDate()).isEqualTo(MONDAY.plusDays(3));
+            });
+    }
+
+    @Test
+    void aSavedPlanBeforeTheRuleDayIsNext() {
+        repeat(upper, MON_THU, MONDAY, null);
+        ScheduledWorkout wed = plan(legs, MONDAY.plusDays(2), ScheduleStatus.PLANNED);
+
+        assertThat(sessionService.findNextPlanned(MONDAY.plusDays(1))).get()
+            .extracting(ScheduledWorkout::getId).isEqualTo(wed.getId());
+    }
+
+    @Test
+    void aRuleDayBeforeASavedPlanIsNext() {
+        repeat(upper, MON_THU, MONDAY, null);
+        plan(legs, MONDAY.plusDays(4), ScheduleStatus.PLANNED);
+
+        assertThat(sessionService.findNextPlanned(MONDAY)).get()
+            .satisfies(next -> {
+                assertThat(next.getWorkoutId()).isEqualTo(upper.getId());
+                assertThat(next.getDate()).isEqualTo(MONDAY);
+            });
+    }
+
+    @Test
+    void onTheSameDaySavedPlansComeFirstAndBothCount() {
+        repeat(upper, MON_THU, MONDAY, null);
+        ScheduledWorkout legsToday = plan(legs, MONDAY, ScheduleStatus.PLANNED);
+
+        assertThat(sessionService.findNextPlanned(MONDAY)).get()
+            .extracting(ScheduledWorkout::getId).isEqualTo(legsToday.getId());
+        assertThat(sessionService.countPlannedOn(MONDAY)).isEqualTo(2);
+    }
+
+    @Test
+    void aRuleDayAlreadyDoneIsntNext() {
+        repeat(upper, MON_THU, MONDAY, null);
+        plan(upper, MONDAY, ScheduleStatus.COMPLETED);
+
+        assertThat(sessionService.findNextPlanned(MONDAY)).get()
+            .extracting(ScheduledWorkout::getDate).isEqualTo(MONDAY.plusDays(3));
+        assertThat(sessionService.countPlannedOn(MONDAY)).isZero();
+    }
+
+    @Test
+    void aRuleDayMovedAwayIsntCountedOnItsDay() {
+        repeat(upper, MON_THU, MONDAY, null);
+        ScheduledWorkout moved = plan(upper, MONDAY.plusDays(1), ScheduleStatus.PLANNED);
+        moved.setRepeatDate(MONDAY);
+        em.flush();
+
+        assertThat(sessionService.countPlannedOn(MONDAY)).isZero();
+        assertThat(sessionService.findNextPlanned(MONDAY)).get()
+            .extracting(ScheduledWorkout::getId).isEqualTo(moved.getId());
+    }
+
+    @Test
+    void aRuleStartingMonthsAheadIsStillFound() {
+        WorkoutRepeat rule = new WorkoutRepeat();
+        rule.setWorkout(upper);
+        rule.setStartDate(MONDAY.plusDays(200));
+        rule.setEveryDays(30);
+        em.persist(rule);
+        em.flush();
+
+        assertThat(sessionService.findNextPlanned(MONDAY)).get()
+            .extracting(ScheduledWorkout::getDate).isEqualTo(MONDAY.plusDays(200));
+    }
+
+    @Test
+    void anEndedRulePlansNothing() {
+        repeat(upper, MON_THU, MONDAY.minusWeeks(3), MONDAY.minusDays(1));
+
+        assertThat(sessionService.findNextPlanned(MONDAY)).isEmpty();
+        assertThat(sessionService.countPlannedOn(MONDAY)).isZero();
+    }
+
+    private void repeat(Workout w, int weekdays, LocalDate start, LocalDate end) {
+        WorkoutRepeat rule = new WorkoutRepeat();
+        rule.setWorkout(w);
+        rule.setStartDate(start);
+        rule.setEndDate(end);
+        rule.setWeekdays(weekdays);
+        em.persist(rule);
+        em.flush();
     }
 
     private ScheduledWorkout plan(Workout w, LocalDate date, ScheduleStatus status) {

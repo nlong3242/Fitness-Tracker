@@ -31,6 +31,10 @@ public class Workout extends Owned {
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ScheduledWorkout> scheduledWorkouts = new ArrayList<>();
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<WorkoutRepeat> repeats = new ArrayList<>();
+
     public Workout() {}
 
     public Workout(String name) {

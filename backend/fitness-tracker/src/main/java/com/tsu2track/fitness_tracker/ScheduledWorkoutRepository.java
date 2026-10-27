@@ -15,6 +15,10 @@ public interface ScheduledWorkoutRepository extends JpaRepository<ScheduledWorko
     Optional<ScheduledWorkout> findFirstByUserIdAndStatusAndDateGreaterThanEqualOrderByDateAscCreatedAtAsc(Long userId, ScheduleStatus status, LocalDate from);
     long countByUserIdAndStatusAndDate(Long userId, ScheduleStatus status, LocalDate date);
 
+    // Entries made from repeat days (V16), wherever they were moved to.
+    List<ScheduledWorkout> findByUserIdAndRepeatDateBetween(Long userId, LocalDate from, LocalDate to);
+    boolean existsByWorkout_IdAndRepeatDate(Long workoutId, LocalDate repeatDate);
+
     // Plans (PLANNED/SKIPPED) are unique per date+workout; COMPLETED rows
     // repeat. The workout is the caller's, so these need no user filter.
     boolean existsByDateAndWorkout_IdAndStatusNot(LocalDate date, Long workoutId, ScheduleStatus status);

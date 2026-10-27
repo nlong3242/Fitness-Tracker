@@ -12,5 +12,7 @@ public record CreateScheduledWorkoutRequest(
     @NotNull Long workoutId,
     @Size(max = 255) String notes,
     ScheduleStatus status,
-    Long sessionId
+    Long sessionId,
+    // Set when saving a day a repeat rule planned: that day's date.
+    LocalDate repeatDate
 ) {}

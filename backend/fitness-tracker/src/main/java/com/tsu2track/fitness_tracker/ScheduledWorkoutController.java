@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.tsu2track.fitness_tracker.dto.CreateScheduledWorkoutRequest;
 import com.tsu2track.fitness_tracker.dto.UpdateScheduledWorkoutRequest;
 import com.tsu2track.fitness_tracker.security.CurrentUser;
+import com.tsu2track.fitness_tracker.service.CalendarPlans;
 
 import jakarta.validation.Valid;
 
@@ -26,18 +27,24 @@ import jakarta.validation.Valid;
 @RequestMapping("/scheduled-workouts")
 public class ScheduledWorkoutController {
 
+    // Repeat rules are expanded day by day, so a range is capped.
+    private static final long MAX_RANGE_DAYS = 400;
+
     private final ScheduledWorkoutRepository scheduledWorkoutRepository;
     private final WorkoutRepository workoutRepository;
     private final SessionRepository sessionRepository;
+    private final CalendarPlans calendarPlans;
 
     public ScheduledWorkoutController(
         ScheduledWorkoutRepository scheduledWorkoutRepository,
         WorkoutRepository workoutRepository,
-        SessionRepository sessionRepository
+        SessionRepository sessionRepository,
+        CalendarPlans calendarPlans
     ) {
         this.scheduledWorkoutRepository = scheduledWorkoutRepository;
         this.workoutRepository = workoutRepository;
         this.sessionRepository = sessionRepository;
+        this.calendarPlans = calendarPlans;
     }
 
     @GetMapping
@@ -48,14 +55,17 @@ public class ScheduledWorkoutController {
         if (to.isBefore(from)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "'to' must be on or after 'from'");
         }
-        return scheduledWorkoutRepository.findByUserIdAndDateBetweenOrderByDateAscCreatedAtAsc(CurrentUser.id(), from, to);
+        if (from.plusDays(MAX_RANGE_DAYS).isBefore(to)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The range can be at most " + MAX_RANGE_DAYS + " days");
+        }
+        return calendarPlans.between(from, to);
     }
 
     @GetMapping("/by-date/{date}")
     public List<ScheduledWorkout> getByDate(
         @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        return scheduledWorkoutRepository.findByUserIdAndDateOrderByCreatedAtAsc(CurrentUser.id(), date);
+        return calendarPlans.on(date);
     }
 
     @PostMapping
@@ -69,8 +79,19 @@ public class ScheduledWorkoutController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
         }
 
+        // Saving a day a repeat rule planned: it must be one, and only once.
+        if (body.repeatDate() != null) {
+            if (!calendarPlans.plans(workout.getId(), body.repeatDate())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This workout doesn't repeat on that day");
+            }
+            if (scheduledWorkoutRepository.existsByWorkout_IdAndRepeatDate(workout.getId(), body.repeatDate())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "That repeat day is already saved");
+            }
+        }
+
         ScheduledWorkout scheduled = new ScheduledWorkout();
         scheduled.setDate(body.date());
+        scheduled.setRepeatDate(body.repeatDate());
         scheduled.setWorkout(workout);
         scheduled.setNotes(body.notes());
         scheduled.setStatus(status);

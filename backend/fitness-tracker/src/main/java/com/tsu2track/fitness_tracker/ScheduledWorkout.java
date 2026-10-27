@@ -41,6 +41,11 @@ public class ScheduledWorkout extends Owned {
 
     private String notes;
 
+    // The repeat day this entry was made from (V16), kept when it's moved.
+    // On an entry the rule plans but nobody has saved yet, id is null and
+    // repeatDate equals date.
+    private LocalDate repeatDate;
+
     private LocalDateTime createdAt;
 
     public ScheduledWorkout() {}
@@ -80,6 +85,9 @@ public class ScheduledWorkout extends Owned {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public LocalDate getRepeatDate() { return repeatDate; }
+    public void setRepeatDate(LocalDate repeatDate) { this.repeatDate = repeatDate; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

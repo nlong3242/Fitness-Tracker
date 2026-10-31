@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.tsu2track.fitness_tracker.RepeatDayClearedRepository;
 import com.tsu2track.fitness_tracker.Workout;
 import com.tsu2track.fitness_tracker.WorkoutController;
 import com.tsu2track.fitness_tracker.WorkoutExerciseRepository;
@@ -20,13 +21,16 @@ public class WorkoutService {
     private final WorkoutRepository workoutRepository;
     private final WorkoutExerciseRepository workoutExerciseRepository;
     private final WorkoutRepeatRepository workoutRepeatRepository;
+    private final RepeatDayClearedRepository repeatDayClearedRepository;
 
     public WorkoutService(WorkoutRepository workoutRepository,
                           WorkoutExerciseRepository workoutExerciseRepository,
-                          WorkoutRepeatRepository workoutRepeatRepository) {
+                          WorkoutRepeatRepository workoutRepeatRepository,
+                          RepeatDayClearedRepository repeatDayClearedRepository) {
         this.workoutRepository = workoutRepository;
         this.workoutExerciseRepository = workoutExerciseRepository;
         this.workoutRepeatRepository = workoutRepeatRepository;
+        this.repeatDayClearedRepository = repeatDayClearedRepository;
     }
 
     public List<WorkoutController.WorkoutSummary> findAllSummaries() {
@@ -47,6 +51,7 @@ public class WorkoutService {
         // Explicitly, not only by cascade: a Workout already loaded before its
         // rules were added wouldn't know about them.
         workoutRepeatRepository.deleteAll(workoutRepeatRepository.findByWorkout_IdOrderByStartDateAsc(id));
+        repeatDayClearedRepository.deleteAll(repeatDayClearedRepository.findByWorkout_Id(id));
         workoutRepository.delete(workout);
     }
 

@@ -14,6 +14,7 @@ import {
     fetchSchedulesInRange,
     fetchSchedulesByDate,
     createSchedule,
+    saveRepeatDay,
     updateSchedule,
     deleteSchedule,
     deleteSession,
@@ -119,6 +120,7 @@ async function renderMonth() {
                 <span class="legend-item"><span class="legend-dot status-planned"></span>Planned</span>
                 <span class="legend-item"><span class="legend-dot status-completed"></span>Completed</span>
                 <span class="legend-item"><span class="legend-dot status-skipped"></span>Skipped</span>
+                <span class="legend-item"><span class="legend-dot status-planned repeat"></span>Repeating</span>
             </div>
         </div>
     `;
@@ -172,7 +174,9 @@ function mountSchedulesIntoGrid(container, schedules) {
         dotsEl.innerHTML = visible.map(function(s) {
             const name = workoutNameById(s.workoutId);
             const display = effectiveStatus(s, todayIso).toLowerCase();
-            return `<div class="schedule-dot status-${display}" title="${escapeHtml(name)}"></div>`;
+            // Hollow: planned by a repeat rule rather than for this day alone.
+            const repeat = display === "planned" && s.repeatDate != null ? " repeat" : "";
+            return `<div class="schedule-dot status-${display}${repeat}" title="${escapeHtml(name)}"></div>`;
         }).join("") + (overflow > 0 ? `<span class="schedule-overflow">+${overflow}</span>` : "");
     });
 }
@@ -349,9 +353,10 @@ function renderScheduleRow(s, index, todayIso) {
     const hasExercises = workoutExerciseCount(s.workoutId) > 0;
     const isStartable = displayStatus === "PLANNED" && hasExercises;
     /* Reschedule stays disabled on COMPLETED rows (moving a workout that
-       already happened makes no sense), but Delete is available on every
-       saved row: on COMPLETED rows it removes the entry and its finished
-       session. A repeat rule's unsaved day has nothing to delete; Skip it. */
+       already happened makes no sense). Delete is available on every saved
+       row: on COMPLETED rows it removes the entry and its finished session.
+       A repeat rule's unsaved day has nothing to delete; Skip it. */
+    const isDeletable = s.id !== null;
     const isEditable = displayStatus !== "COMPLETED";
     /* Row body is clickable in two cases, dispatched via data-click-target:
        - COMPLETED + sessionId → opens that session's summary.
@@ -370,7 +375,7 @@ function renderScheduleRow(s, index, todayIso) {
     return `
         <div class="schedule-row${clickTarget ? " clickable" : ""}" data-schedule-index="${index}"${clickTarget ? ` data-click-target="${clickTarget}"` : ""}>
             <div class="schedule-row-head">
-                <span class="schedule-row-name">${escapeHtml(name)}${s._sessionLabel ? `<span class="schedule-row-sub">${escapeHtml(s._sessionLabel)}</span>` : ""}</span>
+                <span class="schedule-row-name">${escapeHtml(name)}${s.repeatDate != null ? ` <span class="schedule-row-repeat" title="Repeating plan" aria-label="Repeating plan">&#8635;</span>` : ""}${s._sessionLabel ? `<span class="schedule-row-sub">${escapeHtml(s._sessionLabel)}</span>` : ""}</span>
                 <span class="schedule-status-badge status-${statusLower}">${displayStatus}</span>
             </div>
             ${s.notes ? `<p class="schedule-notes">${escapeHtml(s.notes)}</p>` : ""}
@@ -378,7 +383,7 @@ function renderScheduleRow(s, index, todayIso) {
                 <button class="schedule-action-btn" data-action="start" ${isStartable ? "" : "disabled"}>Start</button>
                 <button class="schedule-action-btn btn-secondary" data-action="reschedule" ${isEditable ? "" : "disabled"}>Reschedule</button>
                 <button class="schedule-action-btn btn-secondary" data-action="skip" ${isSkippable ? "" : "disabled"}>Skip</button>
-                ${s.id !== null ? `<button class="schedule-action-btn btn-danger" data-action="delete">Delete</button>` : ""}
+                ${isDeletable ? `<button class="schedule-action-btn btn-danger" data-action="delete">Delete</button>` : ""}
             </div>
         </div>
     `;
@@ -453,6 +458,13 @@ function startFromSchedule(schedule, dayIso, btn) {
     });
 }
 
+/* The id to act on. A repeat rule's unsaved day is saved first, and keeps the
+   id so that trying again after a failed action doesn't save it twice. */
+async function savedScheduleId(schedule) {
+    if (schedule.id === null) schedule.id = await saveRepeatDay(schedule);
+    return schedule.id;
+}
+
 async function skipSchedule(schedule, dayIso, btn) {
     btn.disabled = true;
     const name = workoutNameById(schedule.workoutId);
@@ -465,7 +477,7 @@ async function skipSchedule(schedule, dayIso, btn) {
         return;
     }
     try {
-        const resp = await updateSchedule(schedule.id, { status: "SKIPPED" });
+        const resp = await updateSchedule(await savedScheduleId(schedule), { status: "SKIPPED" });
         if (!resp.ok) {
             showErrorBanner("Couldn't mark this as skipped. Please try again.");
             btn.disabled = false;
@@ -526,7 +538,7 @@ async function rescheduleSchedule(schedule, dayIso, btn) {
     const result = await showRescheduleModal({
         currentIso: schedule.date,
         todayIso: todayIso,
-        onSave: function(newDate) {
+        onSave: async function(newDate) {
             /* If the schedule was explicitly SKIPPED, treat reschedule as
                an implicit un-skip → flip back to PLANNED with the new date.
                Past-PLANNED schedules are PLANNED in the DB (only display
@@ -536,7 +548,7 @@ async function rescheduleSchedule(schedule, dayIso, btn) {
             const body = (schedule.status === "SKIPPED")
                 ? { date: newDate, status: "PLANNED" }
                 : { date: newDate };
-            return updateSchedule(schedule.id, body);
+            return updateSchedule(await savedScheduleId(schedule), body);
         }
     });
 

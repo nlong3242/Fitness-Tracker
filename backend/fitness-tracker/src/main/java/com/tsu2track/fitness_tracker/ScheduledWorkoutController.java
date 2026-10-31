@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -74,8 +75,9 @@ public class ScheduledWorkoutController {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Workout not found"));
 
         ScheduleStatus status = body.status() != null ? body.status() : ScheduleStatus.PLANNED;
-        if (status != ScheduleStatus.COMPLETED && scheduledWorkoutRepository
-                .existsByDateAndWorkout_IdAndStatusNot(body.date(), body.workoutId(), ScheduleStatus.COMPLETED)) {
+        if (status != ScheduleStatus.COMPLETED && (scheduledWorkoutRepository
+                .existsByDateAndWorkout_IdAndStatusNot(body.date(), body.workoutId(), ScheduleStatus.COMPLETED)
+                || (body.repeatDate() == null && calendarPlans.hasUnsavedDay(body.workoutId(), body.date())))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
         }
 
@@ -84,7 +86,8 @@ public class ScheduledWorkoutController {
             if (!calendarPlans.plans(workout.getId(), body.repeatDate())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This workout doesn't repeat on that day");
             }
-            if (scheduledWorkoutRepository.existsByWorkout_IdAndRepeatDate(workout.getId(), body.repeatDate())) {
+            if (scheduledWorkoutRepository.existsByWorkout_IdAndRepeatDate(workout.getId(), body.repeatDate())
+                    || calendarPlans.isCleared(workout.getId(), body.repeatDate())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "That repeat day is already saved");
             }
         }
@@ -111,8 +114,9 @@ public class ScheduledWorkoutController {
         // can repeat, one per session (a workout done twice in a day).
         LocalDate newDate = body.date() != null ? body.date() : scheduled.getDate();
         ScheduleStatus newStatus = body.status() != null ? body.status() : scheduled.getStatus();
-        if (newStatus != ScheduleStatus.COMPLETED && scheduledWorkoutRepository
-                .existsByDateAndWorkout_IdAndStatusNotAndIdNot(newDate, scheduled.getWorkoutId(), ScheduleStatus.COMPLETED, id)) {
+        if (newStatus != ScheduleStatus.COMPLETED && (scheduledWorkoutRepository
+                .existsByDateAndWorkout_IdAndStatusNotAndIdNot(newDate, scheduled.getWorkoutId(), ScheduleStatus.COMPLETED, id)
+                || (!newDate.equals(scheduled.getDate()) && calendarPlans.hasUnsavedDay(scheduled.getWorkoutId(), newDate)))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is already scheduled for that date");
         }
         scheduled.setDate(newDate);
@@ -127,9 +131,11 @@ public class ScheduledWorkoutController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public void delete(@PathVariable Long id) {
         ScheduledWorkout scheduled = scheduledWorkoutRepository.findByIdAndUserId(id, CurrentUser.id())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scheduled workout not found"));
+        calendarPlans.clearDaysOf(scheduled);
         scheduledWorkoutRepository.delete(scheduled);
     }
 }

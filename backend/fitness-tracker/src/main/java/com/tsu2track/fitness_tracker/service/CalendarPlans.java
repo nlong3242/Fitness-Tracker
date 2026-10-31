@@ -10,6 +10,8 @@ import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
+import com.tsu2track.fitness_tracker.RepeatDayCleared;
+import com.tsu2track.fitness_tracker.RepeatDayClearedRepository;
 import com.tsu2track.fitness_tracker.ScheduleStatus;
 import com.tsu2track.fitness_tracker.ScheduledWorkout;
 import com.tsu2track.fitness_tracker.ScheduledWorkoutRepository;
@@ -19,8 +21,8 @@ import com.tsu2track.fitness_tracker.security.CurrentUser;
 
 /* The calendar as the user sees it: saved entries plus the days repeat
    rules plan (V15). A rule's day is left out when the workout already has
-   a saved entry on that date, or one made from that day and moved
-   (repeatDate, V16). Planned days that nobody has saved yet come back as
+   a saved entry on that date, one made from that day and moved (repeatDate,
+   V16), or its entry was deleted (V17). Planned days that nobody has saved yet come back as
    unsaved entries: no id, PLANNED, repeatDate = date. */
 @Component
 public class CalendarPlans {
@@ -30,10 +32,13 @@ public class CalendarPlans {
 
     private final ScheduledWorkoutRepository scheduled;
     private final WorkoutRepeatRepository repeats;
+    private final RepeatDayClearedRepository cleared;
 
-    public CalendarPlans(ScheduledWorkoutRepository scheduled, WorkoutRepeatRepository repeats) {
+    public CalendarPlans(ScheduledWorkoutRepository scheduled, WorkoutRepeatRepository repeats,
+                         RepeatDayClearedRepository cleared) {
         this.scheduled = scheduled;
         this.repeats = repeats;
+        this.cleared = cleared;
     }
 
     // Saved entries first within a day (oldest first), then rule days.
@@ -46,6 +51,9 @@ public class CalendarPlans {
         for (ScheduledWorkout s : entries) taken.add(key(s.getWorkoutId(), s.getDate()));
         for (ScheduledWorkout s : scheduled.findByUserIdAndRepeatDateBetween(userId, from, to)) {
             taken.add(key(s.getWorkoutId(), s.getRepeatDate()));
+        }
+        for (RepeatDayCleared c : cleared.findByUserIdAndClearedDateBetween(userId, from, to)) {
+            taken.add(key(c.getWorkoutId(), c.getClearedDate()));
         }
 
         for (WorkoutRepeat rule : repeats.findOverlapping(userId, from, to)) {
@@ -86,6 +94,30 @@ public class CalendarPlans {
     public boolean plans(Long workoutId, LocalDate day) {
         return repeats.findByWorkout_IdOrderByStartDateAsc(workoutId).stream()
             .anyMatch(rule -> !RepeatDates.between(rule, day, day).isEmpty());
+    }
+
+    // Whether a rule's unsaved day of this workout is showing on this date.
+    public boolean hasUnsavedDay(Long workoutId, LocalDate date) {
+        return on(date).stream()
+            .anyMatch(s -> s.getId() == null && s.getWorkoutId().equals(workoutId));
+    }
+
+    /* An entry is being deleted: keep its day gone. That's the day it was made
+       from; an entry not made from a rule can only be on a planned day if the
+       rule came later, and then it's that day's plan. */
+    public void clearDaysOf(ScheduledWorkout entry) {
+        if (entry.getRepeatDate() != null) clear(entry, entry.getRepeatDate());
+        else if (plans(entry.getWorkoutId(), entry.getDate())) clear(entry, entry.getDate());
+    }
+
+    private void clear(ScheduledWorkout entry, LocalDate day) {
+        if (!cleared.existsByWorkout_IdAndClearedDate(entry.getWorkoutId(), day)) {
+            cleared.save(new RepeatDayCleared(entry.getWorkout(), day));
+        }
+    }
+
+    public boolean isCleared(Long workoutId, LocalDate day) {
+        return cleared.existsByWorkout_IdAndClearedDate(workoutId, day);
     }
 
     private static ScheduledWorkout unsaved(WorkoutRepeat rule, LocalDate day) {

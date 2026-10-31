@@ -129,10 +129,10 @@ class CalendarRepeatTest {
     }
 
     @Test
-    void aHandPlannedEntryOnARuleDayIsTheOnlyOne() throws Exception {
-        create(THU, null, null).andExpect(status().isOk());
+    void aHandPlannedEntryOnARuleDayIsRefused() throws Exception {
+        create(THU, null, null).andExpect(status().isConflict());
 
-        day(THU).andExpect(jsonPath("$", hasSize(1))).andExpect(jsonPath("$[0].id", notNullValue()));
+        day(THU).andExpect(jsonPath("$", hasSize(1))).andExpect(jsonPath("$[0].id", nullValue()));
     }
 
     @Test

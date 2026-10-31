@@ -200,6 +200,11 @@
 .schedule-dot.status-planned { background: var(--accent-pink-deep); }
 .schedule-dot.status-completed { background: var(--action); }
 .schedule-dot.status-skipped { background: var(--text-muted); }
+.schedule-dot.status-planned.repeat,
+.legend-dot.status-planned.repeat {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px var(--accent-pink-deep);
+}
 
 .schedule-overflow {
     font-size: 0.7em;
@@ -308,6 +313,10 @@
     color: var(--text-primary);
     font-size: 1.05em;
     font-weight: 700;
+}
+
+.schedule-row-repeat {
+    color: var(--accent-pink-deep);
 }
 
 /* "Session 1 · 3 sets" under each completed workout (calendar.js

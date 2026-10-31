@@ -293,8 +293,8 @@ async function renderDayDetail(iso) {
     if (schedules.length === 0) {
         listEl.innerHTML = `<p class="day-detail-empty">Nothing planned for this day.</p>`;
     } else {
-        listEl.innerHTML = schedules.map(function(s) {
-            return renderScheduleRow(s, todayIso);
+        listEl.innerHTML = schedules.map(function(s, index) {
+            return renderScheduleRow(s, index, todayIso);
         }).join("");
         wireScheduleRowActions(listEl, schedules, iso);
     }
@@ -341,7 +341,7 @@ async function labelSessions(schedules) {
     return ordered;
 }
 
-function renderScheduleRow(s, todayIso) {
+function renderScheduleRow(s, index, todayIso) {
     const displayStatus = effectiveStatus(s, todayIso);
     /* Start additionally requires the workout to have at least one
        exercise — same rule as workoutDetail's Start button. Prevents
@@ -349,8 +349,9 @@ function renderScheduleRow(s, todayIso) {
     const hasExercises = workoutExerciseCount(s.workoutId) > 0;
     const isStartable = displayStatus === "PLANNED" && hasExercises;
     /* Reschedule stays disabled on COMPLETED rows (moving a workout that
-       already happened makes no sense), but Delete is always available:
-       on COMPLETED rows it removes the entry and its finished session. */
+       already happened makes no sense), but Delete is available on every
+       saved row: on COMPLETED rows it removes the entry and its finished
+       session. A repeat rule's unsaved day has nothing to delete; Skip it. */
     const isEditable = displayStatus !== "COMPLETED";
     /* Row body is clickable in two cases, dispatched via data-click-target:
        - COMPLETED + sessionId → opens that session's summary.
@@ -367,7 +368,7 @@ function renderScheduleRow(s, todayIso) {
     const statusLower = displayStatus.toLowerCase();
     const name = workoutNameById(s.workoutId);
     return `
-        <div class="schedule-row${clickTarget ? " clickable" : ""}" data-schedule-id="${s.id}"${clickTarget ? ` data-click-target="${clickTarget}"` : ""}>
+        <div class="schedule-row${clickTarget ? " clickable" : ""}" data-schedule-index="${index}"${clickTarget ? ` data-click-target="${clickTarget}"` : ""}>
             <div class="schedule-row-head">
                 <span class="schedule-row-name">${escapeHtml(name)}${s._sessionLabel ? `<span class="schedule-row-sub">${escapeHtml(s._sessionLabel)}</span>` : ""}</span>
                 <span class="schedule-status-badge status-${statusLower}">${displayStatus}</span>
@@ -377,7 +378,7 @@ function renderScheduleRow(s, todayIso) {
                 <button class="schedule-action-btn" data-action="start" ${isStartable ? "" : "disabled"}>Start</button>
                 <button class="schedule-action-btn btn-secondary" data-action="reschedule" ${isEditable ? "" : "disabled"}>Reschedule</button>
                 <button class="schedule-action-btn btn-secondary" data-action="skip" ${isSkippable ? "" : "disabled"}>Skip</button>
-                <button class="schedule-action-btn btn-danger" data-action="delete">Delete</button>
+                ${s.id !== null ? `<button class="schedule-action-btn btn-danger" data-action="delete">Delete</button>` : ""}
             </div>
         </div>
     `;
@@ -391,15 +392,15 @@ function wireScheduleRowActions(listEl, schedules, dayIso) {
     listEl.onclick = function(e) {
         const row = e.target.closest(".schedule-row");
         if (!row) return;
-        const scheduleId = Number(row.dataset.scheduleId);
-        const schedule = schedules.find(function(s) { return s.id === scheduleId; });
+        // By position: a repeat rule's unsaved day has no id yet.
+        const schedule = schedules[Number(row.dataset.scheduleIndex)];
         if (!schedule) return;
 
         const btn = e.target.closest(".schedule-action-btn");
         if (btn) {
             if (btn.disabled) return;
             const action = btn.dataset.action;
-            if (action === "start") startFromSchedule(schedule, dayIso);
+            if (action === "start") startFromSchedule(schedule, dayIso, btn);
             else if (action === "skip") skipSchedule(schedule, dayIso, btn);
             else if (action === "delete") deleteScheduleAction(schedule, dayIso, btn);
             else if (action === "reschedule") rescheduleSchedule(schedule, dayIso, btn);
@@ -437,13 +438,14 @@ async function openWorkoutDetailFromSchedule(schedule) {
     viewWorkout(schedule.workoutId);
 }
 
-function startFromSchedule(schedule, dayIso) {
+function startFromSchedule(schedule, dayIso, btn) {
     if (!findWorkout(schedule.workoutId)) {
         showErrorBanner("Couldn't find this workout — it may have been deleted.");
         return;
     }
     startWorkout(schedule.workoutId, {
-        scheduledWorkoutId: schedule.id,
+        button: btn,
+        schedule: schedule,
         onComplete: function() {
             setActiveTab("calendar");
             renderDayDetail(dayIso);

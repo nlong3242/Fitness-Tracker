@@ -52,7 +52,7 @@ export async function viewWorkout(workoutId) {
         });
     }));
     const startBtn = document.getElementById("workout-start-btn");
-    startBtn.onclick = function() { startWorkout(workoutId); };
+    startBtn.onclick = function() { startWorkout(workoutId, { button: startBtn }); };
     document.getElementById("workout-back-btn").onclick = renderWorkouts;
 
     const list = document.getElementById("exercise-list");

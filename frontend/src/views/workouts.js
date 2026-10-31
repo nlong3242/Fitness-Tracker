@@ -78,7 +78,7 @@ function drawWorkoutRows(list) {
             startBtn.setAttribute("aria-label", `${isLive ? "Resume" : "Start"} ${workout.name}`);
             startBtn.onclick = function(e) {
                 e.stopPropagation();
-                startWorkout(workout.id);
+                startWorkout(workout.id, { button: startBtn });
             };
             item.appendChild(startBtn);
         }

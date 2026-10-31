@@ -267,6 +267,36 @@ export function deleteSchedule(scheduleId) {
     return request("DELETE", `/scheduled-workouts/${scheduleId}`);
 }
 
+// Saves still in flight, so a double tap doesn't save the same day twice.
+const repeatDaySaves = new Map();
+
+/* A day planned by a repeat rule has id null until it's saved. Saves it as an
+   ordinary entry and returns its id; a day that's already saved (409, e.g. on
+   another device) returns that entry's id. Throws if it can't be saved. */
+export function saveRepeatDay(day) {
+    const key = `${day.workoutId}|${day.repeatDate}`;
+    if (!repeatDaySaves.has(key)) {
+        repeatDaySaves.set(key, postRepeatDay(day).finally(() => repeatDaySaves.delete(key)));
+    }
+    return repeatDaySaves.get(key);
+}
+
+async function postRepeatDay(day) {
+    const response = await createSchedule({
+        date: day.date,
+        workoutId: day.workoutId,
+        repeatDate: day.repeatDate
+    });
+    if (response.ok) return (await response.json()).id;
+    if (response.status === 409) {
+        const existing = await fetchSchedulesByDate(day.date);
+        const saved = existing.find(s =>
+            s.workoutId === day.workoutId && s.id !== null && s.status !== "COMPLETED");
+        if (saved) return saved.id;
+    }
+    throw new Error(`Couldn't save the repeat day (${response.status})`);
+}
+
 // --- Sets ---
 
 export function createSet(sessionId, exerciseId, body) {

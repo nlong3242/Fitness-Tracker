@@ -345,7 +345,7 @@ function wireStartButton() {
     btn.textContent = `Resume ${live.name}`;
     btn.classList.add("live");
     btn.onclick = function() {
-        startWorkout(live.id, { onComplete: function() { setActiveTab("home"); } });
+        startWorkout(live.id, { button: btn, onComplete: function() { setActiveTab("home"); } });
     };
 }
 
@@ -379,7 +379,8 @@ function showNextUp(next, plannedThatDay, today) {
     startBtn.textContent = `Start ${workout.name}`;
     startBtn.onclick = function() {
         startWorkout(workout.id, {
-            scheduledWorkoutId: next.id,
+            button: startBtn,
+            schedule: next,
             onComplete: function() { setActiveTab("home"); }
         });
     };

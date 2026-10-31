@@ -6,7 +6,8 @@ import {
     finishSession,
     updateSchedule,
     fetchSchedulesByDate,
-    createSchedule
+    createSchedule,
+    saveRepeatDay
 } from "../api.js";
 import {
     showExerciseReadOnlyModal,
@@ -36,13 +37,96 @@ import { escapeHtml } from "../utils/format.js";
    currentIndex tracks position in workout.exercises. After a reorder we
    look up the current exercise by reference (not by old index) so the user
    stays on the same exercise even when its position changed. */
+let startPending = false;
+
+// A stalled connection gets a message rather than a Start that does nothing.
+const START_LIMIT_MS = 15000;
+
+function withinStartLimit(promise) {
+    let timer;
+    const limit = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Start timed out")), START_LIMIT_MS);
+    });
+    return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+}
+
+/* Everything before the page is built. Returns null if the start was called
+   off (the other workout was kept, or something failed or took too long). The
+   tapped button says "Starting…" meanwhile and goes back if the start fails. */
+async function prepareStart(workoutId, options) {
+    const schedule = options && options.schedule ? options.schedule : null;
+    const button = options && options.button ? options.button : null;
+    const workout = findWorkout(workoutId);
+
+    // Only one workout can be in progress; starting another discards it.
+    const discardOther = state.currentSessionId !== null && state.currentWorkoutId !== workoutId;
+    if (discardOther) {
+        const other = findWorkout(state.currentWorkoutId);
+        const confirmed = await showConfirmModal(
+            `"${other ? other.name : "Another workout"}" is still in progress. Discard it and start "${workout.name}"?`,
+            "Discard & start"
+        );
+        if (!confirmed) return null;
+    }
+
+    const buttonHtml = button ? button.innerHTML : "";
+    if (button) {
+        button.textContent = "Starting…";
+        button.disabled = true;
+    }
+    try {
+        if (discardOther) {
+            try {
+                await withinStartLimit(abandonSession());
+            } catch (e) {
+                await showConfirmModal("Couldn't discard the other workout. Check your connection and try again.", "OK");
+                return null;
+            }
+        }
+
+        let scheduledWorkoutId = schedule ? schedule.id : null;
+        let exercises;
+        try {
+            if (schedule && scheduledWorkoutId === null) {
+                scheduledWorkoutId = await withinStartLimit(saveRepeatDay(schedule));
+            }
+            exercises = await withinStartLimit(fetchWorkoutExercises(workout.id));
+        } catch (e) {
+            await showConfirmModal("Couldn't start this workout. Check your connection and try again.", "OK");
+            return null;
+        }
+
+        // Otherwise the session is created lazily, when the first set is logged;
+        // until then the workout is only "started" (remembered on the device).
+        const resumeSessionId = state.currentSessionId;
+        // Typed-but-unsaved values belong to the workout in progress; opening
+        // any other one (or this one afresh, e.g. the next day) drops them.
+        if (resumeSessionId === null && getStartedWorkoutId() !== workout.id) clearDrafts();
+        if (resumeSessionId === null) markWorkoutStarted(workout.id);
+        else clearStartedWorkout();
+
+        exercises.forEach(ex => ex.sets = []);
+        workout.exercises = exercises;
+
+        return { workout, scheduledWorkoutId, resumeSessionId };
+    } finally {
+        if (button) {
+            button.innerHTML = buttonHtml;
+            button.disabled = false;
+        }
+    }
+}
+
 /* options (optional):
-   - scheduledWorkoutId: id of the ScheduledWorkout this session fulfills. If
-     present, on a successful finish (a real session was created and saved),
-     the schedule is PATCHed to COMPLETED. The PATCH is best-effort —
-     failure is swallowed so the summary still shows. If the user abandons
-     or finishes without logging a single set, no PATCH fires and the
-     schedule stays PLANNED.
+   - button: the Start button that was tapped (see prepareStart).
+   - schedule: the ScheduledWorkout this session fulfills. A repeat rule's day
+     that isn't saved yet (id null) is saved here, after any "discard the
+     other workout" question, so declining leaves it unsaved. If present, on
+     a successful finish (a real session was created and saved), the
+     schedule is PATCHed to COMPLETED. The PATCH is best-effort — failure is
+     swallowed so the summary still shows. If the user abandons or finishes
+     without logging a single set, no PATCH fires and the schedule stays
+     PLANNED.
    - onComplete: where to navigate when the workout flow ends. Called both
      after the "no session logged" early exit AND from the Back button on
      the workout summary. Default is renderWorkouts.
@@ -52,45 +136,27 @@ import { escapeHtml } from "../utils/format.js";
    Resume: if a session is already in progress for this workout (still open
    from earlier, or restored at boot from GET /sessions/unfinished), its
    saved sets are loaded into the rows instead of starting fresh. Leaving
-   the page keeps the session; only Discard deletes it. */
+   the page keeps the session; only Discard deletes it.
+
+   Returns whether the workout opened (the router goes Home if it didn't). */
 export async function startWorkout(workoutId, options) {
-    const scheduledWorkoutId = options && options.scheduledWorkoutId
-        ? options.scheduledWorkoutId
-        : null;
+    // A second tap while the first is still on its way would build the page
+    // twice. Only held until the page is replaced: from then on the button
+    // that was tapped is gone, and Resume must still work if a load hangs.
+    if (startPending) return false;
+    startPending = true;
+    let prepared;
+    try {
+        prepared = await prepareStart(workoutId, options);
+    } finally {
+        startPending = false;
+    }
+    if (prepared === null) return false;
+
+    const { workout, scheduledWorkoutId, resumeSessionId } = prepared;
     const onComplete = options && options.onComplete
         ? options.onComplete
         : renderWorkouts;
-
-    const workout = findWorkout(workoutId);
-
-    // Only one workout can be in progress; starting another discards it.
-    if (state.currentSessionId !== null && state.currentWorkoutId !== workoutId) {
-        const other = findWorkout(state.currentWorkoutId);
-        const confirmed = await showConfirmModal(
-            `"${other ? other.name : "Another workout"}" is still in progress. Discard it and start "${workout.name}"?`,
-            "Discard & start"
-        );
-        if (!confirmed) return;
-        try {
-            await abandonSession();
-        } catch (e) {
-            await showConfirmModal("Couldn't discard the other workout. Check your connection and try again.", "OK");
-            return;
-        }
-    }
-
-    // Otherwise the session is created lazily, when the first set is logged;
-    // until then the workout is only "started" (remembered on the device).
-    const resumeSessionId = state.currentSessionId;
-    // Typed-but-unsaved values belong to the workout in progress; opening
-    // any other one (or this one afresh, e.g. the next day) drops them.
-    if (resumeSessionId === null && getStartedWorkoutId() !== workout.id) clearDrafts();
-    if (resumeSessionId === null) markWorkoutStarted(workout.id);
-    else clearStartedWorkout();
-
-    const exercises = await fetchWorkoutExercises(workout.id);
-    exercises.forEach(ex => ex.sets = []);
-    workout.exercises = exercises;
 
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
@@ -340,6 +406,7 @@ export async function startWorkout(workoutId, options) {
     restoreDrafts();
     const startIndex = workout.exercises.findIndex(e => e.id === (options && options.exerciseId));
     setActive(Math.max(startIndex, 0));
+    return true;
 
     /* Typed-but-unsaved values from before a reload go into the first
        unsaved rows of their exercise and side, adding rows if needed. */
@@ -400,6 +467,8 @@ export async function startWorkout(workoutId, options) {
    - Ad-hoc, same workout PLANNED or SKIPPED on the session date (the plan,
      not yet done): PATCH it to COMPLETED + link sessionId, so the calendar
      shows what happened instead of a plan next to a completion.
+   - Ad-hoc on a repeat rule's unsaved day (id null, so nothing to PATCH): POST
+     a COMPLETED row with its repeatDate, so the rule stops drawing that day.
    - Otherwise POST a new COMPLETED row carrying sessionId. In particular an
      existing COMPLETED row belongs to another session (same workout twice in
      a day) and must not be taken over.
@@ -415,14 +484,15 @@ export async function syncCalendarOnFinish(workoutId, sessionId, date, scheduled
         const existing = await fetchSchedulesByDate(date);
         const match = existing.find(s =>
             s.workoutId === workoutId && s.status !== "COMPLETED" && s.sessionId == null);
-        if (match) {
+        if (match && match.id !== null) {
             await updateSchedule(match.id, { status: "COMPLETED", sessionId: sessionId });
         } else {
             await createSchedule({
                 date: date,
                 workoutId: workoutId,
                 status: "COMPLETED",
-                sessionId: sessionId
+                sessionId: sessionId,
+                repeatDate: match ? match.repeatDate : null
             });
         }
     } catch (e) { /* swallow */ }

@@ -118,11 +118,10 @@ async function openRoute(parts, params) {
 async function openLive(params) {
     const live = liveWorkout();
     if (!live) return false;
-    await startWorkout(live.id, {
+    return startWorkout(live.id, {
         exerciseId: id(params.get("exercise")),
         onComplete: function() { setActiveTab("home"); }
     });
-    return true;
 }
 
 async function openWorkouts(parts, params) {

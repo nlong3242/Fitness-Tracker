@@ -312,6 +312,11 @@ export function saveRepeat(workoutId, data, today) {
     return request("PUT", `/workouts/${workoutId}/repeat?today=${today}`, data);
 }
 
+// Nothing planned from today on; days already saved stay.
+export function stopRepeat(workoutId, today) {
+    return request("DELETE", `/workouts/${workoutId}/repeat?today=${today}`);
+}
+
 // --- Sets ---
 
 export function createSet(sessionId, exerciseId, body) {

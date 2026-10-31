@@ -96,12 +96,14 @@ function drawWorkoutRows(list) {
 /* A workout's ⋮ (on the list and on its own page). Add exercise and Past
    sessions come back to wherever it was opened from, so the caller passes
    those; no addExercise means no Add exercise item (the workout's page
-   has its own button). Delete always ends on the list. */
+   has its own button). repeatItems are the workout page's Edit and Stop for
+   a repeating plan. Delete always ends on the list. */
 export function workoutMenu(workout, actions) {
     return [
         ...(actions.addExercise ? [{ label: "Add exercise", onSelect: actions.addExercise }] : []),
         { label: "Past sessions", onSelect: actions.pastSessions },
         { label: "Schedule", onSelect: function() { scheduleWorkout(workout); } },
+        ...(actions.repeatItems || []),
         { label: "Delete workout", danger: true, onSelect: function() { removeWorkout(workout); } }
     ];
 }

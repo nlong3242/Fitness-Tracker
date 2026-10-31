@@ -29,6 +29,15 @@ export function firstRepeatDay({ weekdays, startDate, endDate }) {
     return endDate && first > endDate ? null : first;
 }
 
+// "from 3 Nov" while a rule hasn't started, then "until 20 Dec" if it ends.
+export function repeatDates({ startDate, endDate }, todayIso) {
+    const short = iso => localDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    return [
+        startDate > todayIso ? `from ${short(startDate)}` : "",
+        endDate ? `until ${short(endDate)}` : ""
+    ].filter(Boolean).join(" ");
+}
+
 // "Mon, Thu", "Every day", "Every 3 days".
 export function repeatLabel({ weekdays, everyDays }) {
     if (weekdays === 127 || everyDays === 1) return "Every day";

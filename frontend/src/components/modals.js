@@ -1,5 +1,5 @@
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
-import { WEEKDAY_NAMES, weekdayIndex, firstRepeatDay, repeatLabel } from "../utils/repeat.js";
+import { WEEKDAY_NAMES, firstRepeatDay, repeatLabel } from "../utils/repeat.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { renderExerciseHistory } from "./exerciseHistory.js";
 import { exerciseOverviewHtml } from "./exerciseOverview.js";
@@ -194,6 +194,8 @@ export function showScheduleForWorkoutModal(options) {
        - todayIso:       date input's min — past dates are forbidden
        - currentRepeat:  the workout's repeating plan, if it has one; a new
                          one replaces it, and the sheet says so
+       - editRepeat:     instead of currentRepeat, opens as "Change repeat"
+                         filled in from this plan, with no Never
        - onSave(data):   async function receiving { date, notes, repeat } and
                          returning the raw Response. repeat is null for one
                          day, else { weekdays | everyDays, endDate } with date
@@ -208,6 +210,7 @@ export function showScheduleForWorkoutModal(options) {
     const workoutName = options.workoutName;
     const todayIso = options.todayIso;
     const currentRepeat = options.currentRepeat || null;
+    const editRepeat = options.editRepeat || null;
     const onSave = options.onSave;
 
     return new Promise(function(resolve) {
@@ -215,7 +218,7 @@ export function showScheduleForWorkoutModal(options) {
         overlay.className = "modal-overlay";
         overlay.innerHTML = `
             <div class="modal-form-box">
-                <div class="modal-form-title">Schedule a workout</div>
+                <div class="modal-form-title">${editRepeat ? "Change repeat" : "Schedule a workout"}</div>
                 <div class="modal-form-subtitle">${escapeHtml(workoutName)}</div>
 
                 <div class="modal-inline-error" id="sched-error" hidden></div>
@@ -228,7 +231,7 @@ export function showScheduleForWorkoutModal(options) {
                 <div class="modal-field">
                     <label class="modal-field-label">Repeat</label>
                     <div class="modal-pill-row" id="sched-repeat">
-                        <button type="button" class="modal-pill selected" data-repeat="never">Never</button>
+                        ${editRepeat ? "" : `<button type="button" class="modal-pill selected" data-repeat="never">Never</button>`}
                         <button type="button" class="modal-pill" data-repeat="weekly">Weekly</button>
                         <button type="button" class="modal-pill" data-repeat="every">Every N days</button>
                     </div>
@@ -278,7 +281,6 @@ export function showScheduleForWorkoutModal(options) {
 
         let repeatKind = "never";
         let weekdays = 0;
-        let weekdaysChosen = false;
 
         dateInput.min = todayIso;
         endInput.min = todayIso;
@@ -308,15 +310,7 @@ export function showScheduleForWorkoutModal(options) {
             });
         }
 
-        // The start date's weekday is ticked until the user picks days themselves.
-        function followDate() {
-            if (weekdaysChosen || !dateInput.value) return;
-            weekdays = 1 << weekdayIndex(dateInput.value);
-            showWeekdays();
-        }
-
         dateInput.oninput = function() {
-            followDate();
             clearError();
             updateSaveState();
         };
@@ -335,6 +329,10 @@ export function showScheduleForWorkoutModal(options) {
                 p.classList.toggle("selected", p === pill);
             });
             const repeating = repeatKind !== "never";
+            // A repeat starts today unless another day is picked.
+            if (repeating && !dateInput.value) {
+                dateInput.value = todayIso;
+            }
             overlay.querySelector("#sched-weekly").hidden = repeatKind !== "weekly";
             overlay.querySelector("#sched-every").hidden = repeatKind !== "every";
             overlay.querySelector("#sched-end-field").hidden = !repeating;
@@ -347,13 +345,25 @@ export function showScheduleForWorkoutModal(options) {
         };
         dayToggles.forEach(function(btn) {
             btn.onclick = function() {
-                weekdaysChosen = true;
                 weekdays ^= 1 << Number(btn.dataset.day);
                 showWeekdays();
                 clearError();
                 updateSaveState();
             };
         });
+
+        if (editRepeat) {
+            // A plan already running carries on from today.
+            dateInput.value = editRepeat.startDate > todayIso ? editRepeat.startDate : todayIso;
+            endInput.value = editRepeat.endDate || "";
+            if (editRepeat.weekdays) {
+                weekdays = editRepeat.weekdays;
+                showWeekdays();
+            } else {
+                everyInput.value = String(editRepeat.everyDays);
+            }
+            overlay.querySelector(`[data-repeat="${editRepeat.weekdays ? "weekly" : "every"}"]`).click();
+        }
 
         function close(result) {
             document.body.removeChild(overlay);

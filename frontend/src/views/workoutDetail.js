@@ -5,7 +5,8 @@ import {
     removeWorkoutExercise,
     createSchedule,
     fetchRepeat,
-    saveRepeat
+    saveRepeat,
+    stopRepeat
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import {
@@ -22,6 +23,7 @@ import { renderExercisePage } from "./exercisePage.js";
 import { editExercise } from "./exerciseEdit.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { escapeHtml } from "../utils/format.js";
+import { repeatLabel, repeatDates } from "../utils/repeat.js";
 import { setRoute } from "../router.js";
 
 export async function viewWorkout(workoutId) {
@@ -36,6 +38,7 @@ export async function viewWorkout(workoutId) {
             <button class="btn-secondary" id="workout-back-btn">Back</button>
         </div>
         <h2 class="page-title">${escapeHtml(workout.name)}</h2>
+        <div class="wd-repeat" id="workout-repeat" hidden></div>
         <div class="page-actions">
             <button class="wd-start-btn" id="workout-start-btn">Start Workout</button>
         </div>
@@ -47,10 +50,13 @@ export async function viewWorkout(workoutId) {
     `;
 
     document.getElementById("workout-add-exercise-btn").onclick = function() { addExercise(workoutId); };
+    let repeatItems = [];
+    showRepeatLine(workout, function(items) { repeatItems = items; });
     // The workout's other actions, the same ⋮ as on the workout list.
     container.querySelector(".page-top").appendChild(createMoreButton(`Options for ${workout.name}`, function() {
         return workoutMenu(workout, {
-            pastSessions: function() { viewPastSessions(workoutId); }
+            pastSessions: function() { viewPastSessions(workoutId); },
+            repeatItems: repeatItems
         });
     }));
     const startBtn = document.getElementById("workout-start-btn");
@@ -128,6 +134,56 @@ export async function viewWorkout(workoutId) {
         }
     }
     rebuildExerciseList();
+}
+
+/* "↻ Repeats Mon, Thu" when the workout has a repeating plan, with Edit and Stop
+   handed to setMenuItems for the page's ⋮. It fills in after the page, which
+   doesn't wait for it; if it can't be read the line and items just stay
+   away. Skipping or moving one day is on the calendar. */
+async function showRepeatLine(workout, setMenuItems) {
+    const today = isoToday();
+    const rule = await fetchRepeat(workout.id, today).catch(() => null);
+    const line = document.getElementById("workout-repeat");
+    if (line === null) return; // left the page meanwhile
+    line.hidden = rule === null;
+    setMenuItems(rule === null ? [] : [
+        { label: "Edit repeat", onSelect: editRepeat },
+        { label: "Stop repeat", danger: true, onSelect: stopIt }
+    ]);
+    if (rule === null) return;
+
+    const label = repeatLabel(rule).replace(/^Every/, "every");
+    const dates = repeatDates(rule, today);
+    line.innerHTML = `<span class="wd-repeat-mark" aria-hidden="true">&#8635;</span> Repeats ${escapeHtml(label)}${dates ? ` <span class="wd-repeat-dates">${escapeHtml(dates)}</span>` : ""}`;
+
+    async function editRepeat() {
+        const result = await showScheduleForWorkoutModal({
+            workoutName: workout.name,
+            todayIso: today,
+            editRepeat: rule,
+            onSave: function(data) {
+                return saveRepeat(workout.id, { ...data.repeat, startDate: data.date }, today);
+            }
+        });
+        if (result) showRepeatLine(workout, setMenuItems);
+    }
+
+    async function stopIt() {
+        const confirmed = await showConfirmModal(
+            `Stop repeating "${workout.name}"? Nothing is planned from today on. Days you've already saved stay on the calendar.`,
+            "Stop"
+        );
+        if (!confirmed) return;
+        let stopped = false;
+        try {
+            stopped = (await stopRepeat(workout.id, today)).ok;
+        } catch (e) { /* says so below */ }
+        if (!stopped) {
+            await showConfirmModal("Couldn't stop repeating. Check your connection and try again.", "OK");
+            return;
+        }
+        showRepeatLine(workout, setMenuItems);
+    }
 }
 
 /* Schedule (the workout's ⋮, here and on the workout list): pick a date, or a

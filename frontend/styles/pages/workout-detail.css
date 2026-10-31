@@ -16,3 +16,18 @@
 .wd-add-btn {
     flex: 1;
 }
+
+/* "↻ Repeats Mon, Thu" under the title. */
+.wd-repeat {
+    margin-bottom: 12px;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.wd-repeat-mark {
+    color: var(--accent-pink-deep);
+}
+
+.wd-repeat-dates {
+    color: var(--text-muted);
+}

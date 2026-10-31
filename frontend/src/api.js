@@ -312,7 +312,7 @@ export function saveRepeat(workoutId, data, today) {
     return request("PUT", `/workouts/${workoutId}/repeat?today=${today}`, data);
 }
 
-// Nothing planned from today on; days already saved stay.
+// Nothing planned from today on; finished and skipped days stay.
 export function stopRepeat(workoutId, today) {
     return request("DELETE", `/workouts/${workoutId}/repeat?today=${today}`);
 }

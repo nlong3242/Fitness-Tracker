@@ -170,7 +170,7 @@ async function showRepeatLine(workout, setMenuItems) {
 
     async function stopIt() {
         const confirmed = await showConfirmModal(
-            `Stop repeating "${workout.name}"? Nothing is planned from today on. Days you've already saved stay on the calendar.`,
+            `Stop repeating "${workout.name}"? Everything still planned from today on is removed. Days you've finished or skipped stay.`,
             "Stop"
         );
         if (!confirmed) return;

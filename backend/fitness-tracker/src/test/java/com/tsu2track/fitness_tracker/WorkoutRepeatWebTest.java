@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -190,6 +191,122 @@ class WorkoutRepeatWebTest {
 
         dates(MON, MON.plusDays(20)).andExpect(jsonPath("$[*].date",
             contains("2026-03-02", "2026-03-05", "2026-03-16", "2026-03-19")));
+    }
+
+    // 9 Mar moved to 10 Mar, as the calendar does it.
+    private long movedDay() throws Exception {
+        long id = saveDay("2026-03-09", "PLANNED");
+        mvc.perform(patch("/scheduled-workouts/" + id).header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"date\": \"2026-03-10\"}"))
+            .andExpect(status().isOk());
+        return id;
+    }
+
+    private long saveDay(String day, String status) throws Exception {
+        return idOf(mvc.perform(post("/scheduled-workouts").header("Authorization", bearer)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"date\": \"" + day + "\", \"workoutId\": " + workout
+                + ", \"status\": \"" + status + "\", \"repeatDate\": \"" + day + "\"}")));
+    }
+
+    @Test
+    void stoppingRemovesAMovedDay() throws Exception {
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        movedDay();
+
+        stop(MON).andExpect(status().isOk());
+
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void aNewRuleGoesBackToTheDayAMovedEntryCameFrom() throws Exception {
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        movedDay();
+
+        stop(MON).andExpect(status().isOk());
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$[*].date", contains("2026-03-02", "2026-03-09")));
+    }
+
+    @Test
+    void changingARuleRemovesAMovedDayToo() throws Exception {
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        movedDay();
+
+        set(MON, "{\"weekdays\": " + 0b0000100 + "}").andExpect(status().isOk());
+
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$[*].date", contains("2026-03-04", "2026-03-11")));
+    }
+
+    @Test
+    void aNewRuleGoesBackToADayDeletedBefore() throws Exception {
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        long id = saveDay("2026-03-09", "PLANNED");
+        mvc.perform(delete("/scheduled-workouts/" + id).header("Authorization", bearer)).andExpect(status().isOk());
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$[*].date", contains("2026-03-02")));
+
+        stop(MON).andExpect(status().isOk());
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$[*].date", contains("2026-03-02", "2026-03-09")));
+    }
+
+    @Test
+    void aMovedDayThatWasSkippedStaysButFreesItsDay() throws Exception {
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        long id = movedDay();
+        mvc.perform(patch("/scheduled-workouts/" + id).header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"status\": \"SKIPPED\"}"))
+            .andExpect(status().isOk());
+
+        stop(MON).andExpect(status().isOk());
+        dates(MON, MON.plusDays(13))
+            .andExpect(jsonPath("$[*].date", contains("2026-03-10")))
+            .andExpect(jsonPath("$[0].status").value("SKIPPED"));
+
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$[*].date", contains("2026-03-02", "2026-03-09", "2026-03-10")));
+    }
+
+    @Test
+    void aHandPlannedDayStays() throws Exception {
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        mvc.perform(post("/scheduled-workouts").header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"date\": \"2026-03-10\", \"workoutId\": " + workout + "}"))
+            .andExpect(status().isOk());
+
+        stop(MON).andExpect(status().isOk());
+
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$[*].date", contains("2026-03-10")));
+    }
+
+    @Test
+    void thePastKeepsItsMovedAndDeletedDays() throws Exception {
+        set(MON, "{\"weekdays\": 1}").andExpect(status().isOk());
+        movedDay();
+        long id = saveDay("2026-03-16", "PLANNED");
+        mvc.perform(delete("/scheduled-workouts/" + id).header("Authorization", bearer)).andExpect(status().isOk());
+
+        stop(LocalDate.of(2026, 3, 17)).andExpect(status().isOk());
+
+        dates(MON, MON.plusDays(20)).andExpect(jsonPath("$[*].date", contains("2026-03-02", "2026-03-10")));
+    }
+
+    @Test
+    void aWorkoutInProgressKeepsItsDay() throws Exception {
+        LocalDate today = LocalDate.now();
+        set(today, "{\"weekdays\": 127}").andExpect(status().isOk());
+        saveDay(today.toString(), "PLANNED");
+        mvc.perform(post("/workouts/" + workout + "/sessions").header("Authorization", bearer)).andExpect(status().isOk());
+
+        stop(today).andExpect(status().isOk());
+
+        dates(today, today.plusDays(2))
+            .andExpect(jsonPath("$[*].date", contains(today.toString())))
+            .andExpect(jsonPath("$[0].id").isNumber());
     }
 
     @Test

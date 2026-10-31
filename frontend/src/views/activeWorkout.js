@@ -463,7 +463,8 @@ export async function startWorkout(workoutId, options) {
 }
 
 /* Best-effort calendar sync on workout finish.
-   - Started-from-schedule: PATCH that row to COMPLETED + link sessionId.
+   - Started-from-schedule: PATCH that row to COMPLETED + link sessionId. If it
+     has gone since (the repeat was stopped), carry on as ad-hoc.
    - Ad-hoc, same workout PLANNED or SKIPPED on the session date (the plan,
      not yet done): PATCH it to COMPLETED + link sessionId, so the calendar
      shows what happened instead of a plan next to a completion.
@@ -478,8 +479,8 @@ export async function startWorkout(workoutId, options) {
 export async function syncCalendarOnFinish(workoutId, sessionId, date, scheduledWorkoutId) {
     try {
         if (scheduledWorkoutId !== null) {
-            await updateSchedule(scheduledWorkoutId, { status: "COMPLETED", sessionId: sessionId });
-            return;
+            const resp = await updateSchedule(scheduledWorkoutId, { status: "COMPLETED", sessionId: sessionId });
+            if (resp.status !== 404) return;
         }
         const existing = await fetchSchedulesByDate(date);
         const match = existing.find(s =>

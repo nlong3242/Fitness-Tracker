@@ -52,7 +52,8 @@ public class WorkoutRepeats {
             throw new ApiFieldException(HttpStatus.BAD_REQUEST, "endDate", "The end can't be before the start.");
         }
 
-        endFrom(workoutId, start);
+        // From today, whatever the new start: no old days stay planned before it.
+        endFrom(workoutId, today);
         WorkoutRepeat rule = new WorkoutRepeat();
         rule.setWorkout(workout);
         rule.setStartDate(start);

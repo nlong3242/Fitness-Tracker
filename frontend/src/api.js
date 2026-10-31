@@ -297,6 +297,21 @@ async function postRepeatDay(day) {
     throw new Error(`Couldn't save the repeat day (${response.status})`);
 }
 
+// --- Repeating plans ---
+
+// The rule in force today or the next to start, or null.
+export async function fetchRepeat(workoutId, today) {
+    const response = await request("GET", `/workouts/${workoutId}/repeat?today=${today}`);
+    if (response.status === 204) return null;
+    if (!response.ok) throw new ApiError(response);
+    return response.json();
+}
+
+// Returns the raw response, like the schedule calls above.
+export function saveRepeat(workoutId, data, today) {
+    return request("PUT", `/workouts/${workoutId}/repeat?today=${today}`, data);
+}
+
 // --- Sets ---
 
 export function createSet(sessionId, exerciseId, body) {

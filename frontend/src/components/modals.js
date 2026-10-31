@@ -1,4 +1,5 @@
 import { escapeHtml, formatSessionDate } from "../utils/format.js";
+import { WEEKDAY_NAMES, weekdayIndex, firstRepeatDay, repeatLabel } from "../utils/repeat.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { renderExerciseHistory } from "./exerciseHistory.js";
 import { exerciseOverviewHtml } from "./exerciseOverview.js";
@@ -191,17 +192,22 @@ export function showScheduleForWorkoutModal(options) {
        options:
        - workoutName:    fixed workout name shown as subtitle
        - todayIso:       date input's min — past dates are forbidden
-       - onSave(data):   async function receiving { date, notes } and
-                         returning the raw Response. 2xx → close with
-                         { schedule }; 409 → inline conflict; else inline
-                         generic error.
+       - currentRepeat:  the workout's repeating plan, if it has one; a new
+                         one replaces it, and the sheet says so
+       - onSave(data):   async function receiving { date, notes, repeat } and
+                         returning the raw Response. repeat is null for one
+                         day, else { weekdays | everyDays, endDate } with date
+                         as its start. 2xx → close; 409 → inline conflict;
+                         else inline generic error.
 
        Resolves to:
-       - null               — Cancel
-       - { schedule: {...} } — saved (parsed body from the 2xx response)
+       - null                          — Cancel
+       - { schedule: {...}, firstDay } — saved (parsed body from the 2xx
+                                         response; firstDay is the day to show)
     */
     const workoutName = options.workoutName;
     const todayIso = options.todayIso;
+    const currentRepeat = options.currentRepeat || null;
     const onSave = options.onSave;
 
     return new Promise(function(resolve) {
@@ -215,11 +221,41 @@ export function showScheduleForWorkoutModal(options) {
                 <div class="modal-inline-error" id="sched-error" hidden></div>
 
                 <div class="modal-field">
-                    <label class="modal-field-label">Date <span class="required">*</span></label>
+                    <label class="modal-field-label"><span id="sched-date-label">Date</span> <span class="required">*</span></label>
                     <input type="date" id="sched-date">
                 </div>
 
                 <div class="modal-field">
+                    <label class="modal-field-label">Repeat</label>
+                    <div class="modal-pill-row" id="sched-repeat">
+                        <button type="button" class="modal-pill selected" data-repeat="never">Never</button>
+                        <button type="button" class="modal-pill" data-repeat="weekly">Weekly</button>
+                        <button type="button" class="modal-pill" data-repeat="every">Every N days</button>
+                    </div>
+                </div>
+
+                <div class="modal-field" id="sched-weekly" hidden>
+                    <label class="modal-field-label">On <span class="required">*</span></label>
+                    <div class="weekday-toggles">
+                        ${WEEKDAY_NAMES.map((name, i) => `<button type="button" class="modal-pill weekday-toggle" data-day="${i}" aria-label="${name}" aria-pressed="false">${name[0]}</button>`).join("")}
+                    </div>
+                </div>
+
+                <div class="modal-field" id="sched-every" hidden>
+                    <label class="modal-field-label" for="sched-every-days">Every <span class="required">*</span></label>
+                    <div class="every-days-row">
+                        <input type="text" inputmode="numeric" autocomplete="off" maxlength="3" id="sched-every-days">
+                        <span>days</span>
+                    </div>
+                </div>
+
+                <div class="modal-field" id="sched-end-field" hidden>
+                    <label class="modal-field-label">Ends (optional)</label>
+                    <input type="date" id="sched-end">
+                    ${currentRepeat ? `<div class="modal-field-note">Repeats now: ${escapeHtml(repeatLabel(currentRepeat))}. This replaces it.</div>` : ""}
+                </div>
+
+                <div class="modal-field" id="sched-notes-field">
                     <label class="modal-field-label">Notes (optional)</label>
                     <textarea id="sched-notes" placeholder="Anything to remember for this day?"></textarea>
                 </div>
@@ -236,8 +272,16 @@ export function showScheduleForWorkoutModal(options) {
         const notesInput = overlay.querySelector("#sched-notes");
         const saveBtn = overlay.querySelector("#sched-save");
         const errorEl = overlay.querySelector("#sched-error");
+        const everyInput = overlay.querySelector("#sched-every-days");
+        const endInput = overlay.querySelector("#sched-end");
+        const dayToggles = Array.from(overlay.querySelectorAll(".weekday-toggle"));
+
+        let repeatKind = "never";
+        let weekdays = 0;
+        let weekdaysChosen = false;
 
         dateInput.min = todayIso;
+        endInput.min = todayIso;
 
         function clearError() {
             errorEl.hidden = true;
@@ -247,14 +291,69 @@ export function showScheduleForWorkoutModal(options) {
             errorEl.textContent = msg;
             errorEl.hidden = false;
         }
+        function everyDays() {
+            const n = Number(everyInput.value);
+            return n >= 1 && n <= 365 ? n : null;
+        }
         function updateSaveState() {
-            saveBtn.disabled = !dateInput.value || dateInput.value < todayIso;
+            saveBtn.disabled = !dateInput.value || dateInput.value < todayIso
+                || (repeatKind === "weekly" && weekdays === 0)
+                || (repeatKind === "every" && everyDays() === null);
+        }
+        function showWeekdays() {
+            dayToggles.forEach(function(btn) {
+                const on = (weekdays & (1 << Number(btn.dataset.day))) !== 0;
+                btn.classList.toggle("selected", on);
+                btn.setAttribute("aria-pressed", String(on));
+            });
+        }
+
+        // The start date's weekday is ticked until the user picks days themselves.
+        function followDate() {
+            if (weekdaysChosen || !dateInput.value) return;
+            weekdays = 1 << weekdayIndex(dateInput.value);
+            showWeekdays();
         }
 
         dateInput.oninput = function() {
+            followDate();
             clearError();
             updateSaveState();
         };
+        endInput.oninput = clearError;
+        everyInput.oninput = function() {
+            everyInput.value = everyInput.value.replace(/\D/g, "");
+            clearError();
+            updateSaveState();
+        };
+
+        overlay.querySelector("#sched-repeat").onclick = function(e) {
+            const pill = e.target.closest("[data-repeat]");
+            if (!pill) return;
+            repeatKind = pill.dataset.repeat;
+            overlay.querySelectorAll("#sched-repeat .modal-pill").forEach(function(p) {
+                p.classList.toggle("selected", p === pill);
+            });
+            const repeating = repeatKind !== "never";
+            overlay.querySelector("#sched-weekly").hidden = repeatKind !== "weekly";
+            overlay.querySelector("#sched-every").hidden = repeatKind !== "every";
+            overlay.querySelector("#sched-end-field").hidden = !repeating;
+            // A note belongs to one day, so a repeating plan has none.
+            overlay.querySelector("#sched-notes-field").hidden = repeating;
+            overlay.querySelector("#sched-date-label").textContent = repeating ? "Starts" : "Date";
+            saveBtn.textContent = repeating ? "Set repeat" : "Schedule";
+            clearError();
+            updateSaveState();
+        };
+        dayToggles.forEach(function(btn) {
+            btn.onclick = function() {
+                weekdaysChosen = true;
+                weekdays ^= 1 << Number(btn.dataset.day);
+                showWeekdays();
+                clearError();
+                updateSaveState();
+            };
+        });
 
         function close(result) {
             document.body.removeChild(overlay);
@@ -265,16 +364,32 @@ export function showScheduleForWorkoutModal(options) {
 
         saveBtn.onclick = async function() {
             if (saveBtn.disabled) return;
+            const repeat = repeatKind === "weekly" ? { weekdays: weekdays, endDate: endInput.value || null }
+                : repeatKind === "every" ? { everyDays: everyDays(), endDate: endInput.value || null }
+                : null;
+            let firstDay = dateInput.value;
+            if (repeat) {
+                if (repeat.endDate && repeat.endDate < dateInput.value) {
+                    showError("The end date can't be before the start.");
+                    return;
+                }
+                firstDay = firstRepeatDay({ ...repeat, startDate: dateInput.value });
+                if (firstDay === null) {
+                    showError("None of those days fall before the end date.");
+                    return;
+                }
+            }
             saveBtn.disabled = true;
             const originalLabel = saveBtn.textContent;
-            saveBtn.textContent = "Scheduling…";
+            saveBtn.textContent = repeat ? "Saving…" : "Scheduling…";
             clearError();
 
             let resp;
             try {
                 resp = await onSave({
                     date: dateInput.value,
-                    notes: notesInput.value.trim() || null
+                    notes: repeat ? null : notesInput.value.trim() || null,
+                    repeat: repeat
                 });
             } catch (e) {
                 showError("Couldn't reach the server. Please try again.");
@@ -285,7 +400,7 @@ export function showScheduleForWorkoutModal(options) {
 
             if (resp.ok) {
                 const schedule = await resp.json();
-                close({ schedule: schedule });
+                close({ schedule: schedule, firstDay: firstDay });
                 return;
             }
 

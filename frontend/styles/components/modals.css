@@ -351,3 +351,25 @@
         background-color: rgba(199, 91, 113, 0.12);
     }
 }
+
+/* Repeat on the Schedule sheet: M-S toggles fill the row. */
+.weekday-toggles {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.weekday-toggle {
+    min-height: 40px;
+    padding: 5px 0;
+}
+
+.every-days-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-field .every-days-row input[type="text"] {
+    width: 72px;
+}

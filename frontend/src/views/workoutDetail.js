@@ -3,7 +3,9 @@ import {
     fetchWorkoutExercises,
     reorderWorkoutExercises,
     removeWorkoutExercise,
-    createSchedule
+    createSchedule,
+    fetchRepeat,
+    saveRepeat
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import {
@@ -128,13 +130,20 @@ export async function viewWorkout(workoutId) {
     rebuildExerciseList();
 }
 
-/* Schedule (the workout's ⋮, here and on the workout list): pick a date, then that
-   day opens in the calendar. */
+/* Schedule (the workout's ⋮, here and on the workout list): pick a date, or a
+   repeating plan, then that day (a repeat's first) opens in the calendar. */
 export async function scheduleWorkout(workout) {
+    const today = isoToday();
+    // Only for a note on the sheet, so it's not worth stopping for.
+    const currentRepeat = await fetchRepeat(workout.id, today).catch(() => null);
     const result = await showScheduleForWorkoutModal({
         workoutName: workout.name,
-        todayIso: isoToday(),
+        todayIso: today,
+        currentRepeat: currentRepeat,
         onSave: function(data) {
+            if (data.repeat) {
+                return saveRepeat(workout.id, { ...data.repeat, startDate: data.date }, today);
+            }
             return createSchedule({
                 date: data.date,
                 workoutId: workout.id,
@@ -143,7 +152,7 @@ export async function scheduleWorkout(workout) {
         }
     });
     if (!result) return;
-    await navigateToCalendarDay(result.schedule.date);
+    await navigateToCalendarDay(result.firstDay);
 }
 
 function isoToday() {

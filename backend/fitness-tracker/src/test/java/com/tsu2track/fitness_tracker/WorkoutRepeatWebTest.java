@@ -121,6 +121,26 @@ class WorkoutRepeatWebTest {
     }
 
     @Test
+    void changingARuleThatHadntStartedLeavesNoneOfItsDays() throws Exception {
+        set(MON, "{\"weekdays\": " + MON_THU + ", \"startDate\": \"2026-03-09\"}").andExpect(status().isOk());
+        set(MON, "{\"weekdays\": " + TUE_FRI + ", \"startDate\": \"2026-03-10\"}").andExpect(status().isOk());
+
+        // Not Mon 9 Mar: the old rule's first day goes with it.
+        dates(MON, MON.plusDays(13)).andExpect(jsonPath("$[*].date", contains("2026-03-10", "2026-03-13")));
+    }
+
+    @Test
+    void aLaterStartLeavesAGapInsteadOfTheOldDays() throws Exception {
+        set(MON, "{\"weekdays\": " + MON_THU + "}").andExpect(status().isOk());
+        LocalDate nextMon = MON.plusDays(7);
+        set(nextMon, "{\"weekdays\": " + TUE_FRI + ", \"startDate\": \"2026-03-17\"}").andExpect(status().isOk());
+
+        // The first week stays; nothing from today until the new start.
+        dates(MON, MON.plusDays(20)).andExpect(jsonPath("$[*].date",
+            contains("2026-03-02", "2026-03-05", "2026-03-17", "2026-03-20")));
+    }
+
+    @Test
     void changingARuleTheDayItStartedReplacesIt() throws Exception {
         set(MON, "{\"weekdays\": " + MON_THU + "}").andExpect(status().isOk());
         set(MON, "{\"everyDays\": 2}").andExpect(status().isOk());

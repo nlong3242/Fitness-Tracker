@@ -1,7 +1,7 @@
 import { state, findWorkout, clearCurrentSession } from "./state.js";
 import { finishSession } from "./api.js";
 import { clearStartedWorkout } from "./session.js";
-import { clearDrafts } from "./drafts.js";
+import { clearDrafts, loadLiveExercises } from "./drafts.js";
 import { syncCalendarOnFinish } from "./views/activeWorkout.js";
 import { setActiveTab } from "./components/bottomNav.js";
 import { updateLiveIndicator } from "./components/liveWorkout.js";
@@ -28,9 +28,13 @@ export async function endIdleWorkout() {
     const sessionDate = state.currentSessionDate;
     const workoutId = state.currentWorkoutId;
     try {
-        // null order: the server uses the workout's own exercise order. It
+        // null order: the server uses the workout's own exercise order,
+        // unless exercises were added, replaced or removed today: then
+        // exactly today's list, for today only (nobody's there to ask). It
         // ended at the last set, not now: the idle hours aren't workout time.
-        await finishSession(sessionId, null, state.currentLastActivityAt);
+        const live = loadLiveExercises(workoutId);
+        const exact = live ? { exerciseIds: live.ids, updateWorkout: false } : null;
+        await finishSession(sessionId, null, state.currentLastActivityAt, exact);
     } catch (e) {
         ending = false; // offline etc.: still in progress, try again next check
         return;

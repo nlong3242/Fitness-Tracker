@@ -127,9 +127,26 @@ run({ prefix: "livechg", workoutName: "Live Changes", exercises: 3 }, "#/workout
         await page.click("#exercise-nav-next");
         await wait(400);
     }
+    let finishPosts = 0;
+    const countFinish = r => { if (r.method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url())) finishPosts++; };
+    page.on("request", countFinish);
+    await page.click("#summary-finish-btn");
+    await page.waitForSelector(".modal-choice");
+    const question = await page.$eval(".modal-message", e => e.textContent);
+    const choices = await page.$$eval(".modal-choices button", els => els.map(e => e.textContent));
+    check("Finish asks: today only or update the workout", question.includes("changed the exercises")
+        && JSON.stringify(choices) === JSON.stringify(["Today only", `Update ${workout.name}`, "Cancel"]), choices.join(" | "));
+    await t.shot("live-changes-04-finish-question");
+    await page.click(".modal-choices .modal-cancel");
+    await wait(400);
+    check("Cancel stays on the review, not finished", finishPosts === 0 && (await page.$("#summary-finish-btn")) !== null);
+    page.off("request", countFinish);
+
     const finished = page.waitForResponse(r =>
         r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
     await page.click("#summary-finish-btn");
+    await page.waitForSelector(".modal-choice");
+    await page.click(".modal-choice:nth-child(1)"); // Today only
     const body = JSON.parse((await finished).request().postData());
     check("Finish sends today's list, today only", JSON.stringify(body.exerciseIds || []).length > 2 && body.updateWorkout === false,
         JSON.stringify(body));

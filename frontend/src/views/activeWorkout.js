@@ -14,7 +14,8 @@ import {
 } from "../api.js";
 import {
     showExerciseReadOnlyModal,
-    showConfirmModal
+    showConfirmModal,
+    showChoiceModal
 } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
 import { createMoreButton } from "../components/actionMenu.js";
@@ -197,6 +198,15 @@ export async function startWorkout(workoutId, options) {
     // the given exercise. Typed values come back from the drafts.
     function reopen(exerciseId) {
         startWorkout(workout.id, { exerciseId, onComplete });
+    }
+
+    // Today's exercises aren't the workout's own (order aside: reordering
+    // the pills has always been for today only).
+    function changedFromWorkout(ids) {
+        const live = loadLiveExercises(workout.id);
+        if (!live) return false;
+        const sorted = list => list.slice().sort((a, b) => a - b).join(",");
+        return sorted(ids) !== sorted(live.workoutIds);
     }
 
     function saveTodaysList() {
@@ -604,11 +614,25 @@ export async function startWorkout(workoutId, options) {
         }
         const sessionId = state.currentSessionId;
         const sessionDate = state.currentSessionDate;
+        const ids = workout.exercises.map(e => e.id);
+        // Exercises added, replaced or removed today: ask whether that was
+        // for today only or the workout from now on. Either answer finishes.
+        let exact = null;
+        if (changedFromWorkout(ids)) {
+            const choice = await showChoiceModal(
+                `You changed the exercises in ${workout.name} today. Keep the changes for today only, or update ${workout.name} from now on?`,
+                [
+                    { label: "Today only", value: "today" },
+                    { label: `Update ${workout.name}`, value: "update" }
+                ]);
+            if (choice === null) return; // Cancel: stay on the review
+            exact = { exerciseIds: ids, updateWorkout: choice === "update" };
+        } else if (loadLiveExercises(workout.id)) {
+            // Changed and changed back (e.g. removed, then added again):
+            // the same exercises, so nothing to ask; record today's order.
+            exact = { exerciseIds: ids, updateWorkout: false };
+        }
         try {
-            const ids = workout.exercises.map(e => e.id);
-            // Changed today: record exactly today's list (the Today only /
-            // Update workout choice comes in a later step).
-            const exact = loadLiveExercises(workout.id) ? { exerciseIds: ids, updateWorkout: false } : null;
             await finishSession(sessionId, ids, undefined, exact);
         } catch (e) {
             // Keep the session in progress (resumable) and stay on the preview.

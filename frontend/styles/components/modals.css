@@ -82,6 +82,18 @@
     }
 }
 
+/* Choice modal: one wide button per answer, stacked, Cancel last. */
+.modal-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-choice {
+    min-height: 52px;
+    overflow-wrap: anywhere;
+}
+
 /* Form modal — Create/Edit Exercise. */
 
 .modal-form-box {

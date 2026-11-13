@@ -79,7 +79,7 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     check("a set on an added exercise saves", (await posted).ok());
     await wait(300);
 
-    // 6. Finish records all four; the workout keeps its two
+    // 6. Finish → "Update Live Add": history and the workout both get all four
     for (let i = 0; i < 6 && !(await page.$("#summary-finish-btn")); i++) {
         await page.click("#exercise-nav-next");
         await wait(400);
@@ -87,11 +87,43 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     const finished = page.waitForResponse(r =>
         r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
     await page.click("#summary-finish-btn");
-    await finished;
+    await page.waitForSelector(".modal-choice");
+    await page.click(".modal-choice:nth-child(2)"); // Update Live Add
+    const body = JSON.parse((await finished).request().postData());
+    check("Finish sends update the workout", body.updateWorkout === true && body.exerciseIds.length === 4, JSON.stringify(body));
+    // The finished summary (not the review, which also has a Back) is up.
+    await page.waitForFunction(() => /\/sessions\/\d+/.test(location.hash)
+        && !document.getElementById("summary-finish-btn")
+        && document.getElementById("summary-back-btn"), { timeout: 15000 });
+    await wait(300);
     const past = await t.api("GET", `/workouts/${workout.id}/sessions`);
     const last = (past.content || past)[0];
     const recorded = (await t.api("GET", `/sessions/${last.id}/exercises`)).map(e => e.name);
     check("history has today's four", JSON.stringify(recorded) === JSON.stringify([...original, ...added]), recorded.join(", "));
     const after = (await t.api("GET", `/workouts/${workout.id}/exercises`)).map(e => e.name);
-    check("the workout itself is unchanged", JSON.stringify(after) === JSON.stringify(original), after.join(", "));
+    check("the workout now has all four", JSON.stringify(after) === JSON.stringify([...original, ...added]), after.join(", "));
+
+    // 7. Next time it starts with all four, and Finish asks nothing (no changes)
+    await t.startWorkout();
+    await wait(400);
+    check("the next workout has all four", JSON.stringify(await titles()) === JSON.stringify([...original, ...added]), (await titles()).join(", "));
+    await page.click(".exercise-card.active > .add-set-btn");
+    const row2 = (await page.$$(".exercise-card.active .set-input-row")).pop();
+    const posted2 = page.waitForResponse(r =>
+        r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()), { timeout: 15000 });
+    await (await row2.$(".weight-input")).type("30");
+    await (await row2.$(".reps-input")).type("5");
+    await page.evaluate(() => document.activeElement.blur());
+    await posted2;
+    await wait(300);
+    for (let i = 0; i < 6 && !(await page.$("#summary-finish-btn")); i++) {
+        await page.click("#exercise-nav-next");
+        await wait(400);
+    }
+    const finished2 = page.waitForResponse(r =>
+        r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
+    await page.click("#summary-finish-btn");
+    const body2 = JSON.parse((await finished2).request().postData());
+    check("no changes: no question, finished as before", (await page.$(".modal-choice")) === null && !("exerciseIds" in body2),
+        JSON.stringify(body2));
 });

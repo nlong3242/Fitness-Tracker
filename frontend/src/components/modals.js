@@ -30,6 +30,41 @@ export function showConfirmModal(message, confirmLabel) {
     });
 }
 
+/* A question with several answers, none of them destructive: one wide
+   button each, stacked, then Cancel. choices: [{ label, value }].
+   Resolves the chosen value, or null for Cancel. */
+export function showChoiceModal(message, choices) {
+    return new Promise(function(resolve) {
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal-box">
+                <div class="modal-message"></div>
+                <div class="modal-choices"></div>
+            </div>
+        `;
+        overlay.querySelector(".modal-message").textContent = message;
+        const list = overlay.querySelector(".modal-choices");
+        function close(result) {
+            document.body.removeChild(overlay);
+            resolve(result);
+        }
+        for (const choice of choices) {
+            const button = document.createElement("button");
+            button.className = "modal-choice";
+            button.textContent = choice.label;
+            button.onclick = function() { close(choice.value); };
+            list.appendChild(button);
+        }
+        const cancel = document.createElement("button");
+        cancel.className = "modal-cancel";
+        cancel.textContent = "Cancel";
+        cancel.onclick = function() { close(null); };
+        list.appendChild(cancel);
+        document.body.appendChild(overlay);
+    });
+}
+
 export function showScheduleModal(options) {
     /* options:
        - iso:         the day the user tapped — fixed for the lifetime of the

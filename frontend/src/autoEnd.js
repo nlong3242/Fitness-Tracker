@@ -28,8 +28,9 @@ export async function endIdleWorkout() {
     const sessionDate = state.currentSessionDate;
     const workoutId = state.currentWorkoutId;
     try {
-        // null order: the server uses the workout's own exercise order.
-        await finishSession(sessionId, null);
+        // null order: the server uses the workout's own exercise order. It
+        // ended at the last set, not now: the idle hours aren't workout time.
+        await finishSession(sessionId, null, state.currentLastActivityAt);
     } catch (e) {
         ending = false; // offline etc.: still in progress, try again next check
         return;

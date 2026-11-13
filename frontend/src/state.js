@@ -8,7 +8,10 @@ export const state = {
     // ms timestamp of the last set change in that session (server-side
     // Session.lastActivityAt, kept current locally); drives idle auto-end.
     currentLastActivityAt: null,
-    // { name, birthDate, heightCm, weeklyGoal, restSeconds } from GET
+    // ms timestamp when that session's Start was tapped (server startedAt);
+    // the live stopwatch counts from it. Null for sessions from before V19.
+    currentStartedAt: null,
+    // { name, birthDate, heightCm, weeklyGoal, restSeconds, showWorkoutTimer } from GET
     // /profile; null until the account has one (main.js then shows the
     // set-up page).
     profile: null,
@@ -25,4 +28,5 @@ export function clearCurrentSession() {
     state.currentSessionDate = null;
     state.currentWorkoutId = null;
     state.currentLastActivityAt = null;
+    state.currentStartedAt = null;
 }

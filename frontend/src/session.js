@@ -4,18 +4,28 @@ import { createSession, deleteSession, ApiError } from "./api.js";
 /* "Started" workout: opened with Start but nothing logged yet, so no
    server session exists (sessions are created lazily on the first set).
    Remembered on the device only, until local midnight, so the resume bar
-   can reopen it. Nothing is lost by dropping it, so it never prompts. */
+   can reopen it. Nothing is lost by dropping it, so it never prompts.
+   It also keeps startedAt, when Start was tapped: the stopwatch counts
+   from it, and the session gets it when the first set creates it. */
 const STARTED_KEY = "fitness.startedWorkout";
 
 function localToday() {
     return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local time
 }
 
-export function markWorkoutStarted(workoutId) {
+/* startedAt: keep this time (an emptied session going back to "started");
+   otherwise reopening the same started workout today keeps its time, and
+   anything else starts the clock now. */
+export function markWorkoutStarted(workoutId, startedAt) {
+    if (!startedAt) {
+        const started = readStarted();
+        startedAt = started && started.workoutId === workoutId && started.startedAt
+            ? started.startedAt : Date.now();
+    }
+    startedInMemory = { workoutId, startedOn: localToday(), startedAt };
     try {
-        localStorage.setItem(STARTED_KEY, JSON.stringify({ workoutId, startedOn: localToday() }));
+        localStorage.setItem(STARTED_KEY, JSON.stringify(startedInMemory));
     } catch (e) { /* storage unavailable: the bar just won't survive a reload */ }
-    startedInMemory = { workoutId, startedOn: localToday() };
 }
 
 export function clearStartedWorkout() {
@@ -23,8 +33,9 @@ export function clearStartedWorkout() {
     try { localStorage.removeItem(STARTED_KEY); } catch (e) { /* ignore */ }
 }
 
-// The started workout's id, or null if none / it was from an earlier day.
-export function getStartedWorkoutId() {
+// The started workout ({ workoutId, startedOn, startedAt }), or null if
+// none / it was from an earlier day.
+function readStarted() {
     let started = startedInMemory;
     if (!started) {
         try { started = JSON.parse(localStorage.getItem(STARTED_KEY)); } catch (e) { started = null; }
@@ -34,7 +45,23 @@ export function getStartedWorkoutId() {
         return null;
     }
     startedInMemory = started;
-    return started.workoutId;
+    return started;
+}
+
+export function getStartedWorkoutId() {
+    const started = readStarted();
+    return started ? started.workoutId : null;
+}
+
+/* When the workout on screen began, for the stopwatch: the session's start
+   once it exists, before that the started workout's. Null if unknown (a
+   session from before the app recorded it). */
+export function getWorkoutStartedAt(workoutId) {
+    if (state.currentSessionId !== null) {
+        return state.currentWorkoutId === workoutId ? state.currentStartedAt : null;
+    }
+    const started = readStarted();
+    return started && started.workoutId === workoutId && started.startedAt ? started.startedAt : null;
 }
 
 let startedInMemory = null;
@@ -52,12 +79,15 @@ let pendingSession = null;
 export async function ensureCurrentSession(workout) {
     if (state.currentSessionId !== null) return state.currentSessionId;
     if (!pendingSession) {
-        pendingSession = createSession(workout.id)
+        const started = readStarted();
+        const startedAt = started && started.workoutId === workout.id ? started.startedAt : null;
+        pendingSession = createSession(workout.id, startedAt)
             .then(function(session) {
                 state.currentSessionId = session.id;
                 state.currentSessionDate = session.date;
                 state.currentWorkoutId = workout.id;
                 state.currentLastActivityAt = Date.now();
+                state.currentStartedAt = session.startedAt ? Date.parse(session.startedAt) : startedAt;
                 clearStartedWorkout(); // a real session supersedes it
                 return session.id;
             })
@@ -69,10 +99,12 @@ export async function ensureCurrentSession(workout) {
 export async function maybeCleanupOrphanSession(workout) {
     const hasAnySets = workout.exercises.some(ex => ex.sets && ex.sets.length > 0);
     if (!hasAnySets && state.currentSessionId !== null) {
+        const startedAt = state.currentStartedAt;
         await deleteSession(state.currentSessionId);
         clearCurrentSession();
-        // Still on the workout, just with nothing logged again.
-        markWorkoutStarted(workout.id);
+        // Still on the workout, just with nothing logged again; the
+        // stopwatch keeps counting from the original Start.
+        markWorkoutStarted(workout.id, startedAt);
     }
 }
 

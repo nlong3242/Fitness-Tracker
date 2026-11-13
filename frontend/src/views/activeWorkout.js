@@ -28,6 +28,7 @@ import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
 import { setRoute } from "../router.js";
 import { escapeHtml } from "../utils/format.js";
 import { mountRestTimer, closeRestPanel, stopRest } from "../components/restTimer.js";
+import { mountWorkoutStopwatch } from "../components/workoutStopwatch.js";
 
 /* One exercise visible at a time. The full set of .exercise-card divs is
    built upfront and inserted into #exercise-cards; only the one with the
@@ -161,7 +162,10 @@ export async function startWorkout(workoutId, options) {
 
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
-        <h2>${escapeHtml(workout.name)} - Workout</h2>
+        <div class="workout-title-row">
+            <h2>${escapeHtml(workout.name)} - Workout</h2>
+            <span class="workout-stopwatch" id="workout-stopwatch" role="timer" hidden></span>
+        </div>
         <div id="exercise-pills"></div>
         <div id="exercise-nav-row">
             <button class="exercise-nav-btn exercise-nav-prev" id="exercise-nav-prev">
@@ -197,6 +201,7 @@ export async function startWorkout(workoutId, options) {
     const prevBtn = document.getElementById("exercise-nav-prev");
     const nextBtn = document.getElementById("exercise-nav-next");
     mountRestTimer(navRow, navCounter);
+    mountWorkoutStopwatch(document.getElementById("workout-stopwatch"), workout.id);
 
     /* currentIndex semantics:
          0 .. workout.exercises.length - 1  → an exercise is visible

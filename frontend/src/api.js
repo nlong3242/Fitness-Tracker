@@ -178,16 +178,23 @@ export function fetchSessionsPage(workoutId, page, size) {
     return requestJson("GET", `/workouts/${workoutId}/sessions?page=${page}&size=${size}`);
 }
 
-export function createSession(workoutId) {
-    return requestJson("POST", `/workouts/${workoutId}/sessions`);
+// startedAt: ms timestamp when Start was tapped (the stopwatch counts from
+// it); the server uses now if it is missing or not believable.
+export function createSession(workoutId, startedAt) {
+    const body = startedAt ? { startedAt: new Date(startedAt).toISOString() } : undefined;
+    return requestJson("POST", `/workouts/${workoutId}/sessions`, body);
 }
 
 export function deleteSession(sessionId) {
     return request("DELETE", `/sessions/${sessionId}`);
 }
 
-export function finishSession(sessionId, orderedExerciseIds) {
-    return requestOk("POST", `/sessions/${sessionId}/finish`, { orderedExerciseIds });
+// finishedAt (optional, ms timestamp): when the workout ended; now if not
+// given. Auto-end sends the last activity so the idle hours don't count.
+export function finishSession(sessionId, orderedExerciseIds, finishedAt) {
+    const body = { orderedExerciseIds };
+    if (finishedAt) body.finishedAt = new Date(finishedAt).toISOString();
+    return requestOk("POST", `/sessions/${sessionId}/finish`, body);
 }
 
 // Home page stats for the week starting weekStart (local Monday, YYYY-MM-DD):

@@ -3,6 +3,32 @@
    #exercise-cards container, but only the card with .active is shown.
    Navigation is via the #exercise-nav-row sub-nav above the cards. */
 
+/* "Name - Workout" with the stopwatch on the right of the same line
+   (workoutStopwatch.js). A long name wraps; the time never does. */
+.workout-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.workout-title-row h2 {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.workout-stopwatch {
+    flex-shrink: 0;
+    font-size: 1.5em;
+    color: var(--text-on-bg);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.workout-stopwatch[hidden] {
+    display: none;
+}
+
 /* Exercise pills — one per exercise, shows position number. Tap jumps to
    that exercise; long-press + horizontal drag reorders (mirrored into the
    exercise-cards DOM by activeWorkout.js#onPillReorder so per-card

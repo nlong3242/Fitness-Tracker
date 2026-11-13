@@ -152,6 +152,39 @@
     .rest-ring-arc { transition: none; }
 }
 
+/* While the panel is open: the page and the tab bar (100) are dimmed under
+   a backdrop that catches every tap (a tap closes the panel), and the bar
+   with Prev / ⏱ / Next is lifted above it. */
+.rest-timer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    background-color: rgba(59, 39, 35, 0.55);
+    touch-action: none;
+}
+
+.rest-timer-backdrop[hidden] {
+    display: none;
+}
+
+#exercise-nav-row.rest-open {
+    z-index: 160;
+}
+
+/* The tab bar sits outside #app-scroll (a layer of its own), so the
+   backdrop can't reach it: it gets the same dimming as a cover of its own.
+   A tap on the cover lands on the nav itself, which closes the panel
+   (restTimer.js). */
+body.rest-timer-open #bottom-nav::after {
+    content: "";
+    position: absolute;
+    inset: -3px 0 0;
+    /* Over the tabs' own layers too (the live dot's glow animates). */
+    z-index: 1;
+    background-color: rgba(59, 39, 35, 0.55);
+    touch-action: none;
+}
+
 /* Panel: hangs above the bar (the bar is position: fixed, so this sits on
    top of the page without moving it). */
 .rest-timer-panel {

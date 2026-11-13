@@ -8,6 +8,8 @@
      While resting it turns into a small ring with the time left inside.
      It opens a panel above the bar: quick times when idle; while running,
      a big ring countdown with − / + (15 s) either side and Stop under it.
+     Starting a rest closes the panel; the big ring only shows when the
+     small one is tapped.
    - The rings empty as the rest runs down. Their full length is the rest's
      length, − / + included.
    - A quick time starts rest at once and becomes "my time", which logging
@@ -155,6 +157,10 @@ export function initRestTimer() {
     document.addEventListener("visibilitychange", function() {
         if (document.visibilityState === "visible") tick();
     });
+    // A tap on the dimmed tab bar hits its cover (the nav itself, not a tab).
+    document.addEventListener("click", function(event) {
+        if (ui && !ui.panel.hidden && event.target.id === "bottom-nav") closeRestPanel();
+    });
 }
 
 /* ---------- Bar button and panel ---------- */
@@ -214,7 +220,17 @@ export function mountRestTimer(navRow, counter) {
     panel.hidden = true;
     navRow.appendChild(panel);
 
-    ui = { button, panel, shownState: null };
+    // While the panel is open the rest of the page is dimmed and can't be
+    // used (sets, tab bar); a tap there closes the panel. The bar (Prev,
+    // ⏱, Next) stays on top of it.
+    const backdrop = document.createElement("div");
+    backdrop.className = "rest-timer-backdrop";
+    backdrop.id = "rest-timer-backdrop";
+    backdrop.hidden = true;
+    backdrop.onclick = closeRestPanel;
+    navRow.before(backdrop);
+
+    ui = { button, panel, backdrop, navRow, shownState: null };
     button.onclick = function() {
         panel.hidden = !panel.hidden;
         render();
@@ -231,6 +247,7 @@ function render() {
     if (!ui) return;
     if (!ui.button.isConnected) {
         ui = null;
+        document.body.classList.remove("rest-timer-open");
         return;
     }
     const resting = isResting();
@@ -240,6 +257,9 @@ function render() {
     ui.button.classList.toggle("open", !ui.panel.hidden);
     ui.button.setAttribute("aria-label", resting ? `Rest timer, ${clock} left` : "Rest timer");
     setRing(ui.button.querySelector(".rest-ring"), fraction, resting ? clock : "");
+    ui.backdrop.hidden = ui.panel.hidden;
+    ui.navRow.classList.toggle("rest-open", !ui.panel.hidden);
+    document.body.classList.toggle("rest-timer-open", !ui.panel.hidden);
     if (ui.panel.hidden) return;
 
     // Rebuilt only when it switches between idle and running (or my time
@@ -278,7 +298,12 @@ function buildPanel(resting) {
         <div class="rest-timer-label">Rest for</div>
         <div class="rest-timer-chips">${chips}</div>`;
     panel.querySelectorAll(".rest-timer-chip").forEach(chip => {
-        chip.onclick = function() { startRest(Number(chip.dataset.seconds)); };
+        // The panel closes: the small ring in the bar shows the rest, and
+        // tapping it opens the big one.
+        chip.onclick = function() {
+            panel.hidden = true;
+            startRest(Number(chip.dataset.seconds));
+        };
     });
 }
 

@@ -15,6 +15,7 @@ import {
 } from "../components/categoryPills.js";
 import { filterExercises, exerciseNameHtml, emptyListMessage } from "../components/libraryList.js";
 import { viewWorkout } from "./workoutDetail.js";
+import { alignPageStrips } from "../utils/pageStrip.js";
 
 // kept: { selectedIds, category, query } to start from (back from Create Exercise).
 // opts.single: only one can be ticked (Replace exercise); opts.confirmLabel(count)
@@ -34,13 +35,15 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
         <p class="custom-only-note" id="picker-custom-note" hidden>Showing your Custom exercises only.</p>
         <div id="picker-pill-row" class="library-pill-row"></div>
         <div id="picker-list"></div>
-        <div class="picker-action-bar">
-            <button type="button" id="picker-clear-btn" aria-label="Clear selection">
-                <svg viewBox="0 0 7 7" aria-hidden="true" fill="currentColor">
-                    ${[0, 1, 2, 3, 4, 5, 6].map(i => `<rect x="${i}" y="${i}" width="1" height="1"/><rect x="${6 - i}" y="${i}" width="1" height="1"/>`).join("")}
-                </svg>
-            </button>
-            <button id="picker-add-btn" disabled>${escapeHtml(confirmLabel(0))}</button>
+        <div class="picker-action-footer page-strip">
+            <div class="picker-action-bar">
+                <button type="button" id="picker-clear-btn" aria-label="Clear selection">
+                    <svg viewBox="0 0 7 7" aria-hidden="true" fill="currentColor">
+                        ${[0, 1, 2, 3, 4, 5, 6].map(i => `<rect x="${i}" y="${i}" width="1" height="1"/><rect x="${6 - i}" y="${i}" width="1" height="1"/>`).join("")}
+                    </svg>
+                </button>
+                <button id="picker-add-btn" disabled>${escapeHtml(confirmLabel(0))}</button>
+            </div>
         </div>
     `;
 
@@ -62,7 +65,8 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
     // as it was while it slides away, rather than flashing "Add 0".
     function updateAddBtn() {
         addBtn.disabled = selectedIds.size === 0;
-        addBtn.parentElement.classList.toggle("shown", selectedIds.size > 0);
+        addBtn.closest(".picker-action-footer").classList.toggle("shown", selectedIds.size > 0);
+        alignPageStrips();
         if (selectedIds.size > 0) addBtn.textContent = confirmLabel(selectedIds.size);
     }
 

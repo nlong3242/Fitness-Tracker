@@ -43,16 +43,26 @@
 
 /* Add / Replace floats above the tab bar, over the list, so it's in reach
    wherever the list is scrolled. Hidden until something is ticked, then
-   slides up (.shown, set in exercisePicker.js). One pink bar: ✕ (clear
-   the ticks) on the left, the action filling the rest. */
+   slides up (.shown, set in exercisePicker.js). It sits on a .page-strip
+   (layout/page.css) from its top border down to the tab bar, which looks
+   like empty page while hiding the rows scrolling under it. One pink bar:
+   ✕ (clear the ticks) on the left, the action filling the rest. */
+.picker-action-footer {
+    bottom: var(--nav-height);
+    padding: 0 max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left));
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s, visibility 0.15s;
+}
+
+.picker-action-footer.shown {
+    opacity: 1;
+    visibility: visible;
+}
+
 .picker-action-bar {
-    position: fixed;
-    bottom: calc(var(--nav-height) + 24px);
-    left: max(16px, env(safe-area-inset-left));
-    right: max(16px, env(safe-area-inset-right));
     max-width: 468px;
     margin: 0 auto;
-    z-index: 100;
     display: flex;
     align-items: stretch;
     min-height: 58px;
@@ -65,15 +75,11 @@
         0 3px 0 var(--frame),
         0 6px 14px var(--shadow-hard);
     overflow: hidden;
-    opacity: 0;
-    visibility: hidden;
     transform: translateY(16px);
-    transition: opacity 0.15s, transform 0.15s, visibility 0.15s;
+    transition: transform 0.15s;
 }
 
-.picker-action-bar.shown {
-    opacity: 1;
-    visibility: visible;
+.picker-action-footer.shown .picker-action-bar {
     transform: none;
 }
 
@@ -116,6 +122,6 @@
 }
 
 /* Room for the last rows to scroll up clear of the floating button. */
-#app-content:has(.picker-action-bar) {
+#app-content:has(.picker-action-footer) {
     padding-bottom: calc(var(--nav-height) + 104px);
 }

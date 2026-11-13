@@ -149,25 +149,14 @@
 
 /* The review's Finish Workout floats at the bottom, in reach wherever the
    page is scrolled: the same pink bar as the exercise picker's Add button
-   (.picker-action-bar). The strip it sits on is painted with the page's
-   own background (body, elements.css), its grid lined up with the one
-   behind it (summary.js alignFinishStrip), so it looks like empty page
-   while hiding whatever scrolls under it. The tab bar is hidden here. */
+   (.picker-action-bar), on a .page-strip (layout/page.css) that looks
+   like empty page while hiding whatever scrolls under it. The tab bar is
+   hidden here. */
 .summary-finish-footer {
-    position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
     /* No room above the bar: content is cut right at its top border. */
     padding: 0 max(16px, env(safe-area-inset-right))
              calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-    background-color: var(--bg);
-    background-image:
-        linear-gradient(var(--grid-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 28px 28px;
-    box-sizing: border-box;
 }
 
 .summary-finish-footer .summary-finish-bar {

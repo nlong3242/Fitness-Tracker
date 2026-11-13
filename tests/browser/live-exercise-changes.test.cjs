@@ -4,6 +4,7 @@
    survives a reload, and Finish records exactly it while the workout
    itself stays as it was. */
 const { run, wait } = require("./harness.cjs");
+const { pickerStrip } = require("./pickerStrip.cjs");
 
 run({ prefix: "livechg", workoutName: "Live Changes", exercises: 3 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -95,6 +96,10 @@ run({ prefix: "livechg", workoutName: "Live Changes", exercises: 3 }, "#/workout
     const newName = await pick.$eval(".picker-select-name", e => e.textContent.replace(/Custom$/, "").trim());
     await pick.click();
     await wait(400);
+    const strip = await pickerStrip(page);
+    check("Replace floats on a page-like strip from its top edge to the tab bar, grid lined up, nothing showing through",
+        strip.shown && strip.pageLike && strip.fromBarTop && strip.toNav && strip.gridOk && strip.covered, JSON.stringify(strip));
+    await t.shot("live-changes-replace-bar");
     await page.click("#picker-add-btn");
     msg = await confirmText();
     check("replacing asks about the logged set", msg.includes("The set you logged") && msg.includes(newName), msg);

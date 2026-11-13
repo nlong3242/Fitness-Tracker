@@ -25,6 +25,23 @@
     padding-bottom: calc(var(--nav-height) + 20px);
 }
 
+/* A full-width fixed strip painted like the page itself (body's grid,
+   base/elements.css), its grid lined up by utils/pageStrip.js: a floating
+   button sits on it looking like empty page while whatever scrolls under
+   it stays hidden. Used by the review's Finish and the picker's Add. */
+.page-strip {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    box-sizing: border-box;
+    background-color: var(--bg);
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+}
+
 .page-actions {
     display: flex;
     gap: 10px;

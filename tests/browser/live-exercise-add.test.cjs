@@ -3,6 +3,7 @@
    without today's exercises. The new ones go at the end, today only, and
    survive a reload; Finish records them while the workout stays as it was. */
 const { run, wait } = require("./harness.cjs");
+const { pickerStrip } = require("./pickerStrip.cjs");
 
 run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -53,6 +54,11 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     }
     await wait(400);
     check("the button says Add 2 exercises", (await page.$eval("#picker-add-btn", b => b.textContent)) === "Add 2 exercises");
+    const strip = await pickerStrip(page);
+    check("Add floats on a page-like strip from its top edge to the tab bar, grid lined up, nothing showing through",
+        strip.shown && strip.pageLike && strip.fromBarTop && strip.toNav && strip.gridOk && strip.covered, JSON.stringify(strip));
+    await page.evaluate(() => document.getElementById("app-scroll").scrollBy(0, 300));
+    await wait(200);
     await t.shot("live-add-02-picker");
     await page.click("#picker-add-btn");
     await page.waitForFunction(() => document.querySelectorAll("#exercise-pills .exercise-pill").length === 4, { timeout: 15000 });

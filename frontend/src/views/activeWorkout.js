@@ -201,13 +201,10 @@ export async function startWorkout(workoutId, options) {
         startWorkout(workout.id, { exerciseId, onComplete });
     }
 
-    // Today's exercises aren't the workout's own (order aside: reordering
-    // the pills has always been for today only).
+    // Today's exercises or their order aren't the workout's own.
     function changedFromWorkout(ids) {
         const live = loadLiveExercises(workout.id);
-        if (!live) return false;
-        const sorted = list => list.slice().sort((a, b) => a - b).join(",");
-        return sorted(ids) !== sorted(live.workoutIds);
+        return live !== null && ids.join(",") !== live.workoutIds.join(",");
     }
 
     function saveTodaysList() {
@@ -467,6 +464,9 @@ export async function startWorkout(workoutId, options) {
         for (let i = 0; i < pillsRow.children.length; i++) {
             pillsRow.children[i].textContent = String(i + 1);
         }
+        // Kept like any other change to today's list, so a reload or a
+        // rebuild (add, replace, remove) doesn't undo it.
+        saveTodaysList();
 
         const total = workout.exercises.length;
         if (wasOnPreview) {
@@ -646,8 +646,8 @@ export async function startWorkout(workoutId, options) {
         if (choice !== "none") {
             exact = { exerciseIds: ids, updateWorkout: choice === "update" };
         } else if (loadLiveExercises(workout.id)) {
-            // Changed and changed back (e.g. removed, then added again):
-            // the same exercises, so nothing to ask; record today's order.
+            // Changed and changed back (e.g. dragged away and back again):
+            // the workout's own list, so nothing to ask.
             exact = { exerciseIds: ids, updateWorkout: false };
         }
         try {

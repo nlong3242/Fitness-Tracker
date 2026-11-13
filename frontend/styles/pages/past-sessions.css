@@ -15,9 +15,23 @@
     transition: background-color 0.15s, transform 0.1s;
 }
 
-/* The session's ⋮ (components/action-menu.css), pushed to the right. */
+/* The date takes the room (and wraps if it must); how long the workout
+   took and the ⋮ (components/action-menu.css) sit on the right. */
+.session-date {
+    flex: 1;
+    min-width: 0;
+}
+
+.session-length {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    margin-left: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
 .session-row .more-btn {
-    margin-left: auto;
+    margin-left: 8px;
 }
 
 @media (hover: hover) {

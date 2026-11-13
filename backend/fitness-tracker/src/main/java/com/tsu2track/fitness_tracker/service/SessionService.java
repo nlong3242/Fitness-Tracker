@@ -263,6 +263,11 @@ public class SessionService {
         applyPendingLogTypes();
     }
 
+    // One of the account's sessions (its summary shows how long it took).
+    public Session findSession(Long sessionId) {
+        return ownedSession(sessionId);
+    }
+
     public List<SessionExercise> findSessionExercises(Long sessionId) {
         ownedSession(sessionId);
         List<SessionExercise> entries = sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);

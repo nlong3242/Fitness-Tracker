@@ -1,6 +1,6 @@
 import { state, findWorkout, clearCurrentSession } from "../state.js";
 import { fetchSessionsPage, deleteSession } from "../api.js";
-import { formatSessionDate, escapeHtml } from "../utils/format.js";
+import { formatSessionDate, formatDuration, escapeHtml } from "../utils/format.js";
 import { clearNavGuard } from "../components/bottomNav.js";
 import { showConfirmModal } from "../components/modals.js";
 import { createMoreButton } from "../components/actionMenu.js";
@@ -42,7 +42,13 @@ export async function viewPastSessions(workoutId, onBack) {
         for (const session of pageData.content) {
             const row = document.createElement("div");
             row.className = "session-row";
-            row.innerHTML = `<span class="session-index">${sessionIndex}.</span> ${formatSessionDate(session.date)}`;
+            // How long it took as the stopwatch read it ("12:11", "1:02:03"),
+            // on the right; none for sessions from before it was recorded.
+            const length = session.durationSeconds != null ? formatDuration(session.durationSeconds) : null;
+            row.innerHTML = `
+                <span class="session-index">${sessionIndex}.</span>
+                <span class="session-date">${formatSessionDate(session.date)}</span>
+                ${length ? `<span class="session-length">${length}</span>` : ""}`;
             row.onclick = function() {
                 viewSessionSummary(workoutId, session.id, session.date, function() { viewPastSessions(workoutId, back); });
             };

@@ -5,10 +5,37 @@
      (.summary-set-header + .summary-set-row + .summary-set-cell)
    - delta badges (.delta.pos / .delta.neg) inline in numbers */
 
+/* The date, and on the right how long the workout took (Start to Finish)
+   as the stopwatch read it. */
+.summary-date-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
 .summary-date {
     font-size: 1.1em;
     color: var(--text-on-bg-muted);
-    margin-bottom: 15px;
+}
+
+/* "Took 1 h 02 min": Start to Finish, under the date (a date is
+   followed by it, so the date gives up its gap). */
+.summary-length {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    font-size: 1.3em;
+    color: var(--text-on-bg);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.summary-length svg {
+    width: 20px;
+    height: 20px;
 }
 
 .summary-stats {

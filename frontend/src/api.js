@@ -247,6 +247,11 @@ export async function fetchUnfinishedSession() {
     return response.status === 204 ? null : response.json();
 }
 
+// One session: { id, workoutId, date, startedAt, finishedAt, durationSeconds, ... }.
+export function fetchSession(sessionId) {
+    return requestJson("GET", `/sessions/${sessionId}`);
+}
+
 export function fetchSessionExercises(sessionId) {
     return requestJson("GET", `/sessions/${sessionId}/exercises`);
 }

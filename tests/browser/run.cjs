@@ -43,8 +43,11 @@ function buildJarIfStale() {
     if (fs.existsSync(JAR) && fs.statSync(JAR).mtimeMs >= sourceTime) return;
     console.log("Building the backend jar (it's missing or older than the source)…");
     const windows = process.platform === "win32";
-    const result = spawnSync(windows ? "mvnw.cmd" : "sh", windows ? ["-q", "-B", "package", "-DskipTests"]
-        : ["mvnw", "-q", "-B", "package", "-DskipTests"], { cwd: BACKEND, stdio: "inherit", shell: windows });
+    // By full path: cmd may be set not to run programs from the current
+    // folder (NoDefaultCurrentDirectoryInExePath). One string, as shell needs.
+    const result = windows
+        ? spawnSync(`"${path.join(BACKEND, "mvnw.cmd")}" -q -B package -DskipTests`, { cwd: BACKEND, stdio: "inherit", shell: true })
+        : spawnSync("sh", ["mvnw", "-q", "-B", "package", "-DskipTests"], { cwd: BACKEND, stdio: "inherit" });
     if (result.status !== 0) throw new Error("Backend build failed.");
 }
 

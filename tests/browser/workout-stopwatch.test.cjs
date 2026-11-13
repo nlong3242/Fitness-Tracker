@@ -99,4 +99,42 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
     const past = await t.api("GET", `/workouts/${workout.id}/sessions`);
     const took = past.content[0].durationSeconds;
     check("the finished session took ~12 min", took >= 12 * MIN + 5 && took <= 12 * MIN + 60, took);
+
+    // 8. The summary shows the workout's time right of the date, as the
+    //    stopwatch read it (12:05 + the seconds the test took)
+    const summaryTime = () => page.waitForSelector("#summary-length .summary-length-time", { timeout: 10000 })
+        .then(el => el.evaluate(e => e.textContent));
+    const length = await summaryTime();
+    check("summary: the workout time 12:xx", /^12:\d\d$/.test(length) && toSec(length) === took, `${length} vs ${took}s`);
+    const side = await page.evaluate(() => {
+        const d = document.querySelector(".summary-date").getBoundingClientRect();
+        const l = document.getElementById("summary-length").getBoundingClientRect();
+        const content = document.getElementById("app-content").getBoundingClientRect();
+        return { sameLine: l.top < d.bottom && l.bottom > d.top, rightOfDate: l.left >= d.right,
+                 atRight: Math.round(content.right - l.right) <= 24, icon: !!document.querySelector("#summary-length svg") };
+    });
+    check("summary: on the date's line, at the right, with the stopwatch icon",
+        side.sameLine && side.rightOfDate && side.atRight && side.icon, JSON.stringify(side));
+    await t.shot("stopwatch-02-summary");
+
+    // 9. Past sessions list it on each row, on the right, without overflow
+    await page.evaluate(id => { location.hash = `#/workouts/${id}/sessions`; }, workout.id);
+    await page.reload({ waitUntil: "domcontentloaded" }); // the app routes on load, not on a hash change
+    const rowLength = await page.waitForSelector(".session-row .session-length", { timeout: 10000 })
+        .then(el => el.evaluate(e => e.textContent));
+    check("past sessions: the same time on the row", rowLength === length, rowLength);
+    const fits = await page.$eval(".session-row", row => {
+        const r = row.getBoundingClientRect();
+        const len = row.querySelector(".session-length").getBoundingClientRect();
+        const more = row.querySelector(".more-btn").getBoundingClientRect();
+        return len.right <= more.left && more.right <= r.right && row.scrollWidth <= row.clientWidth
+            && document.documentElement.scrollWidth <= 390;
+    });
+    check("past sessions: fits beside the ⋮ at 390px", fits);
+    await t.shot("stopwatch-03-past-sessions");
+
+    // 10. Opening that session from the list shows it too
+    await page.click(".session-row .session-date");
+    const again = await summaryTime();
+    check("opened from the list: same time", again === length, again);
 });

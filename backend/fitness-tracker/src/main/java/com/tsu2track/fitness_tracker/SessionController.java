@@ -98,6 +98,12 @@ public class SessionController {
         return sessionService.finishSession(sessionId, orderedIds, body != null ? body.getFinishedAt() : null);
     }
 
+    // 404 for another account's session, as for a missing one.
+    @GetMapping("/sessions/{sessionId}")
+    public Session getSession(@PathVariable Long sessionId) {
+        return sessionService.findSession(sessionId);
+    }
+
     @GetMapping("/sessions/{sessionId}/exercises")
     public List<SessionExercise> getSessionExercises(@PathVariable Long sessionId) {
         return sessionService.findSessionExercises(sessionId);

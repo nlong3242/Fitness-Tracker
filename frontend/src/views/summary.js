@@ -3,9 +3,11 @@ import {
     fetchSessionExercises,
     fetchSessionSets,
     fetchLastSets,
-    fetchPreviousTotals
+    fetchPreviousTotals,
+    fetchSession
 } from "../api.js";
 import { deltaSpan, formatDecimal, formatDuration, formatSessionDate, escapeHtml } from "../utils/format.js";
+import { STOPWATCH_ICON } from "../components/restTimer.js";
 import { logColumns } from "../config.js";
 import { showExerciseReadOnlyModal } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
@@ -128,8 +130,16 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
     const formattedDate = sessionDate ? formatSessionDate(sessionDate) : "";
 
     let exercisesDelta = "", setsDelta = "", repsDelta = "", volumeDelta = "";
+    // How long it took (Start to Finish) as the stopwatch read it, right of
+    // the date once finished; nothing for an older session that didn't
+    // record it, or if it can't be loaded.
+    let lengthText = null;
     if (mode === "final" && sessionId !== null) {
-        const prevTotalsResponse = await fetchPreviousTotals(workout.id, sessionId);
+        const [prevTotalsResponse, session] = await Promise.all([
+            fetchPreviousTotals(workout.id, sessionId),
+            fetchSession(sessionId).catch(() => null)
+        ]);
+        lengthText = session && session.durationSeconds != null ? formatDuration(session.durationSeconds) : null;
         if (prevTotalsResponse.ok) {
             const prev = await prevTotalsResponse.json();
             exercisesDelta = deltaSpan(exercisesCount - prev.exercises);
@@ -156,7 +166,11 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
     target.innerHTML = `
         ${topBackHtml}
         <h2 class="page-title">${headingPrefix} ${escapeHtml(workout.name)}</h2>
-        ${formattedDate ? `<div class="summary-date">${formattedDate}</div>` : ""}
+        ${formattedDate || lengthText ? `
+            <div class="summary-date-row">
+                <div class="summary-date">${formattedDate}</div>
+                ${lengthText ? `<span class="summary-length" id="summary-length" aria-label="Workout time ${lengthText}">${STOPWATCH_ICON}<span class="summary-length-time">${lengthText}</span></span>` : ""}
+            </div>` : ""}
         <div class="summary-stats">
             <div class="stat-box">
                 <div class="stat-label">Exercises</div>

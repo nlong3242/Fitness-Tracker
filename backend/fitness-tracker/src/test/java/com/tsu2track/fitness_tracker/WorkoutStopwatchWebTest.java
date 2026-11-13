@@ -132,6 +132,29 @@ class WorkoutStopwatchWebTest {
         assertThat(Instant.parse(JsonPath.read(json, "$.startedAt"))).isEqualTo(open);
     }
 
+    @Test
+    void oneSessionCanBeReadForItsSummary() throws Exception {
+        Instant tapped = Instant.now().minus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        long id = id(create("{\"startedAt\": \"" + tapped + "\"}"));
+        finish(id, "{\"finishedAt\": \"" + tapped.plus(62, ChronoUnit.MINUTES) + "\"}");
+        mvc.perform(get("/sessions/" + id).header("Authorization", bearer))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(id))
+            .andExpect(jsonPath("$.workoutId").value(workoutId))
+            .andExpect(jsonPath("$.durationSeconds").value(62 * 60));
+
+        // The literal routes still win over /sessions/{id}.
+        mvc.perform(get("/sessions/unfinished").header("Authorization", bearer)).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void anotherAccountsSessionIsNotFound() throws Exception {
+        long id = id(create(null));
+        String other = signup("other@example.com");
+        mvc.perform(get("/sessions/" + id).header("Authorization", other)).andExpect(status().isNotFound());
+        mvc.perform(get("/sessions/999999").header("Authorization", bearer)).andExpect(status().isNotFound());
+    }
+
     // ----- Show it or not (Settings) -----
 
     @Test

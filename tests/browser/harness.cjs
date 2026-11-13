@@ -1,0 +1,153 @@
+/* Shared parts of the browser tests (run with `npm test` in this folder;
+   see run.cjs, which starts the throwaway backend and front end).
+
+   Each test file calls run(async t => { ... }) and gets:
+   - t.page: a 390 × 844 Chrome page (an iPhone-sized screen) whose calls
+     to the backend on :8080 are sent to the throwaway one (API) instead,
+   - t.check(name, ok, detail): one PASS / FAIL line,
+   - t.api(method, path, body): the backend as the test's own account,
+   - helpers below (wait, toSec, shot, startWorkout...).
+
+   A test never talks to :8080: that's the real backend with real data. */
+const fs = require("fs");
+const path = require("path");
+const puppeteer = require("puppeteer-core");
+
+const API = process.env.API;
+const APP = process.env.APP || "http://127.0.0.1:5591/";
+if (!API || /:8080\b/.test(API)) {
+    throw new Error("API must point at a throwaway backend, never :8080. Run the tests with `npm test`.");
+}
+
+const SHOTS = path.resolve(__dirname, "../../test screenshots");
+const INVITE_CODE = "test";
+
+const CHROME_PATHS = [
+    process.env.CHROME,
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/usr/bin/google-chrome"
+].filter(Boolean);
+
+function findChrome() {
+    const found = CHROME_PATHS.find(p => fs.existsSync(p));
+    if (!found) throw new Error("No Chrome or Edge found. Set CHROME to its path.");
+    return found;
+}
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+// "01:30" or "1:30" → 90.
+function toSec(text) {
+    const [m, s] = text.split(":").map(Number);
+    return m * 60 + s;
+}
+
+// The Monday of this week (YYYY-MM-DD), as the app sends it with a profile.
+function monday() {
+    const d = new Date();
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.toLocaleDateString("en-CA");
+}
+
+async function request(method, urlPath, token, body) {
+    const res = await fetch(API + urlPath, {
+        method,
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: body ? JSON.stringify(body) : undefined
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`${method} ${urlPath} → ${res.status} ${text}`);
+    return text ? JSON.parse(text) : null;
+}
+
+/* A new account with a profile, and a workout of `exercises` built-in
+   weight & reps exercises (two-sided ones, so a set is one row). */
+async function seedAccount({ prefix, workoutName, exercises = 1, restSeconds }) {
+    const email = `${prefix}${Date.now()}${Math.floor(Math.random() * 1000)}@test.dev`;
+    const { token } = await request("POST", "/auth/signup", null,
+        { email, password: "password123", inviteCode: INVITE_CODE });
+    await request("PUT", `/profile?weekStart=${monday()}`, token, { name: "Tester", weeklyGoal: 3 });
+    if (restSeconds !== undefined) await request("PUT", "/profile/rest-seconds", token, { seconds: restSeconds });
+    const workout = await request("POST", "/workouts", token, { name: workoutName });
+    const all = await request("GET", "/exercises", token);
+    const usable = all.filter(e => (e.logType || "WEIGHT_REPS") === "WEIGHT_REPS" && !e.unilateral);
+    const picks = [usable.find(e => /bench press/i.test(e.name)) || usable[0],
+        ...usable.filter(e => !/bench press/i.test(e.name))].slice(0, exercises);
+    for (const e of picks) await request("POST", `/workouts/${workout.id}/exercises/${e.id}/link`, token);
+    return { token, workout };
+}
+
+/* Runs one test file: seeds the account, opens the app logged in on
+   `hash`, hands over to body(t), then prints the result and exits.
+   onRequest(req, url) may answer a request itself (e.g. abort it to
+   fake a lost connection) by returning true. */
+function run(seed, hash, body) {
+    let failures = 0;
+    let checks = 0;
+    let onRequest = null;
+    let browser;
+
+    function check(name, ok, detail) {
+        checks++;
+        console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail !== undefined ? `  (${detail})` : ""}`);
+        if (!ok) failures++;
+    }
+
+    (async () => {
+        const { token, workout } = await seedAccount(seed);
+        browser = await puppeteer.launch({ executablePath: findChrome(), headless: true });
+        const page = await browser.newPage();
+        await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
+        await page.setRequestInterception(true);
+        page.on("request", req => {
+            let url = req.url();
+            if (url.startsWith("http://127.0.0.1:8080")) url = url.replace("http://127.0.0.1:8080", API);
+            if (onRequest && onRequest(req, url)) return;
+            req.continue(url !== req.url() ? { url } : undefined);
+        });
+        page.on("pageerror", e => check(`no page error (${e.message})`, false));
+
+        // Log in by token, then load the page fresh so the app starts with it.
+        await page.goto(APP, { waitUntil: "domcontentloaded" });
+        await page.evaluate(t => { localStorage.clear(); localStorage.setItem("fitness.authToken", t); }, token);
+        await page.goto(APP + hash, { waitUntil: "domcontentloaded" });
+        await page.reload({ waitUntil: "domcontentloaded" });
+
+        fs.mkdirSync(SHOTS, { recursive: true });
+        const t = {
+            page,
+            check,
+            workout,
+            api: (method, urlPath, reqBody) => request(method, urlPath, token, reqBody),
+            setOnRequest: fn => { onRequest = fn; },
+            shot: name => page.screenshot({ path: path.join(SHOTS, `${name}.png`) }),
+            // Starts (or resumes) the seeded workout from the Workouts tab.
+            async startWorkout() {
+                const name = workout.name;
+                const selector = `[aria-label="Start ${name}"], [aria-label="Resume ${name}"]`;
+                const tab = await page.waitForSelector('#bottom-nav [data-tab="workouts"]');
+                await tab.click();
+                await page.waitForSelector(selector);
+                await wait(800); // the list draws twice (cache, then server)
+                await page.evaluate(s => document.querySelector(s).click(), selector);
+                // The bar (with ⏱) comes first; the exercise cards once
+                // last time's sets have loaded.
+                await page.waitForSelector("#rest-timer-btn");
+                await page.waitForSelector(".exercise-card.active");
+            }
+        };
+        await body(t);
+    })().catch(e => {
+        console.log(`FAIL  test stopped: ${e.stack || e.message}`);
+        failures++;
+    }).finally(async () => {
+        if (browser) await browser.close().catch(() => {});
+        console.log(failures === 0 ? `\nALL PASS (${checks} checks)` : `\n${failures} FAILED of ${checks}`);
+        process.exit(failures === 0 ? 0 : 1);
+    });
+}
+
+module.exports = { run, wait, toSec, monday, API, APP };

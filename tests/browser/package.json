@@ -1,0 +1,11 @@
+{
+  "name": "fitness-tracker-browser-tests",
+  "private": true,
+  "description": "Browser tests for the front end; see run.cjs.",
+  "scripts": {
+    "test": "node run.cjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "23.11.1"
+  }
+}

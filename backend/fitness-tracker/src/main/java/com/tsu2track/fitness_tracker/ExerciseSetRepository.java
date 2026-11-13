@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +14,12 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
     Optional<ExerciseSet> findByIdAndSession_UserId(Long id, Long userId);
     List<ExerciseSet> findByExercise_IdAndSession_Id(Long exerciseId, Long sessionId);
     List<ExerciseSet> findBySession_Id(Long sessionId);
+    boolean existsBySession_Id(Long sessionId);
+
+    // Reset an exercise's history: its sets in these sessions go.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM ExerciseSet s WHERE s.exercise.id = :exerciseId AND s.session.id IN :sessionIds")
+    int deleteByExerciseInSessions(@Param("exerciseId") Long exerciseId, @Param("sessionIds") List<Long> sessionIds);
 
     // Every set of this exercise in the account's finished sessions, oldest
     // first (by session date, then session, then logging order). Built-in

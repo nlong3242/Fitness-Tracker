@@ -27,6 +27,7 @@ import com.tsu2track.fitness_tracker.ExerciseRepository;
 import com.tsu2track.fitness_tracker.ExerciseSet;
 import com.tsu2track.fitness_tracker.ExerciseSetRepository;
 import com.tsu2track.fitness_tracker.LogType;
+import com.tsu2track.fitness_tracker.ScheduleStatus;
 import com.tsu2track.fitness_tracker.ScheduledWorkout;
 import com.tsu2track.fitness_tracker.ScheduledWorkoutRepository;
 import com.tsu2track.fitness_tracker.Session;
@@ -334,6 +335,65 @@ public class SessionService {
         });
         sessionRepository.delete(session);
         applyPendingLogTypes();
+    }
+
+    // What resetting an exercise would delete: its sets in the account's
+    // finished sessions, and how many sessions they're in.
+    public record HistoryCount(int sets, int sessions) {}
+
+    public HistoryCount countExerciseHistory(Long exerciseId) {
+        List<ExerciseSet> sets = finishedSetsOf(exerciseId);
+        return new HistoryCount(sets.size(), sessionIdsOf(sets).size());
+    }
+
+    /* Reset an exercise: every set of it in the account's finished sessions
+       goes, in every workout, and it leaves those sessions' summaries. A
+       session left with no sets at all goes too, its calendar day back to
+       planned. A workout in progress is left alone, and the exercise stays
+       in the library and in its workouts. A built-in's other accounts keep
+       theirs. */
+    @Transactional
+    public HistoryCount resetExerciseHistory(Long exerciseId) {
+        List<ExerciseSet> sets = finishedSetsOf(exerciseId);
+        List<Long> sessionIds = sessionIdsOf(sets);
+        if (sessionIds.isEmpty()) return new HistoryCount(0, 0);
+        exerciseSetRepository.deleteByExerciseInSessions(exerciseId, sessionIds);
+        sessionExerciseRepository.deleteByExerciseInSessions(exerciseId, sessionIds);
+        for (Long sessionId : sessionIds) {
+            if (exerciseSetRepository.existsBySession_Id(sessionId)) continue;
+            removeEmptiedSession(sessionId);
+        }
+        return new HistoryCount(sets.size(), sessionIds.size());
+    }
+
+    private List<ExerciseSet> finishedSetsOf(Long exerciseId) {
+        Long userId = CurrentUser.id();
+        exerciseRepository.findUsable(exerciseId, userId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+        return exerciseSetRepository.findFinishedSetsOldestFirst(exerciseId, userId);
+    }
+
+    private static List<Long> sessionIdsOf(List<ExerciseSet> sets) {
+        return sets.stream().map(ExerciseSet::getSessionId).distinct().toList();
+    }
+
+    /* A finished session with nothing left in it: gone, and its calendar
+       entry undone. A repeating plan's day goes back to planned. Any other
+       entry goes: finishing a workout that wasn't planned makes a Done entry
+       too (syncCalendarOnFinish), and nothing tells the two apart, so a day
+       planned by hand is left unplanned rather than unplanned days showing
+       up as plans. */
+    private void removeEmptiedSession(Long sessionId) {
+        scheduledWorkoutRepository.findBySession_Id(sessionId).ifPresent(sw -> {
+            if (sw.getRepeatDate() != null) {
+                sw.setSession(null);
+                sw.setStatus(ScheduleStatus.PLANNED);
+                scheduledWorkoutRepository.save(sw);
+            } else {
+                scheduledWorkoutRepository.delete(sw);
+            }
+        });
+        sessionRepository.findById(sessionId).ifPresent(sessionRepository::delete);
     }
 
     // One of the account's sessions (its summary shows how long it took).

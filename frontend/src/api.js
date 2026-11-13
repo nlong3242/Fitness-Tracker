@@ -182,6 +182,16 @@ export async function fetchLastDone(exerciseId, beforeSessionId) {
     return response.json();
 }
 
+// What Reset exercise would delete: { sets, sessions } in finished workouts.
+export function fetchExerciseHistoryCount(exerciseId) {
+    return requestJson("GET", `/exercises/${exerciseId}/history/count`);
+}
+
+// Reset exercise: deletes all of its finished history; answers { sets, sessions }.
+export function resetExerciseHistory(exerciseId) {
+    return requestJson("DELETE", `/exercises/${exerciseId}/history`);
+}
+
 // The workout's exercises become exactly these, in order ("Update the
 // workout" at Finish when nothing was logged, so there's no session).
 export function setWorkoutExerciseList(workoutId, exerciseIds) {

@@ -52,6 +52,19 @@ public class ExerciseSetController {
             .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
+    // What Reset exercise would delete (sets, sessions they're in), for its question.
+    @GetMapping("/exercises/{exerciseId}/history/count")
+    public SessionService.HistoryCount countHistory(@PathVariable Long exerciseId) {
+        return sessionService.countExerciseHistory(exerciseId);
+    }
+
+    // Reset exercise: deletes the account's finished history of it
+    // (SessionService.resetExerciseHistory); answers what went.
+    @DeleteMapping("/exercises/{exerciseId}/history")
+    public SessionService.HistoryCount resetHistory(@PathVariable Long exerciseId) {
+        return sessionService.resetExerciseHistory(exerciseId);
+    }
+
     @PostMapping("/sessions/{sessionId}/sets")
     public ExerciseSet createSet(@RequestBody @Valid CreateSetRequest body, @RequestParam Long exerciseId, @PathVariable Long sessionId) {
         return sessionService.createSet(sessionId, exerciseId, body);

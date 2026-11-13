@@ -14,6 +14,7 @@ import {
     showConfirmModal
 } from "../components/modals.js";
 import { createNotesPanel } from "../components/notesPanel.js";
+import { createMoreButton } from "../components/actionMenu.js";
 import {
     createInputRow,
     updateHeaderVisibility,
@@ -180,10 +181,6 @@ export async function startWorkout(workoutId, options) {
         </div>
         <div id="exercise-cards"></div>
         <div id="preview-summary" style="display:none"></div>
-        <div class="page-actions">
-            <button id="active-workout-finish-btn">Review &amp; Finish</button>
-            <button class="btn-danger" id="active-workout-discard-btn">Discard</button>
-        </div>
     `;
 
     // Leaving is safe now (the resume bar brings you back), so no guard.
@@ -196,7 +193,6 @@ export async function startWorkout(workoutId, options) {
     const previewArea = document.getElementById("preview-summary");
     const pillsRow = document.getElementById("exercise-pills");
     const navRow = document.getElementById("exercise-nav-row");
-    const pageActions = pageContainer.querySelector(".page-actions");
     const navCounter = document.getElementById("exercise-nav-counter");
     const prevBtn = document.getElementById("exercise-nav-prev");
     const nextBtn = document.getElementById("exercise-nav-next");
@@ -227,7 +223,6 @@ export async function startWorkout(workoutId, options) {
             previewArea.style.display = "block";
             pillsRow.style.display = "none";
             navRow.style.display = "none";
-            pageActions.style.display = "none";
             setNavVisible(false);
             await renderWorkoutSummary(workout, state.currentSessionId, state.currentSessionDate, {
                 target: previewArea,
@@ -244,7 +239,6 @@ export async function startWorkout(workoutId, options) {
             previewArea.style.display = "none";
             pillsRow.style.display = "";
             navRow.style.display = "";
-            pageActions.style.display = "";
             setNavVisible(true);
             setRoute(`#/live?exercise=${workout.exercises[currentIndex].id}`);
             for (let i = 0; i < cards.children.length; i++) {
@@ -266,15 +260,21 @@ export async function startWorkout(workoutId, options) {
         if (currentIndex < workout.exercises.length) setActive(currentIndex + 1);
     };
 
-    document.getElementById("active-workout-finish-btn").onclick = function() {
-        setActive(workout.exercises.length);
-    };
+    // Review is reached with Next on the last exercise; Discard lives in
+    // the ⋮ on the title line.
+    pageContainer.querySelector(".workout-title-row").appendChild(
+        createMoreButton("Workout options", function() {
+            return [{ label: "Discard workout", danger: true, onSelect: discardWorkout }];
+        }));
 
-    document.getElementById("active-workout-discard-btn").onclick = async function() {
-        if (state.currentSessionId !== null) {
-            const confirmed = await showConfirmModal(
-                "Discard this workout? The sets you logged are deleted.", "Discard");
-            if (!confirmed) return;
+    // Red menu items always ask first, even before any set is logged.
+    async function discardWorkout() {
+        const hasSets = state.currentSessionId !== null;
+        const confirmed = await showConfirmModal(hasSets
+            ? "Discard this workout? The sets you logged are deleted."
+            : "Discard this workout?", "Discard");
+        if (!confirmed) return;
+        if (hasSets) {
             try {
                 await abandonSession();
             } catch (e) {
@@ -286,7 +286,7 @@ export async function startWorkout(workoutId, options) {
         clearDrafts();
         stopRest();
         onComplete();
-    };
+    }
 
     /* Handle a pill drag-to-reorder. The helper leaves the dragged pill in
        its original DOM position (just snaps the position:fixed lift back),

@@ -25,6 +25,12 @@
     white-space: nowrap;
 }
 
+/* The workout's ⋮ (Discard), after the stopwatch. */
+.workout-title-row .more-btn {
+    align-self: center;
+    flex-shrink: 0;
+}
+
 .workout-stopwatch[hidden] {
     display: none;
 }

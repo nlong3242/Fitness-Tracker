@@ -228,7 +228,10 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     // 13. Discard stops it
     await t.startWorkout();
     await clickChip(90);
-    await page.click("#active-workout-discard-btn");
+    await page.click(".workout-title-row .more-btn");
+    await page.click(".action-menu-item.danger");
+    await page.waitForSelector(".modal-confirm");
+    await page.click(".modal-confirm");
     await wait(500);
     check("Discard clears the timer", (await ls("restTimerEndsAt")) === null);
     await wait(400);

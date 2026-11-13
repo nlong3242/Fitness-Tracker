@@ -24,10 +24,11 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
     const place = await page.evaluate(() => {
         const h = document.querySelector(".workout-title-row h2").getBoundingClientRect();
         const w = document.getElementById("workout-stopwatch").getBoundingClientRect();
-        const content = document.getElementById("app-content").getBoundingClientRect();
-        return { sameLine: w.top < h.bottom && w.bottom > h.top, right: Math.round(content.right - w.right), left: Math.round(w.left - h.right) };
+        // Only the workout's ⋮ sits to its right.
+        const more = document.querySelector(".workout-title-row .more-btn").getBoundingClientRect();
+        return { sameLine: w.top < h.bottom && w.bottom > h.top, right: Math.round(more.left - w.right), left: Math.round(w.left - h.right) };
     });
-    check("on the same line as the name, at the right", place.sameLine && place.left >= 0 && place.right <= 24, JSON.stringify(place));
+    check("on the same line as the name, at the right (before the ⋮)", place.sameLine && place.left >= 0 && place.right >= 0 && place.right <= 24, JSON.stringify(place));
     await wait(2200);
     check("it counts", (await watchSec()) >= 2);
     await t.shot("stopwatch-01-live");
@@ -89,8 +90,11 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
     check("turned back on: shows", (await watch()) !== null);
 
     // 7. Finishing records how long it took
-    await page.click("#active-workout-finish-btn");
-    await page.waitForSelector("#summary-finish-btn");
+    // Next past the last exercise opens the review.
+    while (!(await page.$("#summary-finish-btn"))) {
+        await page.click("#exercise-nav-next");
+        await wait(400);
+    }
     // POST only: the browser's CORS check (OPTIONS) answers first.
     const finished = page.waitForResponse(r =>
         r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });

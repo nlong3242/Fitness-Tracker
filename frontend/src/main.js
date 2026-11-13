@@ -7,6 +7,7 @@ import { showProfileSetup } from "./views/profile.js";
 import { renderHomePage } from "./views/home.js";
 import { restoreRoute } from "./router.js";
 import { initLiveWorkout } from "./components/liveWorkout.js";
+import { initRestTimer } from "./components/restTimer.js";
 import { startIdleWatch } from "./autoEnd.js";
 import { keepCaretAtEnd } from "./utils/caretAtEnd.js";
 
@@ -84,6 +85,7 @@ async function bootstrap() {
     await restoreInProgressSession();
     renderBottomNav();
     initLiveWorkout();
+    initRestTimer();
     await restoreRoute();
     // Home shows the name and weekly goal: draw it again once they exist.
     if (needsProfile) showProfileSetup(function() { if (document.getElementById("home-greeting")) renderHomePage(); });

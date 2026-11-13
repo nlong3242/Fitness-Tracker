@@ -27,6 +27,7 @@ import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
 import { setRoute } from "../router.js";
 import { escapeHtml } from "../utils/format.js";
+import { mountRestTimer, closeRestPanel, stopRest } from "../components/restTimer.js";
 
 /* One exercise visible at a time. The full set of .exercise-card divs is
    built upfront and inserted into #exercise-cards; only the one with the
@@ -195,6 +196,7 @@ export async function startWorkout(workoutId, options) {
     const navCounter = document.getElementById("exercise-nav-counter");
     const prevBtn = document.getElementById("exercise-nav-prev");
     const nextBtn = document.getElementById("exercise-nav-next");
+    mountRestTimer(navRow, navCounter);
 
     /* currentIndex semantics:
          0 .. workout.exercises.length - 1  → an exercise is visible
@@ -208,6 +210,7 @@ export async function startWorkout(workoutId, options) {
     async function setActive(newIndex) {
         currentIndex = newIndex;
         const total = workout.exercises.length;
+        closeRestPanel();
 
         // Pills active state — none active during preview.
         for (let i = 0; i < pillsRow.children.length; i++) {
@@ -276,6 +279,7 @@ export async function startWorkout(workoutId, options) {
         }
         clearStartedWorkout();
         clearDrafts();
+        stopRest();
         onComplete();
     };
 
@@ -440,6 +444,7 @@ export async function startWorkout(workoutId, options) {
         if (state.currentSessionId === null) {
             clearStartedWorkout();
             clearDrafts();
+            stopRest();
             setNavVisible(true);
             onComplete();
             return;
@@ -455,6 +460,7 @@ export async function startWorkout(workoutId, options) {
         }
         clearCurrentSession();
         clearDrafts();
+        stopRest();
         setNavVisible(true);
         await syncCalendarOnFinish(workout.id, sessionId, sessionDate, scheduledWorkoutId);
         setRoute(sessionSummaryRoute(workout.id, sessionId, sessionDate));

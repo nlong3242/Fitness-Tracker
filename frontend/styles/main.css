@@ -24,6 +24,7 @@
 @import url("./components/exercise-overview.css");
 @import url("./components/action-menu.css");
 @import url("./components/line-chart.css");
+@import url("./components/rest-timer.css");
 
 /* 5. Pages — view-specific styling owned by frontend/src/views/. */
 @import url("./pages/auth.css");

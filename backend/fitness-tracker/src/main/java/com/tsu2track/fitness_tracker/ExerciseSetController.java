@@ -2,6 +2,7 @@ package com.tsu2track.fitness_tracker;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +38,18 @@ public class ExerciseSetController {
         @RequestParam(required = false) Long beforeSessionId
     ) {
         return sessionService.findLastSets(workoutId, exerciseId, beforeSessionId);
+    }
+
+    // The last time the exercise was done in any workout (sets, date, the
+    // workout's name); 204 if never.
+    @GetMapping("/exercises/{exerciseId}/last-done")
+    public ResponseEntity<SessionService.LastDone> getLastDone(
+        @PathVariable Long exerciseId,
+        @RequestParam(required = false) Long beforeSessionId
+    ) {
+        return sessionService.findLastDone(exerciseId, beforeSessionId)
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping("/sessions/{sessionId}/sets")

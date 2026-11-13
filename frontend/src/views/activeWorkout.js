@@ -9,6 +9,7 @@ import {
     createSchedule,
     saveRepeatDay,
     setWorkoutExerciseList,
+    fetchLastDone,
     fetchExercise,
     deleteSet,
     ApiError
@@ -141,6 +142,15 @@ async function prepareStart(workoutId, options) {
             button.disabled = false;
         }
     }
+}
+
+// "3 Nov", or "3 Nov 2025" in another year.
+function shortDate(iso) {
+    const date = new Date(iso + "T00:00:00");
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    return date.toLocaleDateString("en-GB", sameYear
+        ? { day: "numeric", month: "short" }
+        : { day: "numeric", month: "short", year: "numeric" });
 }
 
 /* Today's list in order: the workout's own exercises where they're still in
@@ -485,12 +495,20 @@ export async function startWorkout(workoutId, options) {
             fetchLastSets(workout.id, ex.id, resumeSessionId ?? undefined))),
         resumeSessionId !== null ? fetchSessionSets(resumeSessionId) : Promise.resolve([])
     ]);
+    // Never done in this workout (added or swapped in today, or new to it):
+    // the hints come from the last time it was done in any workout, and the
+    // card says where. A failure here just means no hints.
+    const lastDoneElsewhere = await Promise.all(workout.exercises.map((ex, i) =>
+        lastSetsByExercise[i].length > 0
+            ? null
+            : fetchLastDone(ex.id, resumeSessionId ?? undefined).catch(() => null)));
 
     for (let i = 0; i < workout.exercises.length; i++) {
         const exercise = workout.exercises[i];
         const isUnilateral = exercise.unilateral === true;
 
-        exercise.previousSets = lastSetsByExercise[i];
+        const elsewhere = lastDoneElsewhere[i];
+        exercise.previousSets = elsewhere ? elsewhere.sets : lastSetsByExercise[i];
         if (isUnilateral) {
             exercise.previousLSets = exercise.previousSets.filter(s => s.side === "LEFT");
             exercise.previousRSets = exercise.previousSets.filter(s => s.side === "RIGHT");
@@ -529,6 +547,13 @@ export async function startWorkout(workoutId, options) {
         };
         card.querySelector(".exercise-card-head").appendChild(
             createMoreButton(`Options for ${exercise.name}`, function() { return exerciseMenu(exercise); }));
+        // The hints aren't from this workout: say where they're from.
+        if (elsewhere) {
+            const note = document.createElement("p");
+            note.className = "last-done-note";
+            note.textContent = `Last time: from ${elsewhere.workoutName || "another workout"}, ${shortDate(elsewhere.date)}`;
+            card.querySelector(".exercise-card-head").after(note);
+        }
 
         const addSetBtn = document.createElement("button");
         addSetBtn.className = "add-set-btn";

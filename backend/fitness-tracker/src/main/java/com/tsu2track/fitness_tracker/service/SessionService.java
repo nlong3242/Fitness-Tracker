@@ -411,6 +411,32 @@ public class SessionService {
             workoutId, exerciseId, exercise.get().getLogType(), beforeSessionId, beforeDate);
     }
 
+    /* The sets of the last time the exercise was done in any workout, and
+       where: for an exercise with no history in the workout being done
+       (added, or swapped in), so the live workout still has "last time"
+       hints and can say they come from elsewhere. Empty if never done (or
+       never as its current type). beforeSessionId: as in findLastSets. */
+    @Transactional(readOnly = true)
+    public Optional<LastDone> findLastDone(Long exerciseId, Long beforeSessionId) {
+        Optional<Exercise> exercise = exerciseRepository.findUsable(exerciseId, CurrentUser.id());
+        if (exercise.isEmpty()) return Optional.empty();
+        LocalDate beforeDate = null;
+        if (beforeSessionId != null) {
+            Optional<Session> anchor = sessionRepository.findByIdAndUserId(beforeSessionId, CurrentUser.id());
+            if (anchor.isEmpty()) return Optional.empty();
+            beforeDate = anchor.get().getDate();
+        }
+        List<ExerciseSet> sets = exerciseSetRepository.findLastSetsInAnyWorkout(
+            CurrentUser.id(), exerciseId, exercise.get().getLogType(), beforeSessionId, beforeDate);
+        if (sets.isEmpty()) return Optional.empty();
+        Session session = sets.get(0).getSession();
+        Workout workout = session.getWorkout();
+        return Optional.of(new LastDone(session.getId(), session.getDate(),
+            workout != null ? workout.getId() : null, workout != null ? workout.getName() : null, sets));
+    }
+
+    public record LastDone(Long sessionId, LocalDate date, Long workoutId, String workoutName, List<ExerciseSet> sets) {}
+
     public ExerciseSet createSet(Long sessionId, Long exerciseId, CreateSetRequest req) {
         Optional<Session> session = sessionRepository.findByIdAndUserId(sessionId, CurrentUser.id());
         Optional<Exercise> exercise = exerciseRepository.findUsable(exerciseId, CurrentUser.id());

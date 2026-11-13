@@ -55,4 +55,32 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
         @Param("beforeSessionId") Long beforeSessionId,
         @Param("beforeDate") LocalDate beforeDate
     );
+
+    // The same, but from the account's last finished session of the
+    // exercise in any workout (the session comes with each set).
+    @Query("""
+        SELECT s FROM ExerciseSet s JOIN FETCH s.session ses
+        WHERE s.exercise.id = :exerciseId
+          AND s.logType = :logType
+          AND ses.id = (
+            SELECT s2.session.id FROM ExerciseSet s2
+            WHERE s2.exercise.id = :exerciseId
+              AND s2.logType = :logType
+              AND s2.session.userId = :userId
+              AND s2.session.finished = true
+              AND (:beforeSessionId IS NULL
+                   OR s2.session.date < :beforeDate
+                   OR (s2.session.date = :beforeDate AND s2.session.id < :beforeSessionId))
+            ORDER BY s2.session.date DESC, s2.session.id DESC
+            LIMIT 1
+          )
+        ORDER BY s.id
+        """)
+    List<ExerciseSet> findLastSetsInAnyWorkout(
+        @Param("userId") Long userId,
+        @Param("exerciseId") Long exerciseId,
+        @Param("logType") LogType logType,
+        @Param("beforeSessionId") Long beforeSessionId,
+        @Param("beforeDate") LocalDate beforeDate
+    );
 }

@@ -205,6 +205,19 @@
     overflow-wrap: anywhere;
 }
 
+/* "Last time: from Push, 3 Nov" under the name: the hints in the set rows
+   come from another workout, not this one. Pink box, like the library's
+   "Showing your Custom exercises only." (.custom-only-note). */
+.last-done-note {
+    margin: -4px 0 12px;
+    padding: 6px 10px;
+    background-color: var(--accent-pink-light);
+    border: 2px solid var(--accent-pink-shade);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-size: 1em;
+}
+
 .exercise-card-head .more-btn {
     flex-shrink: 0;
     margin-top: -8px;

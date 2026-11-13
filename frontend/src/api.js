@@ -172,6 +172,16 @@ export function reorderWorkoutExercises(workoutId, orderedExerciseIds) {
     return request("PATCH", `/workouts/${workoutId}/exercises/order`, { orderedExerciseIds });
 }
 
+/* The last time an exercise was done in any workout:
+   { sessionId, date, workoutId, workoutName, sets }, or null if never. */
+export async function fetchLastDone(exerciseId, beforeSessionId) {
+    const query = beforeSessionId ? `?beforeSessionId=${beforeSessionId}` : "";
+    const response = await request("GET", `/exercises/${exerciseId}/last-done${query}`);
+    if (response.status === 204) return null;
+    if (!response.ok) throw new ApiError(response);
+    return response.json();
+}
+
 // The workout's exercises become exactly these, in order ("Update the
 // workout" at Finish when nothing was logged, so there's no session).
 export function setWorkoutExerciseList(workoutId, exerciseIds) {

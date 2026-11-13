@@ -70,6 +70,51 @@ run({ prefix: "wbuttons", workoutName: "Buttons Test" }, "#/workouts", async t =
         await wait(400);
     }
     check("Next on the last exercise opens the review", (await page.$("#summary-finish-btn")) !== null);
+
+    // The review's Finish Workout: the picker's pink bar, floating at the
+    // bottom on a strip painted like the page itself (grid lined up), so
+    // it looks like empty page but hides what scrolls under it
+    await wait(300);
+    const bar = await page.evaluate(() => {
+        const f = document.querySelector(".summary-finish-footer");
+        const b = f && f.querySelector(".summary-finish-bar");
+        if (!b) return null;
+        const fr = f.getBoundingClientRect();
+        const r = b.getBoundingClientRect();
+        const fs = getComputedStyle(f), bs = getComputedStyle(document.body);
+        const [px, py] = fs.backgroundPosition.split(" ").map(parseFloat);
+        const mod = v => ((Math.round(v) % 28) + 28) % 28;
+        return { position: fs.position, stripToEdge: Math.round(window.innerHeight - fr.bottom),
+            stripWidth: Math.round(fr.width),
+            pageColour: fs.backgroundColor === bs.backgroundColor, pageGrid: fs.backgroundImage === bs.backgroundImage,
+            noBorder: fs.borderTopWidth === "0px",
+            gridOffset: [mod(fr.left + px), mod(fr.top + py)],
+            barHeight: Math.round(r.height), barWidth: Math.round(r.width), hasButton: !!b.querySelector("#summary-finish-btn") };
+    });
+    check("Finish floats on a strip down to the bottom edge",
+        bar && bar.position === "fixed" && bar.stripToEdge === 0 && bar.stripWidth === 390, JSON.stringify(bar));
+    check("the strip looks like the page: same colour and grid, no border",
+        bar && bar.pageColour && bar.pageGrid && bar.noBorder, JSON.stringify(bar));
+    check("the strip's grid lines meet the page's", bar && bar.gridOffset[0] === 0 && bar.gridOffset[1] === 0, JSON.stringify(bar));
+    check("the strip starts at the button's top edge, no gap above",
+        await page.evaluate(() => Math.round(document.querySelector(".summary-finish-bar").getBoundingClientRect().top)
+            === Math.round(document.querySelector(".summary-finish-footer").getBoundingClientRect().top)));
+    check("the button is the wide 58 px+ bar", bar && bar.barHeight >= 58 && bar.barWidth >= 350 && bar.hasButton, JSON.stringify(bar));
+    // Content scrolled under the strip is hidden, above and below the button
+    const covered = await page.evaluate(() => {
+        const f = document.querySelector(".summary-finish-footer").getBoundingClientRect();
+        const b = document.querySelector(".summary-finish-bar").getBoundingClientRect();
+        const at = y => document.elementFromPoint(window.innerWidth / 2, y);
+        return [f.top + 4, b.bottom + 10].every(y => at(y).closest(".summary-finish-footer"));
+    });
+    check("nothing shows through above or below the button", covered);
+    const barTop = () => page.$eval("#summary-finish-btn", b => Math.round(b.getBoundingClientRect().top));
+    const topBefore = await barTop();
+    await page.evaluate(() => document.getElementById("app-scroll").scrollBy(0, 400));
+    await wait(200);
+    const topAfter = await barTop();
+    check("it stays put when the page scrolls", topBefore === topAfter, `${topBefore} → ${topAfter}`);
+    await t.shot("workout-buttons-05-finish-bar");
     // Back to the exercise, then Discard for real
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector(".exercise-card.active");

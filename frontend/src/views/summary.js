@@ -87,6 +87,18 @@ function setRowHtml(label, columns, set, prev) {
     `;
 }
 
+/* The review's Finish strip is painted with the page's grid; shift its
+   grid so the lines meet the page's (whose grid starts at the screen's
+   top left) and it looks like empty page. Again when the screen changes
+   size (rotation, the iOS toolbar). */
+function alignFinishStrip() {
+    const strip = document.querySelector(".summary-finish-footer");
+    if (!strip) return;
+    const rect = strip.getBoundingClientRect();
+    strip.style.backgroundPosition = `${-rect.left}px ${-rect.top}px`;
+}
+window.addEventListener("resize", alignFinishStrip);
+
 export function sessionSummaryRoute(workoutId, sessionId, sessionDate) {
     return `#/workouts/${workoutId}/sessions/${sessionId}?date=${sessionDate}`;
 }
@@ -150,10 +162,14 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
         }
     }
 
+    // Fixed at the bottom, in reach wherever the review is scrolled: the
+    // picker's pink Add bar, on a solid strip the page scrolls under.
     const actionsHtml = mode === "preview"
         ? `
-            <div class="page-actions">
-                <button id="summary-finish-btn">Finish Workout</button>
+            <div class="summary-finish-footer">
+                <div class="summary-finish-bar">
+                    <button id="summary-finish-btn">Finish Workout</button>
+                </div>
             </div>
         `
         : "";
@@ -195,6 +211,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
     `;
 
     if (mode === "preview") {
+        alignFinishStrip();
         target.querySelector("#summary-finish-btn").onclick = onFinish;
         const topBack = target.querySelector("#summary-top-back-btn");
         if (topBack) topBack.onclick = onBack;

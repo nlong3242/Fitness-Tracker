@@ -147,6 +147,70 @@
     margin-bottom: 10px;
 }
 
+/* The review's Finish Workout floats at the bottom, in reach wherever the
+   page is scrolled: the same pink bar as the exercise picker's Add button
+   (.picker-action-bar). The strip it sits on is painted with the page's
+   own background (body, elements.css), its grid lined up with the one
+   behind it (summary.js alignFinishStrip), so it looks like empty page
+   while hiding whatever scrolls under it. The tab bar is hidden here. */
+.summary-finish-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    /* No room above the bar: content is cut right at its top border. */
+    padding: 0 max(16px, env(safe-area-inset-right))
+             calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background-color: var(--bg);
+    background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    box-sizing: border-box;
+}
+
+.summary-finish-footer .summary-finish-bar {
+    max-width: 468px;
+    margin: 0 auto;
+}
+
+.summary-finish-bar {
+    display: flex;
+    min-height: 58px;
+    background-color: var(--accent-pink);
+    border: 2px solid var(--frame);
+    border-radius: 3px;
+    box-shadow:
+        inset -2px -2px 0 var(--accent-pink-shade),
+        inset 2px 2px 0 var(--accent-pink-light),
+        0 3px 0 var(--frame),
+        0 6px 14px var(--shadow-hard);
+    overflow: hidden;
+}
+
+/* Flat inside; the bar carries the frame and bevel. */
+.summary-finish-bar button {
+    flex: 1;
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--text-primary);
+    padding: 12px;
+    font-size: 1.2em;
+    transform: none;
+}
+
+.summary-finish-bar button:active {
+    background-color: var(--accent-pink-hover);
+}
+
+/* Room for the last card to scroll up clear of the bar. */
+#app-content:has(.summary-finish-footer) {
+    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+}
+
 /* "Compared with Push Day, 14 Nov": the arrows compare with another
    workout (pink box from active-workout.css's .last-done-note). */
 .summary-exercise-card .last-done-note {

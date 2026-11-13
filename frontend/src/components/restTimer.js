@@ -366,8 +366,9 @@ function placePopup() {
 
 function popupBottom() {
     let top = window.innerHeight;
-    for (const id of ["bottom-nav", "exercise-nav-row", "rest-timer-panel"]) {
-        const el = document.getElementById(id);
+    // The review's Finish strip counts too (the tab bar is hidden there).
+    for (const selector of ["#bottom-nav", "#exercise-nav-row", "#rest-timer-panel", ".summary-finish-footer"]) {
+        const el = document.querySelector(selector);
         if (!el) continue;
         const rect = el.getBoundingClientRect();
         if (rect.height > 0) top = Math.min(top, rect.top);

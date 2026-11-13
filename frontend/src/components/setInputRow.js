@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { createSet, updateSet, deleteSet } from "../api.js";
+import { startRest } from "./restTimer.js";
 import { ensureCurrentSession, maybeCleanupOrphanSession, touchActivity } from "../session.js";
 import { saveExerciseDrafts } from "../drafts.js";
 import { logColumns } from "../config.js";
@@ -341,6 +342,10 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
                 row._savedSet = await createSet(state.currentSessionId, exercise.id, body);
                 exercise.sets.push(row._savedSet);
                 row.classList.add("saved");
+                // A set just logged: rest starts with my time, in the bar's
+                // small ring (the big one only opens when it's tapped).
+                // Editing a saved set doesn't restart it.
+                startRest();
             }
             clearFailed();
             refreshKmBox();

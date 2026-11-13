@@ -12,17 +12,26 @@
      small one is tapped.
    - The rings empty as the rest runs down. Their full length is the rest's
      length, − / + included.
-   - A quick time starts rest at once and becomes "my time", which logging
-     a set starts with (startRest() with no argument).
+   - "My time" is the rest time set in Settings, saved with the account
+     (profile.restSeconds; 3:00 until set). Logging a set starts rest with
+     it (startRest() with no argument). A quick time starts this one rest
+     only; it doesn't change my time.
    - When rest is over, a pop-up in the top-right corner says so on whatever
      page is showing. It goes after 10 s, or at once when tapped. */
 
+import { state } from "../state.js";
+
 const ENDS_AT_KEY = "restTimerEndsAt";
 const TOTAL_KEY = "restTimerTotal";
-const SECONDS_KEY = "restTimerSeconds";
-const QUICK_TIMES = [30, 45, 60, 90, 120, 180, 240, 300];
-const DEFAULT_SECONDS = 120;
-const STEP_SECONDS = 15;
+// The account's rest time as last seen, for when the profile couldn't be
+// loaded (offline start). The old key held the last quick time picked.
+const SECONDS_KEY = "restTimerMySeconds";
+const OLD_SECONDS_KEY = "restTimerSeconds";
+export const QUICK_TIMES = [30, 45, 60, 90, 120, 180, 240, 300];
+export const DEFAULT_REST_SECONDS = 180;
+export const MIN_REST_SECONDS = 15;
+export const MAX_REST_SECONDS = 600;
+export const STEP_SECONDS = 15;
 const POPUP_MS = 10000;
 // A rest that ran out while the app was closed still gets its pop-up when
 // the app comes back soon after; much later it's no news, so it's dropped.
@@ -52,10 +61,14 @@ function write(key, value) {
     } catch (e) { /* the timer still runs for this visit */ }
 }
 
-// "My time": the quick time picked last.
+// "My time": the account's rest time from Settings.
 export function getRestSeconds() {
-    const saved = readNumber(SECONDS_KEY);
-    return saved !== null && QUICK_TIMES.includes(saved) ? saved : DEFAULT_SECONDS;
+    const fromProfile = state.profile && state.profile.restSeconds;
+    if (fromProfile) {
+        if (readNumber(SECONDS_KEY) !== fromProfile) write(SECONDS_KEY, fromProfile);
+        return fromProfile;
+    }
+    return readNumber(SECONDS_KEY) || DEFAULT_REST_SECONDS;
 }
 
 export function isResting() {
@@ -89,9 +102,8 @@ function formatClock(seconds) {
 }
 
 /* Starts (or restarts) rest. With no argument it uses my time; a number is
-   a quick time picked now and becomes my time. */
+   a quick time picked for this rest only. */
 export function startRest(seconds) {
-    if (seconds !== undefined) write(SECONDS_KEY, seconds);
     const length = seconds !== undefined ? seconds : getRestSeconds();
     totalMs = length * 1000;
     endsAt = Date.now() + totalMs;
@@ -147,6 +159,7 @@ function tick() {
    a cold start, and catches one that ran out while the app was hidden
    (iOS pauses timers in the background). */
 export function initRestTimer() {
+    write(OLD_SECONDS_KEY, null);
     const saved = readNumber(ENDS_AT_KEY);
     if (saved !== null) {
         endsAt = saved;

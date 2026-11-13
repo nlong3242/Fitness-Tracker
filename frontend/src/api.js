@@ -83,6 +83,11 @@ export async function saveProfile(profile, weekStart) {
     return { ok: response.ok, status: response.status, data };
 }
 
+// The rest timer's length (Settings), 15–600 s. Answers the whole profile.
+export function saveRestSeconds(seconds) {
+    return requestJson("PUT", "/profile/rest-seconds", { seconds });
+}
+
 // { id, email } of the logged-in account.
 export function fetchMe() {
     return requestJson("GET", "/auth/me");

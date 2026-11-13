@@ -3,7 +3,7 @@ import { fetchExercise } from "./api.js";
 import { setActiveTab, highlightTab } from "./components/bottomNav.js";
 import { liveWorkout } from "./components/liveWorkout.js";
 import { renderBodyWeightPage } from "./views/bodyweight.js";
-import { renderSettingsPage, renderChangePasswordPage } from "./views/settings.js";
+import { renderSettingsPage, renderChangePasswordPage, renderRestTimerPage } from "./views/settings.js";
 import { renderProfilePage } from "./views/profile.js";
 import { startWorkout } from "./views/activeWorkout.js";
 import { viewWorkout } from "./views/workoutDetail.js";
@@ -21,7 +21,7 @@ import { renderExerciseEditPage } from "./views/exerciseEdit.js";
 
      #/home                                  #/bodyweight
      #/settings                              #/settings/password
-     #/settings/profile
+     #/settings/profile                      #/settings/rest
      #/workouts                              #/workouts/12
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
      #/workouts/12/exercises/7               #/workouts/12/exercises/7/history (/edit)
@@ -99,6 +99,7 @@ async function openRoute(parts, params) {
         case "settings":
             highlightTab("home");
             if (parts[1] === "password") renderChangePasswordPage();
+            else if (parts[1] === "rest") renderRestTimerPage();
             else if (parts[1] === "profile") await renderProfilePage();
             else await renderSettingsPage();
             return true;

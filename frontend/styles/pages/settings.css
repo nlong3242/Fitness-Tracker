@@ -55,3 +55,47 @@
 .settings-name[hidden] {
     display: none;
 }
+
+/* Rest timer page: − time + on top, the rest timer's 8 quick times
+   (components/rest-timer.css) under it, a "Saved" line last. */
+.settings-hint {
+    color: var(--text-on-bg-muted);
+    font-size: 0.95em;
+    margin: -8px 0 0;
+}
+
+.rest-settings-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    margin: 6px 0 14px;
+}
+
+.rest-settings-step {
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    font-size: 1.8em;
+    line-height: 1;
+}
+
+.rest-settings-value {
+    text-align: center;
+    font-size: 2.6em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+}
+
+.rest-settings-status {
+    display: block;
+    min-height: 1.2em;
+    margin-top: 10px;
+    color: var(--action-text);
+    font-size: 0.95em;
+}
+
+.rest-settings-status.error {
+    color: var(--danger);
+}

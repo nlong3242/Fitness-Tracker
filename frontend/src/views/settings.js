@@ -1,13 +1,16 @@
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
 import { showConfirmModal } from "../components/modals.js";
 import { setRoute } from "../router.js";
-import { fetchMe, logout, logoutEverywhere, changePassword } from "../api.js";
+import { fetchMe, logout, logoutEverywhere, changePassword, saveRestSeconds } from "../api.js";
+import {
+    getRestSeconds, formatRest, QUICK_TIMES, STEP_SECONDS, MIN_REST_SECONDS, MAX_REST_SECONDS
+} from "../components/restTimer.js";
 import { clearToken } from "../auth.js";
 import { state } from "../state.js";
 import { renderProfilePage } from "./profile.js";
 
-/* Settings — opened from the gear on Home: who's logged in, Profile,
-   Change password, Log out, and Log out everywhere. */
+/* Settings — opened from the gear on Home: who's logged in, Profile, Rest
+   timer, Change password, Log out, and Log out everywhere. */
 
 // Kept on this device for whoever is logged in; the next account mustn't
 // inherit them (see router.js, drafts.js, session.js).
@@ -31,6 +34,7 @@ export async function renderSettingsPage(notice = "") {
         </div>
         <div class="settings-actions">
             <button class="btn-secondary" id="settings-profile-btn">Profile</button>
+            <button class="btn-secondary" id="settings-rest-btn">Rest timer</button>
             <button class="btn-secondary" id="settings-password-btn">Change password</button>
             <button class="btn-danger" id="settings-logout-btn">Log out</button>
             <button class="btn-danger" id="settings-logout-all-btn">Log out everywhere</button>
@@ -47,6 +51,7 @@ export async function renderSettingsPage(notice = "") {
     document.getElementById("settings-password-btn").onclick = function() { renderChangePasswordPage(); };
     document.getElementById("settings-logout-btn").onclick = logOut;
     document.getElementById("settings-logout-all-btn").onclick = logOutEverywhere;
+    document.getElementById("settings-rest-btn").onclick = function() { renderRestTimerPage(); };
 
     try {
         const me = await fetchMe();
@@ -56,6 +61,108 @@ export async function renderSettingsPage(notice = "") {
         const email = document.getElementById("settings-email");
         if (email) email.textContent = "Unavailable";
     }
+}
+
+/* Rest timer page (Settings → Rest timer): the rest between sets, saved
+   with the account. The 8 quick times pick one; − / + adjust it in 15 s
+   steps (0:15 to 10:00). Each change shows at once and saves shortly after
+   the last tap, so tapping + four times is one save. Needs the profile it's
+   saved on; if that couldn't be loaded (offline start), it says so. */
+const REST_SAVE_DELAY_MS = 600;
+
+export function renderRestTimerPage() {
+    clearNavGuard();
+    setRoute("#/settings/rest");
+    const container = document.getElementById("app-content");
+    container.innerHTML = `
+        <div class="page-actions page-top">
+            <button class="btn-secondary" id="rest-back-btn">Back</button>
+        </div>
+        <h2 class="page-title">Rest timer</h2>
+        <div class="settings-panel rest-settings" id="rest-settings">
+            <span class="settings-label">Rest between sets</span>
+            <div class="rest-settings-row">
+                <button type="button" class="btn-secondary rest-settings-step" id="rest-settings-minus"
+                        aria-label="15 seconds less">−</button>
+                <span class="rest-settings-value" id="rest-settings-value" aria-live="polite"></span>
+                <button type="button" class="btn-secondary rest-settings-step" id="rest-settings-plus"
+                        aria-label="15 seconds more">+</button>
+            </div>
+            <div class="rest-timer-chips" id="rest-settings-chips"></div>
+            <span class="rest-settings-status" id="rest-settings-status" role="status"></span>
+        </div>
+        <p class="settings-hint">Logging a set starts a rest this long. A quick time in the
+            workout's timer changes just that rest.</p>
+    `;
+    document.getElementById("rest-back-btn").onclick = function() { renderSettingsPage(); };
+    if (!state.profile) {
+        document.getElementById("rest-settings").innerHTML =
+            `<span class="rest-settings-status error">Couldn't load your settings. Check your connection and try again.</span>`;
+        return;
+    }
+    setUpRestSettings();
+}
+
+function setUpRestSettings() {
+    const value = document.getElementById("rest-settings-value");
+    const minus = document.getElementById("rest-settings-minus");
+    const plus = document.getElementById("rest-settings-plus");
+    const chips = document.getElementById("rest-settings-chips");
+    const status = document.getElementById("rest-settings-status");
+
+    let saved = getRestSeconds();
+    let shown = saved;
+    let timer = null;
+
+    chips.innerHTML = QUICK_TIMES.map(s => `
+        <button type="button" class="rest-timer-chip" data-seconds="${s}">${formatRest(s)}</button>`).join("");
+
+    function draw() {
+        value.textContent = formatRest(shown);
+        minus.disabled = shown <= MIN_REST_SECONDS;
+        plus.disabled = shown >= MAX_REST_SECONDS;
+        chips.querySelectorAll(".rest-timer-chip").forEach(chip => {
+            chip.classList.toggle("mine", Number(chip.dataset.seconds) === shown);
+        });
+    }
+
+    function setStatus(text, isError = false) {
+        status.textContent = text;
+        status.classList.toggle("error", isError);
+    }
+
+    function choose(seconds) {
+        shown = Math.min(MAX_REST_SECONDS, Math.max(MIN_REST_SECONDS, seconds));
+        draw();
+        setStatus("");
+        clearTimeout(timer);
+        timer = setTimeout(save, REST_SAVE_DELAY_MS);
+    }
+
+    async function save() {
+        if (shown === saved) return;
+        const seconds = shown;
+        try {
+            const profile = await saveRestSeconds(seconds);
+            saved = profile.restSeconds;
+            if (state.profile) state.profile.restSeconds = saved;
+            getRestSeconds(); // keeps the offline copy in step
+            if (document.getElementById("rest-settings-status") === status && shown === seconds) setStatus("Saved");
+        } catch (e) {
+            // Back to what the account has, so the screen never shows a
+            // time the timer won't use.
+            shown = saved;
+            draw();
+            setStatus("Couldn't save. Check your connection and try again.", true);
+        }
+    }
+
+    minus.onclick = function() { choose(shown - STEP_SECONDS); };
+    plus.onclick = function() { choose(shown + STEP_SECONDS); };
+    chips.querySelectorAll(".rest-timer-chip").forEach(chip => {
+        chip.onclick = function() { choose(Number(chip.dataset.seconds)); };
+    });
+    draw();
 }
 
 function showNotice(message, isError = false) {

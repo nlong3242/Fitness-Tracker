@@ -39,7 +39,7 @@ import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
 import { setRoute } from "../router.js";
-import { escapeHtml } from "../utils/format.js";
+import { escapeHtml, formatShortDate } from "../utils/format.js";
 import { mountRestTimer, closeRestPanel, stopRest } from "../components/restTimer.js";
 import { mountWorkoutStopwatch } from "../components/workoutStopwatch.js";
 
@@ -142,15 +142,6 @@ async function prepareStart(workoutId, options) {
             button.disabled = false;
         }
     }
-}
-
-// "3 Nov", or "3 Nov 2025" in another year.
-function shortDate(iso) {
-    const date = new Date(iso + "T00:00:00");
-    const sameYear = date.getFullYear() === new Date().getFullYear();
-    return date.toLocaleDateString("en-GB", sameYear
-        ? { day: "numeric", month: "short" }
-        : { day: "numeric", month: "short", year: "numeric" });
 }
 
 /* Today's list in order: the workout's own exercises where they're still in
@@ -551,7 +542,7 @@ export async function startWorkout(workoutId, options) {
         if (elsewhere) {
             const note = document.createElement("p");
             note.className = "last-done-note";
-            note.textContent = `Last time: from ${elsewhere.workoutName || "another workout"}, ${shortDate(elsewhere.date)}`;
+            note.textContent = `Last time: from ${elsewhere.workoutName || "another workout"}, ${formatShortDate(elsewhere.date)}`;
             card.querySelector(".exercise-card-head").after(note);
         }
 

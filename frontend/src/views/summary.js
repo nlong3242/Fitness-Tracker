@@ -3,10 +3,11 @@ import {
     fetchSessionExercises,
     fetchSessionSets,
     fetchLastSets,
+    fetchLastDone,
     fetchPreviousTotals,
     fetchSession
 } from "../api.js";
-import { deltaSpan, formatDecimal, formatDuration, formatSessionDate, escapeHtml } from "../utils/format.js";
+import { deltaSpan, formatDecimal, formatDuration, formatSessionDate, formatShortDate, escapeHtml } from "../utils/format.js";
 import { STOPWATCH_ICON } from "../components/restTimer.js";
 import { logColumns } from "../config.js";
 import { showExerciseReadOnlyModal } from "../components/modals.js";
@@ -203,7 +204,15 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
 
     const exercisesContainer = target.querySelector("#summary-exercises");
     for (const exercise of workout.exercises) {
-        const lastSets = await fetchLastSets(workout.id, exercise.id, sessionId);
+        let lastSets = await fetchLastSets(workout.id, exercise.id, sessionId);
+        // Never done in this workout before (added or swapped in): compare
+        // with the last time in any workout, and say which (as the live
+        // workout does). Failing just means no arrows.
+        let elsewhere = null;
+        if (lastSets.length === 0 && exercise.sets.length > 0) {
+            elsewhere = await fetchLastDone(exercise.id, sessionId ?? undefined).catch(() => null);
+            if (elsewhere) lastSets = elsewhere.sets;
+        }
         const isUnilateral = exercise.unilateral === true;
 
         const columns = logColumns(exercise.logType);
@@ -241,6 +250,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
         exerciseCard.innerHTML = `
             <div class="summary-exercise-name">${escapeHtml(exercise.name)}</div>
             <div class="summary-exercise-count">${exercise.sets.length} ${exercise.sets.length === 1 ? "set" : "sets"}</div>
+            ${elsewhere ? `<p class="last-done-note">Compared with ${escapeHtml(elsewhere.workoutName || "another workout")}, ${formatShortDate(elsewhere.date)}</p>` : ""}
             ${setsTableHtml}
         `;
         if (onExerciseClick) {

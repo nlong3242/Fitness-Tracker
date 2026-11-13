@@ -82,6 +82,20 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
         await page.click("#exercise-nav-next");
         await wait(400);
     }
+
+    // The summary compares with Push Day too, and says so, on the review
+    // and once finished.
+    const summaryCards = () => page.$$eval(".summary-exercise-card", cards => cards.map(c => ({
+        name: c.querySelector(".summary-exercise-name").textContent,
+        note: c.querySelector(".last-done-note") ? c.querySelector(".last-done-note").textContent : null,
+        arrows: Array.from(c.querySelectorAll(".delta")).map(d => d.textContent)
+    })));
+    await page.waitForSelector(".summary-exercise-card .summary-set-header");
+    let cards = await summaryCards();
+    let benchCard = cards.find(c => c.name === bench.name);
+    check("review: says it compares with Push Day", benchCard && benchCard.note === `Compared with Push Day, ${day}`, JSON.stringify(benchCard));
+    check("review: the arrow compares with Push Day (55 vs 50)", benchCard && benchCard.arrows.includes("(+5)"), JSON.stringify(benchCard));
+
     const finished = page.waitForResponse(r =>
         r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
     await page.click("#summary-finish-btn");
@@ -90,7 +104,16 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
     await finished;
     await page.waitForFunction(() => /\/sessions\/\d+/.test(location.hash)
         && !document.getElementById("summary-finish-btn") && document.getElementById("summary-back-btn"), { timeout: 15000 });
+    await page.waitForSelector(".summary-exercise-card .summary-set-header");
     await wait(300);
+    cards = await summaryCards();
+    benchCard = cards.find(c => c.name === bench.name);
+    const extraCard = cards.find(c => c.name === extra.name);
+    check("summary: both say they compare with Push Day",
+        benchCard && extraCard && benchCard.note === `Compared with Push Day, ${day}` && extraCard.note === benchCard.note,
+        JSON.stringify(cards));
+    check("summary: the bench arrow is against Push Day", benchCard && benchCard.arrows.includes("(+5)"), JSON.stringify(benchCard));
+    await t.shot("live-lastdone-02-summary");
 
     await t.startWorkout();
     check("done here now: no note", (await note()) === null, await note());

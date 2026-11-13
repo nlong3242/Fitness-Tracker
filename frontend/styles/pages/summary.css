@@ -147,6 +147,12 @@
     margin-bottom: 10px;
 }
 
+/* "Compared with Push Day, 14 Nov": the arrows compare with another
+   workout (pink box from active-workout.css's .last-done-note). */
+.summary-exercise-card .last-done-note {
+    margin: 0 0 10px;
+}
+
 .summary-set-header,
 .summary-set-row {
     display: grid;

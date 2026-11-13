@@ -30,6 +30,15 @@ export function formatDecimal(n) {
     return String(Math.round(n * 100) / 100);
 }
 
+// "2026-11-03" → "3 Nov", or "3 Nov 2025" in another year.
+export function formatShortDate(yyyyMmDd) {
+    const [y, m, d] = yyyyMmDd.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString("en-GB", y === new Date().getFullYear()
+        ? { day: "numeric", month: "short" }
+        : { day: "numeric", month: "short", year: "numeric" });
+}
+
 export function formatSessionDate(yyyyMmDd) {
     const [y, m, d] = yyyyMmDd.split("-").map(Number);
     return new Date(y, m - 1, d).toLocaleDateString("en-GB", {

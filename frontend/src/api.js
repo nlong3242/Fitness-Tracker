@@ -196,8 +196,13 @@ export function deleteSession(sessionId) {
 
 // finishedAt (optional, ms timestamp): when the workout ended; now if not
 // given. Auto-end sends the last activity so the idle hours don't count.
-export function finishSession(sessionId, orderedExerciseIds, finishedAt) {
-    const body = { orderedExerciseIds };
+/* exact (optional): { exerciseIds, updateWorkout } once exercises were
+   added, replaced or removed during the workout: history records exactly
+   exerciseIds, and updateWorkout makes the workout's own list match. */
+export function finishSession(sessionId, orderedExerciseIds, finishedAt, exact) {
+    const body = exact
+        ? { exerciseIds: exact.exerciseIds, updateWorkout: !!exact.updateWorkout }
+        : { orderedExerciseIds };
     if (finishedAt) body.finishedAt = new Date(finishedAt).toISOString();
     return requestOk("POST", `/sessions/${sessionId}/finish`, body);
 }

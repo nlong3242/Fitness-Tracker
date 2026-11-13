@@ -51,6 +51,41 @@ export function loadDrafts(workoutId) {
     return all && all.workoutId === workoutId ? all.exercises : {};
 }
 
+// Drops one exercise's drafts (it was removed or replaced in the workout).
+export function dropExerciseDrafts(workoutId, exerciseId) {
+    const all = read();
+    if (!all || all.workoutId !== workoutId || !all.exercises[exerciseId]) return;
+    delete all.exercises[exerciseId];
+    write(Object.keys(all.exercises).length ? all : null);
+}
+
+/* Today's exercises, once exercises were added, replaced or removed during
+   the workout: { workoutId, ids, workoutIds }. ids is today's list in
+   order; workoutIds is the workout's own list when the first change was
+   made, so Finish can tell whether today differs from it. Absent while
+   nothing changed: the workout's own list is used. Same lifetime as the
+   drafts (clearDrafts drops both). */
+const LIVE_KEY = "fitness.liveExercises";
+let liveInMemory = null; // also kept here, in case storage is unavailable
+
+export function loadLiveExercises(workoutId) {
+    let live = liveInMemory;
+    try {
+        const stored = localStorage.getItem(LIVE_KEY);
+        if (stored) live = JSON.parse(stored);
+    } catch (e) { /* use the in-memory copy */ }
+    return live && live.workoutId === workoutId ? live : null;
+}
+
+export function saveLiveExercises(workoutId, ids, workoutIds) {
+    const existing = loadLiveExercises(workoutId);
+    liveInMemory = { workoutId, ids, workoutIds: existing ? existing.workoutIds : workoutIds };
+    try { localStorage.setItem(LIVE_KEY, JSON.stringify(liveInMemory)); } catch (e) { /* lasts until a reload */ }
+}
+
+// Ends the workout's device-side state: drafts and today's exercise list.
 export function clearDrafts() {
     write(null);
+    liveInMemory = null;
+    try { localStorage.removeItem(LIVE_KEY); } catch (e) { /* ignore */ }
 }

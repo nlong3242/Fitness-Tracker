@@ -7,7 +7,10 @@ import {
     updateSchedule,
     fetchSchedulesByDate,
     createSchedule,
-    saveRepeatDay
+    saveRepeatDay,
+    fetchExercise,
+    deleteSet,
+    ApiError
 } from "../api.js";
 import {
     showExerciseReadOnlyModal,
@@ -22,8 +25,14 @@ import {
 } from "../components/setInputRow.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { clearNavGuard, setNavVisible, highlightTab } from "../components/bottomNav.js";
-import { abandonSession, markWorkoutStarted, clearStartedWorkout, getStartedWorkoutId } from "../session.js";
-import { loadDrafts, clearDrafts, sideKey } from "../drafts.js";
+import {
+    abandonSession, markWorkoutStarted, clearStartedWorkout, getStartedWorkoutId,
+    touchActivity, maybeCleanupOrphanSession
+} from "../session.js";
+import {
+    loadDrafts, clearDrafts, sideKey, dropExerciseDrafts, loadLiveExercises, saveLiveExercises
+} from "../drafts.js";
+import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
 import { setRoute } from "../router.js";
@@ -108,16 +117,39 @@ async function prepareStart(workoutId, options) {
         if (resumeSessionId === null) markWorkoutStarted(workout.id);
         else clearStartedWorkout();
 
+        // Exercises added, replaced or removed earlier in this workout.
+        const workoutIds = exercises.map(e => e.id);
+        const live = loadLiveExercises(workout.id);
+        if (live) {
+            try {
+                exercises = await withinStartLimit(todaysExercises(exercises, live.ids));
+            } catch (e) {
+                await showConfirmModal("Couldn't start this workout. Check your connection and try again.", "OK");
+                return null;
+            }
+        }
+
         exercises.forEach(ex => ex.sets = []);
         workout.exercises = exercises;
 
-        return { workout, scheduledWorkoutId, resumeSessionId };
+        return { workout, scheduledWorkoutId, resumeSessionId, workoutIds };
     } finally {
         if (button) {
             button.innerHTML = buttonHtml;
             button.disabled = false;
         }
     }
+}
+
+/* Today's list in order: the workout's own exercises where they're still in
+   it, the others (added or swapped in) fetched. One that's gone from the
+   library (404) is left out; anything else failing fails the start. */
+async function todaysExercises(workoutExercises, ids) {
+    const byId = new Map(workoutExercises.map(e => [e.id, e]));
+    const list = await Promise.all(ids.map(id => byId.has(id)
+        ? byId.get(id)
+        : fetchExercise(id).catch(e => { if (e instanceof ApiError && e.status === 404) return null; throw e; })));
+    return list.filter(Boolean);
 }
 
 /* options (optional):
@@ -156,10 +188,101 @@ export async function startWorkout(workoutId, options) {
     }
     if (prepared === null) return false;
 
-    const { workout, scheduledWorkoutId, resumeSessionId } = prepared;
+    const { workout, scheduledWorkoutId, resumeSessionId, workoutIds } = prepared;
     const onComplete = options && options.onComplete
         ? options.onComplete
         : renderWorkouts;
+
+    // Rebuilds the page on today's (changed) list, like a reload would, on
+    // the given exercise. Typed values come back from the drafts.
+    function reopen(exerciseId) {
+        startWorkout(workout.id, { exerciseId, onComplete });
+    }
+
+    function saveTodaysList() {
+        saveLiveExercises(workout.id, workout.exercises.map(e => e.id), workoutIds);
+    }
+
+    // Deletes the sets logged today for an exercise. False (after saying so)
+    // if one couldn't be deleted; the page is then rebuilt to show what's left.
+    async function deleteLoggedSets(exercise) {
+        try {
+            for (const set of exercise.sets.slice()) {
+                try {
+                    await deleteSet(set.id);
+                } catch (e) {
+                    if (!(e instanceof ApiError && e.status === 404)) throw e;
+                }
+                exercise.sets.splice(exercise.sets.indexOf(set), 1);
+                touchActivity();
+            }
+            return true;
+        } catch (e) {
+            await showConfirmModal("Couldn't delete the logged sets. Check your connection and try again.", "OK");
+            reopen(exercise.id);
+            return false;
+        }
+    }
+
+    // "The set you logged for Bench is deleted." / "The 3 sets … are deleted."
+    function loggedSetsGo(n, name) {
+        return n === 1
+            ? `The set you logged for ${name} is deleted.`
+            : `The ${n} sets you logged for ${name} are deleted.`;
+    }
+
+    async function removeExercise(exercise) {
+        const n = exercise.sets.length;
+        const confirmed = await showConfirmModal(n > 0
+            ? `Remove ${exercise.name}? ${loggedSetsGo(n, "it")}`
+            : `Remove ${exercise.name} from today's workout?`, "Remove");
+        if (!confirmed) return;
+        if (!(await deleteLoggedSets(exercise))) return;
+        const index = workout.exercises.indexOf(exercise);
+        workout.exercises.splice(index, 1);
+        try { await maybeCleanupOrphanSession(workout); } catch (e) { /* the session just stays */ }
+        dropExerciseDrafts(workout.id, exercise.id);
+        saveTodaysList();
+        const next = workout.exercises[Math.min(index, workout.exercises.length - 1)];
+        reopen(next.id);
+    }
+
+    // Pick one in the library; it takes the old one's place, today only.
+    function replaceExercise(exercise) {
+        renderMultiSelectExercisePicker({
+            title: `Replace ${exercise.name}`,
+            workoutLabel: workout.name,
+            excludedIds: workout.exercises.map(e => e.id),
+            single: true,
+            confirmLabel: () => "Replace",
+            onCancel: function() { reopen(exercise.id); },
+            onConfirm: async function(selected) {
+                const replacement = selected[0];
+                const n = exercise.sets.length;
+                if (n > 0) {
+                    const confirmed = await showConfirmModal(
+                        `Replace ${exercise.name} with ${replacement.name}? ${loggedSetsGo(n, exercise.name)}`,
+                        "Replace");
+                    if (!confirmed) { reopen(exercise.id); return; }
+                    if (!(await deleteLoggedSets(exercise))) return;
+                }
+                const index = workout.exercises.indexOf(exercise);
+                workout.exercises.splice(index, 1, { id: replacement.id });
+                try { await maybeCleanupOrphanSession(workout); } catch (e) { /* the session just stays */ }
+                dropExerciseDrafts(workout.id, exercise.id);
+                saveTodaysList();
+                reopen(replacement.id);
+            }
+        });
+    }
+
+    function exerciseMenu(exercise) {
+        const items = [{ label: "Replace exercise", onSelect: function() { replaceExercise(exercise); } }];
+        if (workout.exercises.length > 1) {
+            items.push({ label: "Remove exercise", danger: true, onSelect: function() { removeExercise(exercise); } });
+        }
+        return items;
+    }
 
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
@@ -365,12 +488,16 @@ export async function startWorkout(workoutId, options) {
         const card = document.createElement("div");
         card.className = "exercise-card";
         card.innerHTML = `
-            <h3 class="exercise-card-title">${escapeHtml(exercise.name)}</h3>
+            <div class="exercise-card-head">
+                <h3 class="exercise-card-title">${escapeHtml(exercise.name)}</h3>
+            </div>
             <div id="sets-${i}"></div>
         `;
         card.querySelector(".exercise-card-title").onclick = function() {
             showExerciseReadOnlyModal(exercise);
         };
+        card.querySelector(".exercise-card-head").appendChild(
+            createMoreButton(`Options for ${exercise.name}`, function() { return exerciseMenu(exercise); }));
 
         const addSetBtn = document.createElement("button");
         addSetBtn.className = "add-set-btn";
@@ -458,7 +585,11 @@ export async function startWorkout(workoutId, options) {
         const sessionId = state.currentSessionId;
         const sessionDate = state.currentSessionDate;
         try {
-            await finishSession(sessionId, workout.exercises.map(e => e.id));
+            const ids = workout.exercises.map(e => e.id);
+            // Changed today: record exactly today's list (the Today only /
+            // Update workout choice comes in a later step).
+            const exact = loadLiveExercises(workout.id) ? { exerciseIds: ids, updateWorkout: false } : null;
+            await finishSession(sessionId, ids, undefined, exact);
         } catch (e) {
             // Keep the session in progress (resumable) and stay on the preview.
             await showConfirmModal("Couldn't finish the workout. Check your connection and try again.", "OK");

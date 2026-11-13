@@ -190,6 +190,27 @@
     display: inline-block;
 }
 
+/* The exercise's name, with its ⋮ (Replace / Remove) at the right. */
+.exercise-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.exercise-card-head .exercise-card-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.exercise-card-head .more-btn {
+    flex-shrink: 0;
+    margin-top: -8px;
+    margin-right: -8px;
+}
+
 /* Add Set and Add Notes: full width under the sets, big gym-floor tap
    targets. (The summary's Add Notes keeps the small shared style.) */
 .add-set-btn,

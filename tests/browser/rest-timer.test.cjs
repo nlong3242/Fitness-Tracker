@@ -26,6 +26,19 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
         await openPanel();
         await page.click(`.rest-timer-step[data-step="${d}"]`);
     };
+    /* Where the pop-up is, against the highest of the bottom elements: the
+       given bar and the timer panel when it's open. Gap 8–16 px, 12–20 px
+       from the right edge, and not on top of anything below. Waits out its
+       slide first. */
+    const popupPlace = async barId => { await wait(350); return page.evaluate(id => {
+        const p = document.getElementById("rest-timer-popup").getBoundingClientRect();
+        let top = document.getElementById(id).getBoundingClientRect().top;
+        const panel = document.getElementById("rest-timer-panel");
+        if (panel && panel.getBoundingClientRect().height > 0) top = Math.min(top, panel.getBoundingClientRect().top);
+        const gap = Math.round(top - p.bottom);
+        const right = Math.round(innerWidth - p.right);
+        return { gap, right, above: gap >= 8 && gap <= 16, onRight: right >= 12 && right <= 20 && p.left > innerWidth / 3 };
+    }, barId); };
     // Somewhere on the dimmed page, away from the panel and the bar.
     const tapOutside = () => page.mouse.click(195, 150);
 
@@ -157,6 +170,17 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await step(-15);
     await wait(400);
     check("rest over shows the pop-up", (await popup()) !== null);
+    check("rest ended with the panel open", await panelShown());
+    let place = await popupPlace("exercise-nav-row");
+    check("pop-up sits just above the open panel, on the right", place.above && place.onRight, JSON.stringify(place));
+    await tapOutside();
+    check("panel closed", !(await panelShown()));
+    place = await popupPlace("exercise-nav-row");
+    check("closing the panel moves the pop-up down to the Prev/Next bar", place.above && place.onRight, JSON.stringify(place));
+    await openPanel();
+    place = await popupPlace("exercise-nav-row");
+    check("opening the panel moves it back up above the panel", place.above && place.onRight, JSON.stringify(place));
+    check("pop-up still showing", (await popup()) !== null);
     check("bar back to idle", (await btnTime()) === "");
     check("panel back to quick times, my time still 3:00",
         await page.$eval(".rest-timer-chip.mine", e => e.textContent.trim()) === "3:00");
@@ -183,6 +207,8 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await page.waitForSelector("#home-greeting");
     await wait(16000);
     check("pop-up shows on Home", (await popup()) !== null);
+    place = await popupPlace("bottom-nav");
+    check("on Home it sits just above the tab bar, on the right", place.above && place.onRight, JSON.stringify(place));
     await t.shot("timer-06-popup-home");
     await page.click("#rest-timer-popup");
 

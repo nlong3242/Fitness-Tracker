@@ -16,8 +16,9 @@
      (profile.restSeconds; 3:00 until set). Logging a set starts rest with
      it (startRest() with no argument). A quick time starts this one rest
      only; it doesn't change my time.
-   - When rest is over, a pop-up in the top-right corner says so on whatever
-     page is showing. It goes after 10 s, or at once when tapped. */
+   - When rest is over, a pop-up on the right, just above the bottom bars
+     (and the panel when open, moving as it opens or closes), says so on
+     whatever page is showing. It goes after 10 s, or at once when tapped. */
 
 import { state } from "../state.js";
 
@@ -42,6 +43,7 @@ let endsAt = null;
 let totalMs = null;
 let ticker = null;
 let popupTimer = null;
+let popupFollow = null;
 // The mounted bar button and panel, while the live workout page shows them.
 let ui = null;
 
@@ -150,7 +152,10 @@ function tick() {
     const overFor = Date.now() - endsAt;
     if (overFor >= 0) {
         clear();
+        // Panel back to quick times first: the pop-up is placed above it.
+        render();
         if (overFor < LATE_POPUP_MS) showPopup();
+        return;
     }
     render();
 }
@@ -257,6 +262,11 @@ export function closeRestPanel() {
 }
 
 function render() {
+    renderBar();
+    placePopup();
+}
+
+function renderBar() {
     if (!ui) return;
     if (!ui.button.isConnected) {
         ui = null;
@@ -337,13 +347,42 @@ function showPopup() {
         </span>`;
     popup.onclick = hidePopup;
     document.body.appendChild(popup);
+    placePopup();
     popupTimer = setTimeout(hidePopup, POPUP_MS);
+    // Follows what is under it while it shows: the panel opening or closing
+    // (render places it at once), or another page with other bars.
+    popupFollow = setInterval(placePopup, 250);
+}
+
+/* Just above whatever sits at the bottom of the screen: the tab bar, or
+   in a live workout the Prev / ⏱ / Next bar (and its panel, if open), so
+   the pop-up never covers them. */
+const POPUP_GAP = 12;
+
+function placePopup() {
+    const popup = document.getElementById("rest-timer-popup");
+    if (popup) popup.style.bottom = `${popupBottom()}px`;
+}
+
+function popupBottom() {
+    let top = window.innerHeight;
+    for (const id of ["bottom-nav", "exercise-nav-row", "rest-timer-panel"]) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.height > 0) top = Math.min(top, rect.top);
+    }
+    return window.innerHeight - top + POPUP_GAP;
 }
 
 function hidePopup() {
     if (popupTimer !== null) {
         clearTimeout(popupTimer);
         popupTimer = null;
+    }
+    if (popupFollow !== null) {
+        clearInterval(popupFollow);
+        popupFollow = null;
     }
     const popup = document.getElementById("rest-timer-popup");
     if (popup) popup.remove();

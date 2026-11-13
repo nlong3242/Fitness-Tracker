@@ -261,16 +261,21 @@ body.rest-timer-open #bottom-nav::after {
     font-size: 1.3em;
 }
 
-/* "Rest over": top-right corner, over everything, on any page. */
+/* "Rest over": on the right, just above the bottom bars (and the timer
+   panel when it's open), over everything, on any page. */
 .rest-timer-popup {
     position: fixed;
-    top: calc(env(safe-area-inset-top) + 12px);
-    right: 12px;
+    /* bottom: set by restTimer.js, and moved when the panel opens or closes. */
+    bottom: calc(var(--nav-height) + 12px);
+    right: calc(16px + env(safe-area-inset-right));
     z-index: 2000;
+    transition: bottom 0.2s ease-out;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
-    max-width: calc(100vw - 24px);
+    width: max-content;
+    max-width: calc(100vw - 32px);
     padding: 10px 14px;
     background-color: var(--action);
     color: var(--text-primary);
@@ -310,10 +315,10 @@ body.rest-timer-open #bottom-nav::after {
 }
 
 @keyframes rest-timer-popup-in {
-    from { transform: translateY(-12px); opacity: 0; }
+    from { transform: translateY(12px); opacity: 0; }
     to   { transform: translateY(0); opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .rest-timer-popup { animation: none; }
+    .rest-timer-popup { animation: none; transition: none; }
 }

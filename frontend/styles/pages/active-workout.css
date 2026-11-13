@@ -184,6 +184,22 @@
     display: inline-block;
 }
 
+/* Add Set and Add Notes: full width under the sets, big gym-floor tap
+   targets. (The summary's Add Notes keeps the small shared style.) */
+.add-set-btn,
+.exercise-card .notes-toggle-btn {
+    display: block;
+    width: 100%;
+    min-height: 52px;
+    font-size: 1.15em;
+}
+
+/* Add Notes is the lesser action: same width, but shorter and smaller text. */
+.exercise-card .notes-toggle-btn {
+    min-height: 40px;
+    font-size: 0.95em;
+}
+
 @media (hover: hover) {
     .exercise-card-title:hover {
         color: var(--accent-pink-deep);

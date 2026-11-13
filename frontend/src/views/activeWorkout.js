@@ -373,6 +373,7 @@ export async function startWorkout(workoutId, options) {
         };
 
         const addSetBtn = document.createElement("button");
+        addSetBtn.className = "add-set-btn";
         addSetBtn.textContent = "Add Set";
         addSetBtn.onclick = function() {
             const setsContainer = document.getElementById("sets-" + i);

@@ -383,12 +383,32 @@ export async function startWorkout(workoutId, options) {
         if (currentIndex < workout.exercises.length) setActive(currentIndex + 1);
     };
 
-    // Review is reached with Next on the last exercise; Discard lives in
-    // the ⋮ on the title line.
+    // Review is reached with Next on the last exercise; Add and Discard
+    // live in the ⋮ on the title line.
     pageContainer.querySelector(".workout-title-row").appendChild(
         createMoreButton("Workout options", function() {
-            return [{ label: "Discard workout", danger: true, onSelect: discardWorkout }];
+            return [
+                { label: "Add exercise", onSelect: addExercises },
+                { label: "Discard workout", danger: true, onSelect: discardWorkout }
+            ];
         }));
+
+    // Pick one or more in the library; they go at the end, today only, and
+    // the first of them shows.
+    function addExercises() {
+        const showing = workout.exercises[Math.min(currentIndex, workout.exercises.length - 1)];
+        renderMultiSelectExercisePicker({
+            title: `Add to ${workout.name}`,
+            excludedIds: workout.exercises.map(e => e.id),
+            confirmLabel: n => n === 1 ? "Add 1 exercise" : `Add ${n} exercises`,
+            onCancel: function() { reopen(showing.id); },
+            onConfirm: async function(selected) {
+                for (const ex of selected) workout.exercises.push({ id: ex.id });
+                saveTodaysList();
+                reopen(selected[0].id);
+            }
+        });
+    }
 
     // Red menu items always ask first, even before any set is logged.
     async function discardWorkout() {

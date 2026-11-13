@@ -64,10 +64,24 @@ public class ProfileService {
     // app asks for one before anything else).
     @Transactional
     public UserProfile saveRestSeconds(int seconds) {
-        UserProfile profile = profileRepository.findById(CurrentUser.id())
-            .orElseThrow(() -> new ApiFieldException(HttpStatus.NOT_FOUND, "profile", "Set up your profile first."));
+        UserProfile profile = existing();
         profile.setRestSeconds(seconds);
         profile.setUpdatedAt(LocalDateTime.now(clock));
         return profileRepository.save(profile);
+    }
+
+    // Show the live workout's stopwatch or not, from Settings.
+    @Transactional
+    public UserProfile saveShowWorkoutTimer(boolean show) {
+        UserProfile profile = existing();
+        profile.setShowWorkoutTimer(show);
+        profile.setUpdatedAt(LocalDateTime.now(clock));
+        return profileRepository.save(profile);
+    }
+
+    // Settings need a profile first (the app asks for one before anything).
+    private UserProfile existing() {
+        return profileRepository.findById(CurrentUser.id())
+            .orElseThrow(() -> new ApiFieldException(HttpStatus.NOT_FOUND, "profile", "Set up your profile first."));
     }
 }

@@ -1,5 +1,6 @@
 package com.tsu2track.fitness_tracker;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -68,21 +69,33 @@ public class SessionController {
             next != null ? sessionService.countPlannedOn(next.getDate()) : 0);
     }
 
-    @PostMapping("/workouts/{workoutId}/sessions")
-    public Session createSession(@PathVariable Long workoutId) {
-        return sessionService.createSession(workoutId);
+    // startedAt (optional): when Start was tapped, for the workout stopwatch.
+    public static class CreateSessionBody {
+        private Instant startedAt;
+        public Instant getStartedAt() { return startedAt; }
+        public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
     }
 
+    @PostMapping("/workouts/{workoutId}/sessions")
+    public Session createSession(@PathVariable Long workoutId,
+                                 @RequestBody(required = false) CreateSessionBody body) {
+        return sessionService.createSession(workoutId, body != null ? body.getStartedAt() : null);
+    }
+
+    // finishedAt (optional): when the workout ended, if not now (auto-end).
     public static class FinishBody {
         private List<Long> orderedExerciseIds;
+        private Instant finishedAt;
         public List<Long> getOrderedExerciseIds() { return orderedExerciseIds; }
         public void setOrderedExerciseIds(List<Long> orderedExerciseIds) { this.orderedExerciseIds = orderedExerciseIds; }
+        public Instant getFinishedAt() { return finishedAt; }
+        public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
     }
 
     @PostMapping("/sessions/{sessionId}/finish")
     public Session finishSession(@PathVariable Long sessionId, @RequestBody(required = false) FinishBody body) {
         List<Long> orderedIds = body != null ? body.getOrderedExerciseIds() : null;
-        return sessionService.finishSession(sessionId, orderedIds);
+        return sessionService.finishSession(sessionId, orderedIds, body != null ? body.getFinishedAt() : null);
     }
 
     @GetMapping("/sessions/{sessionId}/exercises")

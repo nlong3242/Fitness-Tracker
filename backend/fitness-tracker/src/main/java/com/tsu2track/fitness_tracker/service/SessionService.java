@@ -132,23 +132,48 @@ public class SessionService {
     }
 
     public Session createSession(Long workoutId) {
+        return createSession(workoutId, null);
+    }
+
+    // A start time the app sends further back than this (or in the future)
+    // isn't believed: the stopwatch starts now instead.
+    static final long MAX_START_AGE_HOURS = 24;
+
+    /* startedAt: when Start was tapped on the phone, which is before this
+       session exists (it's made on the first logged set). */
+    public Session createSession(Long workoutId, Instant startedAt) {
         Optional<Workout> workout = workoutRepository.findByIdAndUserId(workoutId, CurrentUser.id());
         if (!workout.isPresent()) {
             return null;
         }
+        Instant now = Instant.now();
+        boolean believable = startedAt != null && !startedAt.isAfter(now)
+            && startedAt.isAfter(now.minus(MAX_START_AGE_HOURS, ChronoUnit.HOURS));
         Session session = new Session();
         session.setDate(LocalDate.now());
-        session.setLastActivityAt(Instant.now());
+        session.setLastActivityAt(now);
+        session.setStartedAt(believable ? startedAt : now);
         session.setWorkout(workout.get());
         return sessionRepository.save(session);
     }
 
-    @Transactional
     public Session finishSession(Long sessionId, List<Long> orderedExerciseIds) {
+        return finishSession(sessionId, orderedExerciseIds, null);
+    }
+
+    /* finishedAt: when the workout ended, if not now. Auto-end sends the
+       last activity, so the hours it sat idle don't count. Kept between
+       the start and now. */
+    @Transactional
+    public Session finishSession(Long sessionId, List<Long> orderedExerciseIds, Instant finishedAt) {
         Session session = ownedSession(sessionId);
         if (session.isFinished()) {
             return session;
         }
+        Instant now = Instant.now();
+        Instant end = finishedAt == null || finishedAt.isAfter(now) ? now : finishedAt;
+        if (session.getStartedAt() != null && end.isBefore(session.getStartedAt())) end = session.getStartedAt();
+        session.setFinishedAt(end);
 
         Long workoutId = session.getWorkoutId();
         List<WorkoutExercise> currentJoins = workoutExerciseRepository.findLiveByWorkoutId(workoutId);

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tsu2track.fitness_tracker.dto.ProfileRequest;
 import com.tsu2track.fitness_tracker.dto.RestSecondsRequest;
+import com.tsu2track.fitness_tracker.dto.WorkoutTimerRequest;
 import com.tsu2track.fitness_tracker.service.ProfileService;
 
 import jakarta.validation.Valid;
@@ -46,5 +47,11 @@ public class ProfileController {
     @PutMapping("/rest-seconds")
     public UserProfile saveRestSeconds(@Valid @RequestBody RestSecondsRequest body) {
         return profileService.saveRestSeconds(body.seconds());
+    }
+
+    // Show the live workout's stopwatch or not (Settings); on by default.
+    @PutMapping("/workout-timer")
+    public UserProfile saveShowWorkoutTimer(@Valid @RequestBody WorkoutTimerRequest body) {
+        return profileService.saveShowWorkoutTimer(body.show());
     }
 }

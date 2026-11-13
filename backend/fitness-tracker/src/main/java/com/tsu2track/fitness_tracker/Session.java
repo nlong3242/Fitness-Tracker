@@ -30,6 +30,12 @@ public class Session extends Owned {
     // the app auto-ends a workout that has been idle too long.
     private Instant lastActivityAt;
 
+    // The workout stopwatch (V19): when Start was tapped (sent by the app,
+    // before the first set made this session) and when it was finished.
+    // Null on sessions from before V19.
+    private Instant startedAt;
+    private Instant finishedAt;
+
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name="workout_id")
@@ -87,5 +93,17 @@ public class Session extends Owned {
 
     public void setLastActivityAt(Instant lastActivityAt) {
         this.lastActivityAt = lastActivityAt;
+    }
+
+    public Instant getStartedAt() { return startedAt; }
+    public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
+    public Instant getFinishedAt() { return finishedAt; }
+    public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
+
+    // The workout's time in whole seconds, once finished; null without
+    // both times (unfinished, or from before V19).
+    public Long getDurationSeconds() {
+        if (startedAt == null || finishedAt == null) return null;
+        return Math.max(0, finishedAt.getEpochSecond() - startedAt.getEpochSecond());
     }
 }

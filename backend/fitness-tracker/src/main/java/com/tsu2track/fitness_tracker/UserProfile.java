@@ -30,6 +30,10 @@ public class UserProfile {
     // of the profile form, so PUT /profile leaves it alone.
     private Integer restSeconds;
 
+    // Whether the live workout shows its stopwatch (V19), set in Settings.
+    // Null = on. Workout times are recorded either way.
+    private Boolean showWorkoutTimer;
+
     @JsonIgnore
     @Column(nullable = false)
     private LocalDateTime updatedAt;
@@ -52,6 +56,9 @@ public class UserProfile {
     // Never null in the JSON: the default when none was set.
     public int getRestSeconds() { return restSeconds != null ? restSeconds : DEFAULT_REST_SECONDS; }
     public void setRestSeconds(Integer restSeconds) { this.restSeconds = restSeconds; }
+    // Never null in the JSON: on unless turned off.
+    public boolean getShowWorkoutTimer() { return showWorkoutTimer == null || showWorkoutTimer; }
+    public void setShowWorkoutTimer(Boolean showWorkoutTimer) { this.showWorkoutTimer = showWorkoutTimer; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

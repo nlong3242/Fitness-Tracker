@@ -1,6 +1,6 @@
-/* Rest timer in the live workout (components/restTimer.js): the ⏱ button
+/* Rest timer in the live workout (components/restTimer.js): the â± button
    and quick times, the page dimmed behind the panel, the small and big
-   rings, − / +, Stop, a reload mid-rest, the "Rest over" pop-up, and
+   rings, âˆ’ / +, Stop, a reload mid-rest, the "Rest over" pop-up, and
    Discard. */
 const { run, wait, toSec } = require("./harness.cjs");
 
@@ -27,7 +27,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
         await page.click(`.rest-timer-step[data-step="${d}"]`);
     };
     /* Where the pop-up is, against the highest of the bottom elements: the
-       given bar and the timer panel when it's open. Gap 8–16 px, 12–20 px
+       given bar and the timer panel when it's open. Gap 8â€“16 px, 12â€“20 px
        from the right edge, and not on top of anything below. Waits out its
        slide first. */
     const popupPlace = async barId => { await wait(350); return page.evaluate(id => {
@@ -68,25 +68,25 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     const blockedChecks = async label => {
         check(`${label}: page is dimmed`, await page.$eval("#rest-timer-backdrop", b => !b.hidden));
         check(`${label}: Add Set can't be tapped`, (await tapTarget(".exercise-card.active button")) === "backdrop");
-        check(`${label}: tab bar can't be tapped`, (await tapTarget('#bottom-nav [data-tab="home"]')) === "backdrop");
+        check(`${label}: ‹ Home can't be tapped`, (await tapTarget("#workout-home-btn")) === "backdrop");
         check(`${label}: Next can be tapped`, (await tapTarget("#exercise-nav-next")) === "next");
-        check(`${label}: ⏱ can be tapped`, (await tapTarget("#rest-timer-btn")) === "timer");
+        check(`${label}: â± can be tapped`, (await tapTarget("#rest-timer-btn")) === "timer");
     };
     await blockedChecks("quick times");
     await tapOutside();
     check("tap outside closes the quick times", !(await panelShown()));
     check("backdrop goes with it", await page.$eval("#rest-timer-backdrop", b => b.hidden));
     check("closed: Add Set can be tapped again", (await tapTarget(".exercise-card.active button")) !== "backdrop");
-    check("closed: tab bar can be tapped again", (await tapTarget('#bottom-nav [data-tab="home"]')) !== "backdrop");
+    check("closed: ‹ Home can be tapped again", (await tapTarget('#workout-home-btn')) !== "backdrop");
     await page.click("#rest-timer-btn");
-    const homeTab = await page.$eval('#bottom-nav [data-tab="home"]', el => {
+    const homeTab = await page.$eval('#workout-home-btn', el => {
         const r = el.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
     await page.mouse.click(homeTab.x, homeTab.y);
     await wait(300);
-    check("tap on the dimmed tab bar closes the panel", !(await panelShown()));
-    check("…and stays on the workout", (await page.$("#rest-timer-btn")) !== null);
+    check("tap on the dimmed ‹ Home closes the panel", !(await panelShown()));
+    check("â€¦and stays on the workout", (await page.$("#rest-timer-btn")) !== null);
 
     // 3. A quick time starts rest at once, in the small ring only
     await clickChip(60);
@@ -105,7 +105,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     check("tap outside closes the big ring", !(await panelShown()));
     check("rest keeps running after closing", (await btnTime()) !== "");
 
-    // 4. − / + in 15 s steps
+    // 4. âˆ’ / + in 15 s steps
     await step(15);
     await wait(300);
     left = toSec(await btnTime());
@@ -113,7 +113,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await step(-15);
     await wait(300);
     left = toSec(await btnTime());
-    check("− takes 15 s off", left >= 58 && left <= 60, await btnTime());
+    check("âˆ’ takes 15 s off", left >= 58 && left <= 60, await btnTime());
     check("time reads like a clock", /^\d\d:\d\d$/.test(await btnTime()), await btnTime());
     const barLooks = await page.$eval("#rest-timer-btn", b => ({
         icon: getComputedStyle(b.querySelector(".rest-timer-icon")).display,
@@ -122,7 +122,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     check("bar shows the small ring, not the icon, while resting",
         barLooks.icon === "none" && barLooks.ring !== "none", JSON.stringify(barLooks));
 
-    // 5. The rings empty as time passes: 0:30 rest, 10 s in → about a third gone
+    // 5. The rings empty as time passes: 0:30 rest, 10 s in â†’ about a third gone
     const ringGone = sel => page.$eval(`${sel} .rest-ring-arc`, a =>
         Number(a.getAttribute("stroke-dashoffset")) / Number(a.getAttribute("stroke-dasharray")));
     await restart(30);
@@ -141,7 +141,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     // 6. Closing the panel, changing exercise
     await openPanel();
     await page.click("#rest-timer-btn");
-    check("⏱ closes the panel again", !(await panelShown()));
+    check("â± closes the panel again", !(await panelShown()));
     await t.shot("timer-04-bar-countdown");
     await page.click("#rest-timer-btn");
     await page.click("#exercise-nav-next");
@@ -153,7 +153,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await page.waitForSelector("#rest-timer-btn");
     await wait(400);
     left = toSec((await btnTime()) || "0:00");
-    check("reload keeps the countdown", left > 0 && left <= before, `${before}s → ${left}s`);
+    check("reload keeps the countdown", left > 0 && left <= before, `${before}s â†’ ${left}s`);
 
     // 8. Stop
     await page.click("#rest-timer-btn");
@@ -202,8 +202,8 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     // 11. The pop-up shows on another page (Home)
     await clickChip(30);
     await step(-15); // 15 s left
-    await tapOutside(); // the tab bar is covered while the panel is open
-    await page.click('#bottom-nav [data-tab="home"]');
+    await tapOutside(); // ‹ Home is covered while the panel is open
+    await page.click('#workout-home-btn');
     await page.waitForSelector("#home-greeting");
     await wait(16000);
     check("pop-up shows on Home", (await popup()) !== null);

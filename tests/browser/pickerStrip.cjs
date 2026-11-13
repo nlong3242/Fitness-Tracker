@@ -7,7 +7,7 @@ async function pickerStrip(page) {
         const f = document.querySelector(".picker-action-footer");
         const b = f && f.querySelector(".picker-action-bar");
         const nav = document.getElementById("bottom-nav");
-        if (!b || !nav) return null;
+        if (!b) return null;
         const fr = f.getBoundingClientRect(), br = b.getBoundingClientRect(), nr = nav.getBoundingClientRect();
         const fs = getComputedStyle(f), bs = getComputedStyle(document.body);
         const [px, py] = fs.backgroundPosition.split(" ").map(parseFloat);
@@ -17,7 +17,9 @@ async function pickerStrip(page) {
             shown: fs.visibility === "visible" && fs.opacity === "1",
             pageLike: fs.backgroundColor === bs.backgroundColor && fs.backgroundImage === bs.backgroundImage,
             fromBarTop: Math.round(br.top) === Math.round(fr.top),
-            toNav: Math.abs(fr.bottom - nr.top) <= 1,
+            // down to the tab bar, or the screen's edge when it's hidden
+            // (a picker opened from a live workout)
+            toNav: Math.abs(fr.bottom - (nr.height > 0 ? nr.top : window.innerHeight)) <= 1,
             gridOk: mod(fr.left + px) === 0 && mod(fr.top + py) === 0,
             covered: [fr.top + 4, br.bottom + 10].every(y => at(y) && at(y).closest(".picker-action-footer"))
         };

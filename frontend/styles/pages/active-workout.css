@@ -97,7 +97,8 @@
    omitted since the active card itself shows it. */
 #exercise-nav-row {
     position: fixed;
-    /* Sits on top of the main nav (--nav-height, variables.css). */
+    /* On top of the main nav (--nav-height, variables.css); the live
+       workout hides that, so it's 0 here (bottom-nav.css body.nav-hidden). */
     bottom: var(--nav-height);
     left: 0;
     right: 0;

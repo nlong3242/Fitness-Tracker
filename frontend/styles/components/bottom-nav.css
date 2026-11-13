@@ -17,6 +17,28 @@
     z-index: 100;
 }
 
+/* Tab bar hidden (setNavVisible(false): the live workout and pages it
+   opens). Bars that sit on it via --nav-height drop to the bottom edge
+   and take over the home-indicator inset themselves. */
+body.nav-hidden {
+    --nav-height: 0px;
+}
+
+/* Only part of the home-indicator inset: the bar's buttons sit clear of
+   the indicator line without a tall empty band under them. */
+body.nav-hidden #exercise-nav-row {
+    padding-top: 4px;
+    padding-bottom: max(4px, calc(env(safe-area-inset-bottom) - 18px));
+}
+
+body.nav-hidden .picker-action-footer {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+body.nav-hidden #app-content:has(.picker-action-footer) {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
+}
+
 .nav-tab {
     flex: 1;
     background: none;

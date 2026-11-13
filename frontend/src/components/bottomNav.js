@@ -77,11 +77,14 @@ export function getNavGuard() {
 }
 
 /* Toggle the entire bottom nav's visibility. Used by views that need a
-   focused, distraction-free surface (e.g., the live workout preview). The
-   nav guard still protects against programmatic tab switches while hidden. */
+   focused, distraction-free surface (the whole live workout, and pages it
+   opens like the picker). body.nav-hidden lets bars that sit on the tab
+   bar drop to the screen's bottom edge (bottom-nav.css). The nav guard
+   still protects against programmatic tab switches while hidden. */
 export function setNavVisible(visible) {
     const nav = document.getElementById("bottom-nav");
     nav.style.display = visible ? "" : "none";
+    document.body.classList.toggle("nav-hidden", !visible);
 }
 
 export function renderBottomNav() {
@@ -102,8 +105,8 @@ export function renderBottomNav() {
 /* Show the nav with one tab lit, without rendering that tab's page. The
    router uses it to reopen a deeper page (e.g. a workout) under its tab. */
 export function highlightTab(name) {
+    setNavVisible(true);
     const nav = document.getElementById("bottom-nav");
-    nav.style.display = "";
     for (const cell of nav.querySelectorAll(".nav-tab")) {
         cell.classList.toggle("active", cell.dataset.tab === name);
     }

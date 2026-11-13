@@ -80,7 +80,7 @@ run({ prefix: "swset", workoutName: "Switch Test" }, "#/settings", async t => {
     check("off: no stopwatch in the workout", (await page.$("#workout-stopwatch:not([hidden])")) === null);
 
     // 6. Back on from Settings: it shows again
-    await page.click('#bottom-nav [data-tab="home"]');
+    await page.click("#workout-home-btn");
     await (await page.waitForSelector("#home-settings-btn")).click();
     await openTimers();
     saved = put();

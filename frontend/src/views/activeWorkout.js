@@ -27,7 +27,7 @@ import {
     renumberSetRows
 } from "../components/setInputRow.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
-import { clearNavGuard, setNavVisible, highlightTab } from "../components/bottomNav.js";
+import { clearNavGuard, setNavVisible, highlightTab, setActiveTab } from "../components/bottomNav.js";
 import {
     abandonSession, markWorkoutStarted, clearStartedWorkout, getStartedWorkoutId,
     touchActivity, maybeCleanupOrphanSession
@@ -295,6 +295,7 @@ export async function startWorkout(workoutId, options) {
 
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
+        <button class="summary-back-link" id="workout-home-btn"><span class="summary-back-glyph">&#8249;</span> Home</button>
         <div class="workout-title-row">
             <h2>${escapeHtml(workout.name)} - Workout</h2>
             <span class="workout-stopwatch" id="workout-stopwatch" role="timer" hidden></span>
@@ -317,9 +318,16 @@ export async function startWorkout(workoutId, options) {
 
     // Leaving is safe now (the resume bar brings you back), so no guard.
     clearNavGuard();
-    // A live workout always lights Workouts, whether it was started from
-    // there, Home (Resume / today's plan) or a calendar day.
+    // No tab bar during a live workout (or the pages it opens, like the
+    // picker); Workouts is lit for when it comes back after Finish. ‹ Home
+    // leaves the workout running (Home's Resume bar brings you back).
     highlightTab("workouts");
+    setNavVisible(false);
+    const homeBtn = document.getElementById("workout-home-btn");
+    homeBtn.onclick = function() {
+        closeRestPanel();
+        setActiveTab("home");
+    };
 
     const cards = document.getElementById("exercise-cards");
     const previewArea = document.getElementById("preview-summary");
@@ -355,7 +363,8 @@ export async function startWorkout(workoutId, options) {
             previewArea.style.display = "block";
             pillsRow.style.display = "none";
             navRow.style.display = "none";
-            setNavVisible(false);
+            // The review has its own ‹ Back (to the last exercise).
+            homeBtn.style.display = "none";
             await renderWorkoutSummary(workout, state.currentSessionId, state.currentSessionDate, {
                 target: previewArea,
                 mode: "preview",
@@ -371,7 +380,7 @@ export async function startWorkout(workoutId, options) {
             previewArea.style.display = "none";
             pillsRow.style.display = "";
             navRow.style.display = "";
-            setNavVisible(true);
+            homeBtn.style.display = "";
             setRoute(`#/live?exercise=${workout.exercises[currentIndex].id}`);
             for (let i = 0; i < cards.children.length; i++) {
                 cards.children[i].classList.toggle("active", i === currentIndex);
@@ -437,6 +446,7 @@ export async function startWorkout(workoutId, options) {
         clearStartedWorkout();
         clearDrafts();
         stopRest();
+        setNavVisible(true);
         onComplete();
     }
 

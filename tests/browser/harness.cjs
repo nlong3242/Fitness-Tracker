@@ -139,7 +139,13 @@ function run(seed, hash, body) {
             async startWorkout() {
                 const name = workout.name;
                 const selector = `[aria-label="Start ${name}"], [aria-label="Resume ${name}"]`;
-                const tab = await page.waitForSelector('#bottom-nav [data-tab="workouts"]');
+                // In a live workout there's no tab bar: ‹ Home first.
+                const home = await page.$("#workout-home-btn");
+                if (home && await home.isVisible()) {
+                    await home.click();
+                    await page.waitForSelector("#home-greeting");
+                }
+                const tab = await page.waitForSelector('#bottom-nav [data-tab="workouts"]', { visible: true });
                 await tab.click();
                 await page.waitForSelector(selector);
                 await wait(800); // the list draws twice (cache, then server)

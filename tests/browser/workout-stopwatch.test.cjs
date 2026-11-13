@@ -46,7 +46,7 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
     check("after a reload it counts from the Start time", sec >= 12 * MIN + 5 && sec <= 12 * MIN + 9, sec);
 
     // 3. Leaving and coming back doesn't restart it
-    await page.click('#bottom-nav [data-tab="home"]');
+    await page.click("#workout-home-btn");
     await wait(500);
     await t.startWorkout();
     sec = await watchSec();

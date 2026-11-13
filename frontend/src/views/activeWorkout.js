@@ -39,6 +39,7 @@ import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
 import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
 import { setRoute } from "../router.js";
+import { resetExercise } from "../components/resetExercise.js";
 import { escapeHtml, formatShortDate } from "../utils/format.js";
 import { mountRestTimer, closeRestPanel, stopRest } from "../components/restTimer.js";
 import { mountWorkoutStopwatch } from "../components/workoutStopwatch.js";
@@ -290,6 +291,11 @@ export async function startWorkout(workoutId, options) {
         if (workout.exercises.length > 1) {
             items.push({ label: "Remove exercise", danger: true, onSelect: function() { removeExercise(exercise); } });
         }
+        // Its finished history goes; today's sets stay. Rebuilt so the
+        // "last time" hints go with it.
+        items.push({ label: "Reset exercise", danger: true, onSelect: async function() {
+            if (await resetExercise(exercise, exercise.sets.length)) reopen(exercise.id);
+        } });
         return items;
     }
 

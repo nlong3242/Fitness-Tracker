@@ -79,4 +79,41 @@ run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts"
     await page.waitForSelector(".modal-confirm");
     check("nothing left: says so", (await message()) === `${bench.name} has no history to reset.`, await message());
     await page.click(".modal-confirm");
+    await wait(300);
+
+    // 6. In a live workout: the card's ⋮ has it too; today's sets stay
+    await done([[bench, 80]]);
+    await t.startWorkout();
+    await wait(500);
+    const hint = () => page.$eval(".exercise-card.active .set-input-row .weight-input", i => i.placeholder).catch(() => null);
+    check("live: last time's 80 shows as a hint", (await hint()) === "80", await hint());
+    const posted = page.waitForResponse(r => r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()));
+    const row = (await page.$$(".exercise-card.active .set-input-row"))[0];
+    await (await row.$(".weight-input")).type("90");
+    await (await row.$(".reps-input")).type("3");
+    await page.evaluate(() => document.activeElement.blur());
+    await posted;
+    await wait(300);
+    await page.click(".exercise-card.active .exercise-card-head .more-btn");
+    await page.waitForSelector(".action-menu-item");
+    const liveItems = await page.$$eval(".action-menu-item", els => els.map(e => e.textContent));
+    check("live card ⋮ has Reset exercise, red, last",
+        liveItems[liveItems.length - 1] === "Reset exercise"
+            && await page.$$eval(".action-menu-item", els => els[els.length - 1].classList.contains("danger")), liveItems.join(", "));
+    await page.$$eval(".action-menu-item", els => els[els.length - 1].click());
+    await page.waitForSelector(".modal-confirm");
+    const liveAsk = await message();
+    check("live: says today's sets stay",
+        liveAsk === `Reset ${bench.name}? The set you've logged for it is deleted. Today's sets stay. This can't be undone.`, liveAsk);
+    await t.shot("reset-exercise-04-live-confirm");
+    await page.click(".modal-confirm");
+    await page.waitForFunction(() => !document.querySelector(".modal-confirm"));
+    await page.waitForSelector(".exercise-card.active");
+    await wait(800);
+    check("live: finished history gone", (await t.api("GET", `/exercises/${bench.id}/history/count`)).sets === 0);
+    const live = await t.api("GET", "/sessions/unfinished");
+    const todays = await t.api("GET", `/sessions/${live.id}/sets`);
+    check("live: today's set is still there", todays.length === 1 && todays[0].weight === 90, JSON.stringify(todays));
+    check("live: still on the workout, set shown",
+        (await page.$eval(".exercise-card.active .set-input-row .weight-input", i => i.value)) === "90");
 });

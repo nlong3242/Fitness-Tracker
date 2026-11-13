@@ -50,7 +50,7 @@ run({ prefix: "livechg", workoutName: "Live Changes", exercises: 3 }, "#/workout
     // 1. The ⋮ on each card: Replace and Remove
     check("starts with the workout's 3", JSON.stringify(await titles()) === JSON.stringify(original), (await titles()).join(", "));
     await openMenu();
-    check("menu has Replace and Remove", JSON.stringify(await menuLabels()) === JSON.stringify(["Replace exercise", "Remove exercise"]),
+    check("menu has Replace, Remove and Reset", JSON.stringify(await menuLabels()) === JSON.stringify(["Replace exercise", "Remove exercise", "Reset exercise"]),
         (await menuLabels()).join(", "));
     await t.shot("live-changes-01-menu");
     await page.click(".action-menu-backdrop");
@@ -122,7 +122,7 @@ run({ prefix: "livechg", workoutName: "Live Changes", exercises: 3 }, "#/workout
     await pillCount(1);
     await page.waitForSelector(".exercise-card.active");
     await openMenu();
-    check("last one: only Replace", JSON.stringify(await menuLabels()) === JSON.stringify(["Replace exercise"]), (await menuLabels()).join(", "));
+    check("last one: Replace and Reset, no Remove", JSON.stringify(await menuLabels()) === JSON.stringify(["Replace exercise", "Reset exercise"]), (await menuLabels()).join(", "));
     await page.click(".action-menu-backdrop");
     await wait(200);
 

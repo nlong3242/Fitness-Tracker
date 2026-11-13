@@ -207,6 +207,31 @@ public class SessionService {
         if (session.isFinished()) {
             return session;
         }
+        Map<Long, Exercise> exercisesById = usableInOrder(exerciseIds);
+        // An empty list would leave the workout with nothing in it.
+        if (updateWorkout && !exercisesById.isEmpty()) {
+            setWorkoutExercises(session.getWorkout(), new ArrayList<>(exercisesById.values()));
+        }
+        return writeFinish(session, exercisesById, finishedAt);
+    }
+
+    /* "Update the workout from now on" when nothing was logged, so there's
+       no session to finish: the workout's list becomes exactly these, in
+       order, with the same rules as finishWithExercises. 400 if none of
+       them is usable (the workout would be left empty). */
+    @Transactional
+    public void setWorkoutList(Long workoutId, List<Long> exerciseIds) {
+        Workout workout = ownedWorkout(workoutId);
+        Map<Long, Exercise> exercises = usableInOrder(exerciseIds == null ? List.of() : exerciseIds);
+        if (exercises.isEmpty()) {
+            throw new ApiFieldException(HttpStatus.BAD_REQUEST, "exerciseIds", "A workout needs at least one exercise");
+        }
+        setWorkoutExercises(workout, new ArrayList<>(exercises.values()));
+    }
+
+    // The ids' exercises in order, skipping repeats and any that aren't
+    // usable (another account's, deleted, unknown).
+    private Map<Long, Exercise> usableInOrder(List<Long> exerciseIds) {
         Map<Long, Exercise> exercisesById = new LinkedHashMap<>();
         for (Long id : exerciseIds) {
             if (id == null || exercisesById.containsKey(id)) continue;
@@ -214,10 +239,7 @@ public class SessionService {
                 .filter(e -> !e.isDeleted())
                 .ifPresent(e -> exercisesById.put(id, e));
         }
-        if (updateWorkout) {
-            setWorkoutExercises(session.getWorkout(), new ArrayList<>(exercisesById.values()));
-        }
-        return writeFinish(session, exercisesById, finishedAt);
+        return exercisesById;
     }
 
     /* Makes the workout's list exactly these, in order. Links that stay

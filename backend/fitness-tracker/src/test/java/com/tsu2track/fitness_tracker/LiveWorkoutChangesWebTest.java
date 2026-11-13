@@ -3,6 +3,7 @@ package com.tsu2track.fitness_tracker;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
@@ -78,6 +79,59 @@ class LiveWorkoutChangesWebTest {
         long session = startAndFinish("{\"orderedExerciseIds\": [" + row + ", " + bench + "]}");
 
         assertThat(names("/sessions/" + session + "/exercises")).containsExactly("Row", "Bench");
+        assertThat(names("/workouts/" + workoutId + "/exercises")).containsExactly("Bench", "Row");
+    }
+
+    @Test
+    void updateWorkoutWithAnEmptyListLeavesTheWorkoutAlone() throws Exception {
+        startAndFinish("{\"exerciseIds\": [], \"updateWorkout\": true}");
+
+        assertThat(names("/workouts/" + workoutId + "/exercises")).containsExactly("Bench", "Row");
+    }
+
+    // --- PUT /workouts/{id}/exercise-list: "Update" with nothing logged ---
+
+    @Test
+    void exerciseListSetsTheWorkoutsExercisesInOrder() throws Exception {
+        mvc.perform(put("/workouts/" + workoutId + "/exercise-list").header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"exerciseIds\": [" + row + ", " + dips + "]}"))
+            .andExpect(status().isNoContent());
+
+        assertThat(names("/workouts/" + workoutId + "/exercises")).containsExactly("Row", "Dips");
+    }
+
+    @Test
+    void exerciseListSkipsAnotherAccountsExercise() throws Exception {
+        String mine = bearer;
+        bearer = signup("other2@example.com");
+        long theirs = id(send(post("/exercises"), "{\"name\": \"Secret\", \"category\": \"CHEST\"}"));
+        bearer = mine;
+
+        mvc.perform(put("/workouts/" + workoutId + "/exercise-list").header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"exerciseIds\": [" + theirs + ", " + bench + "]}"))
+            .andExpect(status().isNoContent());
+
+        assertThat(names("/workouts/" + workoutId + "/exercises")).containsExactly("Bench");
+    }
+
+    @Test
+    void exerciseListThatWouldEmptyTheWorkoutIsRefused() throws Exception {
+        mvc.perform(put("/workouts/" + workoutId + "/exercise-list").header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"exerciseIds\": [999999]}"))
+            .andExpect(status().isBadRequest());
+
+        assertThat(names("/workouts/" + workoutId + "/exercises")).containsExactly("Bench", "Row");
+    }
+
+    @Test
+    void anotherAccountsWorkoutIsNotFound() throws Exception {
+        String mine = bearer;
+        bearer = signup("other3@example.com");
+        mvc.perform(put("/workouts/" + workoutId + "/exercise-list").header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"exerciseIds\": [" + row + "]}"))
+            .andExpect(status().isNotFound());
+        bearer = mine;
+
         assertThat(names("/workouts/" + workoutId + "/exercises")).containsExactly("Bench", "Row");
     }
 

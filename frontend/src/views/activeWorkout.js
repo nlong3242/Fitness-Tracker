@@ -8,6 +8,7 @@ import {
     fetchSchedulesByDate,
     createSchedule,
     saveRepeatDay,
+    setWorkoutExerciseList,
     fetchExercise,
     deleteSet,
     ApiError
@@ -603,8 +604,35 @@ export async function startWorkout(workoutId, options) {
         });
     }
 
+    /* Exercises added, replaced or removed today: ask whether that was for
+       today only or the workout from now on. "none" when nothing changed,
+       null for Cancel, otherwise "today" or "update". */
+    async function askAboutChanges(ids) {
+        if (!changedFromWorkout(ids)) return "none";
+        return showChoiceModal(
+            `You changed the exercises in ${workout.name} today. Keep the changes for today only, or update ${workout.name} from now on?`,
+            [
+                { label: "Today only", value: "today" },
+                { label: `Update ${workout.name}`, value: "update" }
+            ]);
+    }
+
     async function commitFinish() {
+        const ids = workout.exercises.map(e => e.id);
+        // Either answer finishes; Cancel stays on the review.
+        const choice = await askAboutChanges(ids);
+        if (choice === null) return;
         if (state.currentSessionId === null) {
+            // Nothing logged, so nothing to save as a session, but the
+            // changes can still go into the workout.
+            if (choice === "update") {
+                try {
+                    await setWorkoutExerciseList(workout.id, ids);
+                } catch (e) {
+                    await showConfirmModal(`Couldn't update ${workout.name}. Check your connection and try again.`, "OK");
+                    return;
+                }
+            }
             clearStartedWorkout();
             clearDrafts();
             stopRest();
@@ -614,18 +642,8 @@ export async function startWorkout(workoutId, options) {
         }
         const sessionId = state.currentSessionId;
         const sessionDate = state.currentSessionDate;
-        const ids = workout.exercises.map(e => e.id);
-        // Exercises added, replaced or removed today: ask whether that was
-        // for today only or the workout from now on. Either answer finishes.
         let exact = null;
-        if (changedFromWorkout(ids)) {
-            const choice = await showChoiceModal(
-                `You changed the exercises in ${workout.name} today. Keep the changes for today only, or update ${workout.name} from now on?`,
-                [
-                    { label: "Today only", value: "today" },
-                    { label: `Update ${workout.name}`, value: "update" }
-                ]);
-            if (choice === null) return; // Cancel: stay on the review
+        if (choice !== "none") {
             exact = { exerciseIds: ids, updateWorkout: choice === "update" };
         } else if (loadLiveExercises(workout.id)) {
             // Changed and changed back (e.g. removed, then added again):

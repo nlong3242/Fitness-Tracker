@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -110,6 +111,21 @@ public class SessionController {
                 body.isUpdateWorkout(), body.getFinishedAt());
         }
         return sessionService.finishSession(sessionId, body.getOrderedExerciseIds(), body.getFinishedAt());
+    }
+
+    public static class ExerciseListBody {
+        private List<Long> exerciseIds;
+        public List<Long> getExerciseIds() { return exerciseIds; }
+        public void setExerciseIds(List<Long> exerciseIds) { this.exerciseIds = exerciseIds; }
+    }
+
+    /* The workout's exercises become exactly these, in order: "Update the
+       workout from now on" at the end of a live workout with nothing
+       logged (no session to finish). */
+    @PutMapping("/workouts/{workoutId}/exercise-list")
+    public ResponseEntity<Void> setWorkoutExerciseList(@PathVariable Long workoutId, @RequestBody ExerciseListBody body) {
+        sessionService.setWorkoutList(workoutId, body.getExerciseIds());
+        return ResponseEntity.noContent().build();
     }
 
     // 404 for another account's session, as for a missing one.

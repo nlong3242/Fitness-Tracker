@@ -172,6 +172,12 @@ export function reorderWorkoutExercises(workoutId, orderedExerciseIds) {
     return request("PATCH", `/workouts/${workoutId}/exercises/order`, { orderedExerciseIds });
 }
 
+// The workout's exercises become exactly these, in order ("Update the
+// workout" at Finish when nothing was logged, so there's no session).
+export function setWorkoutExerciseList(workoutId, exerciseIds) {
+    return requestOk("PUT", `/workouts/${workoutId}/exercise-list`, { exerciseIds });
+}
+
 export function fetchLastSets(workoutId, exerciseId, beforeSessionId) {
     const query = beforeSessionId ? `?beforeSessionId=${beforeSessionId}` : "";
     return requestJson("GET", `/workouts/${workoutId}/exercises/${exerciseId}/last-sets${query}`);

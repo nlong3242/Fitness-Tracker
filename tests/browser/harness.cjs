@@ -123,7 +123,18 @@ function run(seed, hash, body) {
             workout,
             api: (method, urlPath, reqBody) => request(method, urlPath, token, reqBody),
             setOnRequest: fn => { onRequest = fn; },
-            shot: name => page.screenshot({ path: path.join(SHOTS, `${name}.png`) }),
+            // Windows can briefly lock a just-written image (a preview pane,
+            // a virus scan), so a failed save is tried again before giving up.
+            async shot(name) {
+                for (let tries = 1; ; tries++) {
+                    try {
+                        return await page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
+                    } catch (e) {
+                        if (tries >= 5 || !/UNKNOWN|EBUSY|EPERM/.test(e.message)) throw e;
+                        await wait(500);
+                    }
+                }
+            },
             // Starts (or resumes) the seeded workout from the Workouts tab.
             async startWorkout() {
                 const name = workout.name;

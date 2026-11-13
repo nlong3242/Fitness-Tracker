@@ -99,3 +99,70 @@
 .rest-settings-status.error {
     color: var(--danger);
 }
+
+/* Timers page: the stopwatch's on/off switch (views/settings.js), a
+   pixel track with a square knob: sage and knob right when on. */
+.settings-hint + .settings-panel {
+    margin-top: 22px;
+}
+
+.settings-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.settings-switch-label {
+    color: var(--text-primary);
+    font-size: 1.15em;
+}
+
+.settings-switch,
+.settings-switch:active {
+    position: relative;
+    flex-shrink: 0;
+    width: 52px;
+    height: 30px;
+    padding: 0;
+    background-color: var(--surface-sunk);
+    box-shadow: inset 2px 2px 0 var(--shadow-hard);
+    transform: none;
+}
+
+.settings-switch[aria-checked="true"] {
+    background-color: var(--action);
+}
+
+@media (hover: hover) {
+    .settings-switch:hover {
+        background-color: var(--surface-sunk);
+    }
+    .settings-switch[aria-checked="true"]:hover {
+        background-color: var(--action-hover);
+    }
+}
+
+/* The switch is border-box (48×26 inside its border); so is the knob, so
+   it sits 3px in from every side: left 3 when off, 48 - 3 - 20 = 25 when on. */
+.settings-switch-knob {
+    box-sizing: border-box;
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 2px;
+    box-shadow: 0 2px 0 var(--shadow-hard);
+    transition: left 0.15s ease-out;
+}
+
+.settings-switch[aria-checked="true"] .settings-switch-knob {
+    left: 25px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .settings-switch-knob { transition: none; }
+}

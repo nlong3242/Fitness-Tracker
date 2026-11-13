@@ -1,4 +1,4 @@
-/* Settings → Rest timer (views/settings.js): its own page with the 8 quick
+/* Settings → Timers (views/settings.js): its own page with the 8 quick
    times and − / + in 15 s steps (0:15 to 10:00), saved with the account
    after the last tap; a failed save; and a logged set resting for it. */
 const { run, wait, toSec } = require("./harness.cjs");
@@ -21,12 +21,12 @@ run({ prefix: "restset", workoutName: "Settings Rest" }, "#/settings", async t =
     await page.waitForSelector("#settings-rest-btn");
     check("Settings itself has no rest controls", (await page.$("#rest-settings")) === null);
     const order = await page.$$eval(".settings-actions button", bs => bs.map(b => b.textContent.trim()).join(" | "));
-    check("Rest timer button after Profile", order.startsWith("Profile | Rest timer"), order);
+    check("Timers button after Profile", order.startsWith("Profile | Timers"), order);
     await t.shot("rest-settings-00-settings");
     await page.click("#settings-rest-btn");
     await page.waitForSelector("#rest-settings-value");
     check("opens its own page", (await hash()) === "#/settings/rest", await hash());
-    check("page title Rest timer", (await page.$eval(".page-title", e => e.textContent)) === "Rest timer");
+    check("page title Timers", (await page.$eval(".page-title", e => e.textContent)) === "Timers");
 
     const value = () => page.$eval("#rest-settings-value", e => e.textContent);
     const mine = () => page.$$eval("#rest-settings-chips .rest-timer-chip.mine",
@@ -92,7 +92,7 @@ run({ prefix: "restset", workoutName: "Settings Rest" }, "#/settings", async t =
     await api("PUT", "/profile/rest-seconds", { seconds: 585 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#rest-settings-value");
-    check("reload stays on the Rest timer page", (await hash()) === "#/settings/rest");
+    check("reload stays on the Timers page", (await hash()) === "#/settings/rest");
     check("reload shows the account's 9:45", (await value()) === "9:45", await value());
     await page.click("#rest-settings-plus");
     check("10:00 is the highest", (await value()) === "10:00");

@@ -88,6 +88,11 @@ export function saveRestSeconds(seconds) {
     return requestJson("PUT", "/profile/rest-seconds", { seconds });
 }
 
+// Show the live workout's stopwatch or not (Settings). Answers the whole profile.
+export function saveShowWorkoutTimer(show) {
+    return requestJson("PUT", "/profile/workout-timer", { show });
+}
+
 // { id, email } of the logged-in account.
 export function fetchMe() {
     return requestJson("GET", "/auth/me");

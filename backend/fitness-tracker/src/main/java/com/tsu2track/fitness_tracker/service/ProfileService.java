@@ -59,4 +59,15 @@ public class ProfileService {
         profile.setUpdatedAt(LocalDateTime.now(clock));
         return profileRepository.save(profile);
     }
+
+    // The rest timer's length, from Settings. Needs a profile first (the
+    // app asks for one before anything else).
+    @Transactional
+    public UserProfile saveRestSeconds(int seconds) {
+        UserProfile profile = profileRepository.findById(CurrentUser.id())
+            .orElseThrow(() -> new ApiFieldException(HttpStatus.NOT_FOUND, "profile", "Set up your profile first."));
+        profile.setRestSeconds(seconds);
+        profile.setUpdatedAt(LocalDateTime.now(clock));
+        return profileRepository.save(profile);
+    }
 }

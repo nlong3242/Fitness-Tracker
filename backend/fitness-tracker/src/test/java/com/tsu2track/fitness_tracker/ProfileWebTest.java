@@ -133,6 +133,76 @@ class ProfileWebTest {
         mvc.perform(get("/profile")).andExpect(status().isUnauthorized());
         mvc.perform(put("/profile").contentType(MediaType.APPLICATION_JSON).content("{\"name\": \"Long\"}"))
             .andExpect(status().isUnauthorized());
+        mvc.perform(put("/profile/rest-seconds").contentType(MediaType.APPLICATION_JSON).content("{\"seconds\": 90}"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    // ----- Rest timer length (Settings) -----
+
+    @Test
+    void restTimeIsThreeMinutesUntilSet() throws Exception {
+        save(bearer, "{\"name\": \"Long\"}").andExpect(jsonPath("$.restSeconds").value(180));
+        mvc.perform(get("/profile").header("Authorization", bearer))
+            .andExpect(jsonPath("$.restSeconds").value(180));
+    }
+
+    @Test
+    void restTimeIsSavedAndReadBack() throws Exception {
+        save(bearer, "{\"name\": \"Long\"}");
+        saveRest(bearer, "{\"seconds\": 135}")
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.restSeconds").value(135))
+            .andExpect(jsonPath("$.name").value("Long"));
+        mvc.perform(get("/profile").header("Authorization", bearer))
+            .andExpect(jsonPath("$.restSeconds").value(135));
+    }
+
+    @Test
+    void savingTheProfileKeepsTheRestTime() throws Exception {
+        save(bearer, "{\"name\": \"Long\"}");
+        saveRest(bearer, "{\"seconds\": 240}");
+        save(bearer, "{\"name\": \"Longy\", \"weeklyGoal\": 3}")
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.restSeconds").value(240));
+    }
+
+    @Test
+    void restTimeIsBetweenFifteenSecondsAndTenMinutes() throws Exception {
+        save(bearer, "{\"name\": \"Long\"}");
+        for (String body : new String[] { "{\"seconds\": 14}", "{\"seconds\": 601}", "{\"seconds\": 0}" }) {
+            saveRest(bearer, body)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("seconds"))
+                .andExpect(jsonPath("$.errors[0].message").value("Rest time must be between 0:15 and 10:00."));
+        }
+        saveRest(bearer, "{}")
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errors[0].message").value("Rest time is required."));
+        saveRest(bearer, "{\"seconds\": 15}").andExpect(status().isOk());
+        saveRest(bearer, "{\"seconds\": 600}").andExpect(status().isOk());
+    }
+
+    @Test
+    void restTimeNeedsAProfile() throws Exception {
+        saveRest(bearer, "{\"seconds\": 90}")
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.errors[0].field").value("profile"));
+        mvc.perform(get("/profile").header("Authorization", bearer)).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void eachAccountHasItsOwnRestTime() throws Exception {
+        save(bearer, "{\"name\": \"Long\"}");
+        String friend = signup("friend@example.com");
+        save(friend, "{\"name\": \"Sam\"}");
+        saveRest(friend, "{\"seconds\": 60}");
+        mvc.perform(get("/profile").header("Authorization", bearer))
+            .andExpect(jsonPath("$.restSeconds").value(180));
+    }
+
+    private ResultActions saveRest(String bearer, String body) throws Exception {
+        return mvc.perform(put("/profile/rest-seconds").header("Authorization", bearer)
+            .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
     private void expectError(String body, String field, String message) throws Exception {

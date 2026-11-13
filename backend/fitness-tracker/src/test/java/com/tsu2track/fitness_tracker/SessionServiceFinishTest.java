@@ -31,6 +31,7 @@ class SessionServiceFinishTest {
     @Autowired TestEntityManager em;
     @Autowired SessionService sessionService;
     @Autowired SessionExerciseRepository sessionExerciseRepository;
+    @Autowired WorkoutExerciseRepository workoutExerciseRepository;
 
     private Workout workout;
     private Exercise bench;
@@ -119,6 +120,68 @@ class SessionServiceFinishTest {
         assertThat(snapshotNames()).containsExactly("Bench Press", "Row", "Curl");
     }
 
+    // --- exerciseIds: exactly what was done today (added/replaced/removed) ---
+
+    @Test
+    void exactListRecordsOnlyTodaysExercises() {
+        Exercise dips = exercise("Dips", ExerciseCategory.CHEST);
+        // Bench swapped for Dips, Row removed.
+        finishExact(List.of(dips.getId(), curl.getId()), false);
+
+        assertThat(snapshotNames()).containsExactly("Dips", "Curl");
+    }
+
+    @Test
+    void todayOnlyLeavesTheWorkoutAsItWas() {
+        Exercise dips = exercise("Dips", ExerciseCategory.CHEST);
+        finishExact(List.of(dips.getId(), curl.getId()), false);
+
+        assertThat(workoutNames()).containsExactly("Bench Press", "Row", "Curl");
+    }
+
+    @Test
+    void updateWorkoutMakesTheWorkoutMatchToday() {
+        Exercise dips = exercise("Dips", ExerciseCategory.CHEST);
+        finishExact(List.of(curl.getId(), dips.getId()), true);
+
+        assertThat(workoutNames()).containsExactly("Curl", "Dips");
+        assertThat(snapshotNames()).containsExactly("Curl", "Dips");
+    }
+
+    @Test
+    void updateWorkoutKeepsTheLinksThatStay() {
+        Long curlLinkId = linkId(curl);
+        finishExact(List.of(curl.getId(), bench.getId()), true);
+
+        assertThat(linkId(curl)).isEqualTo(curlLinkId);
+        assertThat(workoutNames()).containsExactly("Curl", "Bench Press");
+    }
+
+    @Test
+    void exactListSkipsUnknownAndRepeatedIds() {
+        finishExact(List.of(999_999L, row.getId(), row.getId()), true);
+
+        assertThat(snapshotNames()).containsExactly("Row");
+        assertThat(workoutNames()).containsExactly("Row");
+    }
+
+    @Test
+    void exactListStillKeepsAnExerciseWithSetsLoggedToday() {
+        set(bench, 60, 5);
+        finishExact(List.of(row.getId()), false);
+
+        assertThat(snapshotNames()).containsExactly("Row", "Bench Press");
+    }
+
+    @Test
+    void finishingTwiceWithAnExactListChangesNothing() {
+        finishExact(List.of(row.getId()), false);
+        finishExact(List.of(curl.getId()), true);
+
+        assertThat(snapshotNames()).containsExactly("Row");
+        assertThat(workoutNames()).containsExactly("Bench Press", "Row", "Curl");
+    }
+
     @Test
     void unknownSessionIsNotFound() {
         assertThatThrownBy(() -> sessionService.finishSession(999_999L, null))
@@ -135,6 +198,25 @@ class SessionServiceFinishTest {
         em.flush();
         em.clear();
         return result;
+    }
+
+    private Session finishExact(List<Long> exerciseIds, boolean updateWorkout) {
+        em.flush();
+        em.clear();
+        Session result = sessionService.finishWithExercises(session.getId(), exerciseIds, updateWorkout, null);
+        em.flush();
+        em.clear();
+        return result;
+    }
+
+    private List<String> workoutNames() {
+        return workoutExerciseRepository.findLiveByWorkoutId(workout.getId()).stream()
+            .map(we -> we.getExercise().getName()).toList();
+    }
+
+    private Long linkId(Exercise exercise) {
+        return workoutExerciseRepository.findByWorkout_IdAndExercise_Id(workout.getId(), exercise.getId())
+            .orElseThrow().getId();
     }
 
     private List<SessionExercise> snapshots() {

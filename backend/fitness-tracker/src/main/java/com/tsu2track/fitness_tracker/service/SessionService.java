@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 import org.springframework.data.domain.Page;
@@ -170,14 +171,8 @@ public class SessionService {
         if (session.isFinished()) {
             return session;
         }
-        Instant now = Instant.now();
-        Instant end = finishedAt == null || finishedAt.isAfter(now) ? now : finishedAt;
-        if (session.getStartedAt() != null && end.isBefore(session.getStartedAt())) end = session.getStartedAt();
-        session.setFinishedAt(end);
-
         Long workoutId = session.getWorkoutId();
         List<WorkoutExercise> currentJoins = workoutExerciseRepository.findLiveByWorkoutId(workoutId);
-        List<ExerciseSet> sessionSets = exerciseSetRepository.findBySession_Id(sessionId);
 
         Map<Long, Exercise> currentById = new LinkedHashMap<>();
         for (WorkoutExercise we : currentJoins) {
@@ -198,7 +193,63 @@ public class SessionService {
         } else {
             exercisesById.putAll(currentById);
         }
+        return writeFinish(session, exercisesById, finishedAt);
+    }
 
+    /* Finish with exactly the exercises done today, in order: the live
+       workout's list after exercises were added, replaced or removed. Ids
+       that aren't usable (another account's, deleted, unknown) are skipped.
+       updateWorkout: the workout's own list becomes this one, from now on;
+       otherwise the workout is left as it was ("today only"). */
+    @Transactional
+    public Session finishWithExercises(Long sessionId, List<Long> exerciseIds, boolean updateWorkout, Instant finishedAt) {
+        Session session = ownedSession(sessionId);
+        if (session.isFinished()) {
+            return session;
+        }
+        Map<Long, Exercise> exercisesById = new LinkedHashMap<>();
+        for (Long id : exerciseIds) {
+            if (id == null || exercisesById.containsKey(id)) continue;
+            exerciseRepository.findUsable(id, CurrentUser.id())
+                .filter(e -> !e.isDeleted())
+                .ifPresent(e -> exercisesById.put(id, e));
+        }
+        if (updateWorkout) {
+            setWorkoutExercises(session.getWorkout(), new ArrayList<>(exercisesById.values()));
+        }
+        return writeFinish(session, exercisesById, finishedAt);
+    }
+
+    /* Makes the workout's list exactly these, in order. Links that stay
+       keep their row (only the position changes); the rest are removed. */
+    private void setWorkoutExercises(Workout workout, List<Exercise> exercises) {
+        Map<Long, WorkoutExercise> current = new HashMap<>();
+        for (WorkoutExercise we : workoutExerciseRepository.findLiveByWorkoutId(workout.getId())) {
+            current.put(we.getExercise().getId(), we);
+        }
+        Set<Long> keep = new HashSet<>();
+        for (Exercise ex : exercises) keep.add(ex.getId());
+        for (Map.Entry<Long, WorkoutExercise> e : current.entrySet()) {
+            if (!keep.contains(e.getKey())) workoutExerciseRepository.delete(e.getValue());
+        }
+        workoutExerciseRepository.flush();
+        for (int i = 0; i < exercises.size(); i++) {
+            Exercise ex = exercises.get(i);
+            WorkoutExercise link = current.get(ex.getId());
+            if (link != null) link.setPosition(i);
+            else workoutExerciseRepository.save(new WorkoutExercise(workout, ex, i));
+        }
+    }
+
+    // The end of both finishes: the end time, the history snapshot (the
+    // given exercises, then any other with a set logged today), finished.
+    private Session writeFinish(Session session, Map<Long, Exercise> exercisesById, Instant finishedAt) {
+        Instant now = Instant.now();
+        Instant end = finishedAt == null || finishedAt.isAfter(now) ? now : finishedAt;
+        if (session.getStartedAt() != null && end.isBefore(session.getStartedAt())) end = session.getStartedAt();
+        session.setFinishedAt(end);
+
+        List<ExerciseSet> sessionSets = exerciseSetRepository.findBySession_Id(session.getId());
         for (ExerciseSet set : sessionSets) {
             Long exId = set.getExerciseId();
             if (exId != null && !exercisesById.containsKey(exId)) {

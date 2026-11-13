@@ -82,20 +82,34 @@ public class SessionController {
         return sessionService.createSession(workoutId, body != null ? body.getStartedAt() : null);
     }
 
-    // finishedAt (optional): when the workout ended, if not now (auto-end).
+    /* finishedAt (optional): when the workout ended, if not now (auto-end).
+       exerciseIds (optional): exactly the exercises done today, in order,
+       when they differ from the workout's (added, replaced or removed during
+       the workout); it wins over orderedExerciseIds. updateWorkout: also
+       make the workout's own list match exerciseIds, from now on. */
     public static class FinishBody {
         private List<Long> orderedExerciseIds;
+        private List<Long> exerciseIds;
+        private boolean updateWorkout;
         private Instant finishedAt;
         public List<Long> getOrderedExerciseIds() { return orderedExerciseIds; }
         public void setOrderedExerciseIds(List<Long> orderedExerciseIds) { this.orderedExerciseIds = orderedExerciseIds; }
+        public List<Long> getExerciseIds() { return exerciseIds; }
+        public void setExerciseIds(List<Long> exerciseIds) { this.exerciseIds = exerciseIds; }
+        public boolean isUpdateWorkout() { return updateWorkout; }
+        public void setUpdateWorkout(boolean updateWorkout) { this.updateWorkout = updateWorkout; }
         public Instant getFinishedAt() { return finishedAt; }
         public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
     }
 
     @PostMapping("/sessions/{sessionId}/finish")
     public Session finishSession(@PathVariable Long sessionId, @RequestBody(required = false) FinishBody body) {
-        List<Long> orderedIds = body != null ? body.getOrderedExerciseIds() : null;
-        return sessionService.finishSession(sessionId, orderedIds, body != null ? body.getFinishedAt() : null);
+        if (body == null) return sessionService.finishSession(sessionId, null, null);
+        if (body.getExerciseIds() != null) {
+            return sessionService.finishWithExercises(sessionId, body.getExerciseIds(),
+                body.isUpdateWorkout(), body.getFinishedAt());
+        }
+        return sessionService.finishSession(sessionId, body.getOrderedExerciseIds(), body.getFinishedAt());
     }
 
     // 404 for another account's session, as for a missing one.

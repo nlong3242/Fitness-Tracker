@@ -40,6 +40,7 @@ import { renderWorkouts } from "./workouts.js";
 import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
 import { setRoute } from "../router.js";
 import { resetExercise } from "../components/resetExercise.js";
+import { resetWorkout } from "../components/resetWorkout.js";
 import { escapeHtml, formatShortDate } from "../utils/format.js";
 import { mountRestTimer, closeRestPanel, stopRest } from "../components/restTimer.js";
 import { mountWorkoutStopwatch } from "../components/workoutStopwatch.js";
@@ -407,15 +408,25 @@ export async function startWorkout(workoutId, options) {
         if (currentIndex < workout.exercises.length) setActive(currentIndex + 1);
     };
 
-    // Review is reached with Next on the last exercise; Add and Discard
-    // live in the ⋮ on the title line.
+    // Review is reached with Next on the last exercise; Add, Reset and
+    // Discard live in the ⋮ on the title line.
     pageContainer.querySelector(".workout-title-row").appendChild(
         createMoreButton("Workout options", function() {
             return [
                 { label: "Add exercise", onSelect: addExercises },
+                { label: "Reset workout", danger: true, onSelect: resetThisWorkout },
                 { label: "Discard workout", danger: true, onSelect: discardWorkout }
             ];
         }));
+
+    // Its finished sessions go; today's sets stay. Rebuilt on the exercise
+    // showing so the "last time" hints are fetched again (an exercise done
+    // in another workout then hints from there).
+    async function resetThisWorkout() {
+        if (!(await resetWorkout(workout))) return;
+        const showing = workout.exercises[Math.min(currentIndex, workout.exercises.length - 1)];
+        reopen(showing.id);
+    }
 
     // Pick one or more in the library; they go at the end, today only, and
     // the first of them shows.

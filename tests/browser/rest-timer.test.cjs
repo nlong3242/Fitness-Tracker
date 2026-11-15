@@ -229,7 +229,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await t.startWorkout();
     await clickChip(90);
     await page.click(".workout-title-row .more-btn");
-    await page.click(".action-menu-item.danger");
+    await page.click(".action-menu-item.danger:last-child");
     await page.waitForSelector(".modal-confirm");
     await page.click(".modal-confirm");
     await wait(500);

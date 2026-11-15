@@ -54,10 +54,10 @@ run({ prefix: "wbuttons", workoutName: "Buttons Test" }, "#/workouts", async t =
 
     // Discard asks first; Cancel keeps the workout
     await page.click(".workout-title-row .more-btn");
-    await page.waitForSelector(".action-menu-item.danger");
-    check("menu item reads Discard workout", (await page.$eval(".action-menu-item.danger", b => b.textContent)) === "Discard workout");
+    await page.waitForSelector(".action-menu-item.danger:last-child");
+    check("menu item reads Discard workout", (await page.$eval(".action-menu-item.danger:last-child", b => b.textContent)) === "Discard workout");
     await t.shot("workout-buttons-03-menu");
-    await page.click(".action-menu-item.danger");
+    await page.click(".action-menu-item.danger:last-child");
     await page.waitForSelector(".modal-confirm");
     await t.shot("workout-buttons-04-confirm");
     await page.click(".modal-cancel");
@@ -119,7 +119,7 @@ run({ prefix: "wbuttons", workoutName: "Buttons Test" }, "#/workouts", async t =
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector(".exercise-card.active");
     await page.click(".workout-title-row .more-btn");
-    await page.click(".action-menu-item.danger");
+    await page.click(".action-menu-item.danger:last-child");
     await page.waitForSelector(".modal-confirm");
     await page.click(".modal-confirm");
     await wait(600);

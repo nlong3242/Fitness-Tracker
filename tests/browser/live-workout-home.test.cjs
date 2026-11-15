@@ -71,7 +71,7 @@ run({ prefix: "livehome", workoutName: "Live Home", exercises: 2 }, "#/workouts"
     await t.startWorkout();
     check("reopened: no tab bar", !(await navShown()));
     await page.click(".workout-title-row .more-btn");
-    await page.click(".action-menu-item.danger");
+    await page.click(".action-menu-item.danger:last-child");
     await page.waitForSelector(".modal-confirm");
     await page.click(".modal-confirm");
     await wait(800);

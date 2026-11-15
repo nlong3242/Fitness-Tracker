@@ -22,10 +22,10 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     const pickerNames = () => page.$$eval(".picker-select-name", els =>
         els.map(e => e.textContent.replace(/Custom$/, "").trim()));
 
-    // 1. The workout's ⋮: Add exercise above Discard
+    // 1. The workout's ⋮: Add exercise, Reset, then Discard
     await page.click(".workout-title-row .more-btn");
     await page.waitForSelector(".action-menu-item");
-    check("menu has Add exercise, then Discard", JSON.stringify(await menuLabels()) === JSON.stringify(["Add exercise", "Discard workout"]),
+    check("menu has Add exercise, Reset, then Discard", JSON.stringify(await menuLabels()) === JSON.stringify(["Add exercise", "Reset workout", "Discard workout"]),
         (await menuLabels()).join(", "));
     await t.shot("live-add-01-menu");
     await page.click(".action-menu-backdrop");

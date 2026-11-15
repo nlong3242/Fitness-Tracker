@@ -36,6 +36,22 @@ function fitKmText(box) {
 
 // A hidden card's boxes have no width to measure, so each km box is
 // measured again when its size changes, e.g. when its card is shown.
+/* Saves and deletes still on their way, so a page can wait for them before
+   leaving (editing a finished workout: its summary must show the change). */
+const inFlight = new Set();
+function track(promise) {
+    inFlight.add(promise);
+    promise.finally(() => inFlight.delete(promise)).catch(() => {});
+    return promise;
+}
+
+/* Resolves once every save has finished (or failed), including one a row
+   is about to start because focus just left it (that waits a tick). */
+export async function settleSaves() {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await Promise.allSettled([...inFlight]);
+}
+
 const kmBoxResizes = new ResizeObserver(function(entries) {
     for (const entry of entries) fitKmText(entry.target);
 });
@@ -65,8 +81,16 @@ function cellHtml(col) {
 }
 
 /* savedSet (optional): an already-persisted set to show in the row, used
-   when resuming an in-progress session. */
+   when resuming an in-progress session.
+
+   workout.pastSessionId (views/editSession.js): the row edits that finished
+   session instead of the workout in progress. Its sets go straight into it,
+   and nothing of a live workout happens: no session is started or deleted
+   when emptied (that would be the live one), no rest, no activity, no
+   drafts (they're kept per workout, so they'd mix with a live one's). */
 export function createInputRow(workout, exercise, exerciseIndex, side, savedSet) {
+    const pastSessionId = workout.pastSessionId ?? null;
+    const isPast = pastSessionId !== null;
     const isUnilateral = exercise.unilateral === true;
     const columns = logColumns(exercise.logType);
     const row = document.createElement("div");
@@ -253,6 +277,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     // Unsaved typed values survive a reload (drafts.js); re-snapshotted on
     // every change so saving or emptying a row drops its draft.
     function saveDraft() {
+        if (isPast) return;
         const container = document.getElementById("sets-" + exerciseIndex);
         if (container) saveExerciseDrafts(workout.id, exercise.id, container);
     }
@@ -311,7 +336,10 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
        one deletes it (the rest stays on screen, unsaved), and filling them
        again saves a new set. Without this, persist ignored the incomplete
        row, so the set stayed logged and came back on reload. */
-    async function persist() {
+    function persist() {
+        return track(persistNow());
+    }
+    async function persistNow() {
         if (persisting) return;
         if (row._savedSet && !isComplete()) {
             await unlogSavedSet();
@@ -336,21 +364,21 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
                 });
                 row.classList.add("saved");
             } else {
-                await ensureCurrentSession(workout);
+                if (!isPast) await ensureCurrentSession(workout);
                 const body = { ...n };
                 if (side) body.side = side;
-                row._savedSet = await createSet(state.currentSessionId, exercise.id, body);
+                row._savedSet = await createSet(isPast ? pastSessionId : state.currentSessionId, exercise.id, body);
                 exercise.sets.push(row._savedSet);
                 row.classList.add("saved");
                 // A set just logged: rest starts with my time, in the bar's
                 // small ring (the big one only opens when it's tapped).
                 // Editing a saved set doesn't restart it.
-                startRest();
+                if (!isPast) startRest();
             }
             clearFailed();
             refreshKmBox();
             saveDraft();
-            touchActivity();
+            if (!isPast) touchActivity();
         } catch (e) {
             row.classList.remove("saved");
             setFailed("Not saved", persist);
@@ -378,11 +406,11 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         row.classList.remove("saved");
         try {
             await deleteSet(saved.id);
-            touchActivity();
+            if (!isPast) touchActivity();
             const idx = exercise.sets.indexOf(saved);
             if (idx >= 0) exercise.sets.splice(idx, 1);
             clearFailed();
-            await maybeCleanupOrphanSession(workout);
+            if (!isPast) await maybeCleanupOrphanSession(workout);
         } catch (e) {
             row._savedSet = saved;
             // persist re-decides on retry: still incomplete → delete again,
@@ -411,7 +439,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
     async function deleteRowSet(r) {
         if (r._savedSet) {
             await deleteSet(r._savedSet.id);
-            touchActivity();
+            if (!isPast) touchActivity();
             const idx = exercise.sets.indexOf(r._savedSet);
             if (idx >= 0) exercise.sets.splice(idx, 1);
         }
@@ -422,7 +450,7 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
 
     async function afterRowsRemoved() {
         saveDraft();
-        await maybeCleanupOrphanSession(workout);
+        if (!isPast) await maybeCleanupOrphanSession(workout);
         updateHeaderVisibility(exerciseIndex);
         renumberSetRows(exerciseIndex, exercise);
     }
@@ -440,7 +468,10 @@ export function createInputRow(workout, exercise, exerciseIndex, side, savedSet)
         }
     }
 
-    cancelBtn.onclick = async function() {
+    cancelBtn.onclick = function() {
+        return track(removeRow());
+    };
+    async function removeRow() {
         if (isUnilateral) {
             const container = document.getElementById("sets-" + exerciseIndex);
             const rows = Array.from(container.children).filter(c => !c.classList.contains("set-header-row"));

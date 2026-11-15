@@ -9,6 +9,7 @@ import { startWorkout } from "./views/activeWorkout.js";
 import { viewWorkout } from "./views/workoutDetail.js";
 import { viewPastSessions } from "./views/pastSessions.js";
 import { viewSessionSummary } from "./views/summary.js";
+import { editPastSession } from "./views/editSession.js";
 import { navigateToCalendarDay, navigateToCalendarMonth } from "./views/calendar.js";
 import { renderExercisePage } from "./views/exercisePage.js";
 import { renderExerciseEditPage } from "./views/exerciseEdit.js";
@@ -24,6 +25,7 @@ import { renderExerciseEditPage } from "./views/exerciseEdit.js";
      #/settings/profile                      #/settings/rest
      #/workouts                              #/workouts/12
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
+     #/workouts/12/sessions/345/edit?date=2026-10-24&exercise=7  (editing a finished workout)
      #/workouts/12/exercises/7               #/workouts/12/exercises/7/history (/edit)
      #/calendar/2026-10                      #/calendar/2026-10-25
      #/calendar/2026-10-25/sessions/345?workout=12
@@ -136,8 +138,15 @@ async function openWorkouts(parts, params) {
         const sessionId = id(parts[3]);
         const date = params.get("date");
         if (sessionId !== null && DAY.test(date || "")) {
+            const summary = function() {
+                return viewSessionSummary(workoutId, sessionId, date, function() { viewPastSessions(workoutId); });
+            };
+            // Editing a finished workout: after a reload, Back and Next go to its summary.
+            if (parts[4] === "edit" && await editPastSession(workoutId, sessionId, date, {
+                exerciseId: id(params.get("exercise")), onBack: summary, onDone: summary
+            })) return true;
             try {
-                await viewSessionSummary(workoutId, sessionId, date, function() { viewPastSessions(workoutId); });
+                await summary();
                 return true;
             } catch (e) { /* session deleted: show the list instead */ }
         }

@@ -16,6 +16,7 @@ import { clearNavGuard } from "../components/bottomNav.js";
 import { viewWorkout } from "./workoutDetail.js";
 import { setRoute } from "../router.js";
 import { alignPageStrips } from "../utils/pageStrip.js";
+import { editPastSession } from "./editSession.js";
 
 /* route: where the summary was opened from, as a hash route (router.js);
    defaults to the workout's past sessions. */
@@ -42,7 +43,11 @@ export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBa
     workout.exercises = snapshotExercises;
 
     const back = onBack || function() { viewWorkout(workoutId); };
-    await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: back });
+    await renderWorkoutSummary(workout, sessionId, sessionDate, {
+        onBack: back,
+        // Back from editing it: this summary again, opened the same way.
+        reopen: function() { return viewSessionSummary(workoutId, sessionId, sessionDate, onBack, route); }
+    });
 }
 
 /* A summary set table's columns (the set's logColumns): heading, value,
@@ -93,8 +98,12 @@ export function sessionSummaryRoute(workoutId, sessionId, sessionDate) {
 }
 
 /* options: { onBack, target?, mode?, onFinish?, backLabel?, headingPrefix?,
-              onExerciseClick? }
+              onExerciseClick?, reopen? }
    - target: element to write into (defaults to #app-content)
+   - onExerciseClick(exercise): the live review's box tap (back to that
+     exercise). Without it, a finished summary's box opens it for editing
+     (editSession.js), and reopen() is where its Back / Next return
+     (default: this summary, reloaded)
    - mode: "final" (default) or "preview" — preview adds a Finish button and
      skips the previous-totals fetch (no completed session to compare against)
    - onFinish: required when mode is "preview"
@@ -250,9 +259,11 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
             `;
         }
 
+        // A finished workout: tapping its box edits it (editSession.js).
+        const editable = !onExerciseClick && mode === "final" && sessionId !== null;
         const exerciseCard = document.createElement("div");
         exerciseCard.className = "summary-exercise-card";
-        if (onExerciseClick) exerciseCard.classList.add("clickable");
+        if (onExerciseClick || editable) exerciseCard.classList.add("clickable");
         exerciseCard.innerHTML = `
             <div class="summary-exercise-name">${escapeHtml(exercise.name)}</div>
             <div class="summary-exercise-count">${exercise.sets.length} ${exercise.sets.length === 1 ? "set" : "sets"}</div>
@@ -262,10 +273,24 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
         if (onExerciseClick) {
             exerciseCard.onclick = function() { onExerciseClick(exercise); };
         } else {
-            exerciseCard.querySelector(".summary-exercise-name").onclick = function() {
+            // The name still opens its details, and the notes panel works as
+            // before: neither opens the editing page.
+            exerciseCard.querySelector(".summary-exercise-name").onclick = function(e) {
+                e.stopPropagation();
                 showExerciseReadOnlyModal(exercise);
             };
-            exerciseCard.appendChild(createNotesPanel(exercise));
+            const notes = createNotesPanel(exercise);
+            notes.addEventListener("click", function(e) { e.stopPropagation(); });
+            exerciseCard.appendChild(notes);
+            if (editable) {
+                const reopen = opts.reopen || function() {
+                    return viewSessionSummary(workout.id, sessionId, sessionDate, onBack);
+                };
+                exerciseCard.onclick = function() {
+                    editPastSession(workout.id, sessionId, sessionDate,
+                        { exerciseId: exercise.id, onBack: reopen, onDone: reopen });
+                };
+            }
         }
 
         exercisesContainer.appendChild(exerciseCard);

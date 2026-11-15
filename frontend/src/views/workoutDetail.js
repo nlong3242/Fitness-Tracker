@@ -56,7 +56,8 @@ export async function viewWorkout(workoutId) {
     container.querySelector(".page-top").appendChild(createMoreButton(`Options for ${workout.name}`, function() {
         return workoutMenu(workout, {
             pastSessions: function() { viewPastSessions(workoutId); },
-            repeatItems: repeatItems
+            repeatItems: repeatItems,
+            afterReset: function() { viewWorkout(workoutId); }
         });
     }));
     const startBtn = document.getElementById("workout-start-btn");

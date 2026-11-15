@@ -42,6 +42,19 @@ public class SessionController {
         return sessionService.findSessions(workoutId, PageRequest.of(safePage, safeSize));
     }
 
+    // What Reset workout would delete (finished sessions, their sets), for its question.
+    @GetMapping("/workouts/{workoutId}/history/count")
+    public SessionService.HistoryCount countWorkoutHistory(@PathVariable Long workoutId) {
+        return sessionService.countWorkoutHistory(workoutId);
+    }
+
+    // Reset workout: deletes its finished sessions (SessionService.resetWorkoutHistory);
+    // answers what went.
+    @DeleteMapping("/workouts/{workoutId}/history")
+    public SessionService.HistoryCount resetWorkoutHistory(@PathVariable Long workoutId) {
+        return sessionService.resetWorkoutHistory(workoutId);
+    }
+
     // 204 when there's nothing to resume.
     @GetMapping("/sessions/unfinished")
     public ResponseEntity<Session> getUnfinishedSession() {

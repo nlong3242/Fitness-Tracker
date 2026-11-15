@@ -16,10 +16,19 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
     List<ExerciseSet> findBySession_Id(Long sessionId);
     boolean existsBySession_Id(Long sessionId);
 
+    // Reset workout's question: the sets in the workout's finished sessions.
+    @Query("SELECT COUNT(s) FROM ExerciseSet s WHERE s.session.workout.id = :workoutId AND s.session.finished = true")
+    long countFinishedInWorkout(@Param("workoutId") Long workoutId);
+
     // Reset an exercise's history: its sets in these sessions go.
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM ExerciseSet s WHERE s.exercise.id = :exerciseId AND s.session.id IN :sessionIds")
     int deleteByExerciseInSessions(@Param("exerciseId") Long exerciseId, @Param("sessionIds") List<Long> sessionIds);
+
+    // Reset a workout's history: every set in these sessions goes.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM ExerciseSet s WHERE s.session.id IN :sessionIds")
+    int deleteInSessions(@Param("sessionIds") List<Long> sessionIds);
 
     // Every set of this exercise in the account's finished sessions, oldest
     // first (by session date, then session, then logging order). Built-in

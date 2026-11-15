@@ -5,7 +5,9 @@ import {
     createWorkout,
     deleteWorkout,
     fetchWorkouts,
-    linkExerciseToWorkout
+    fetchWorkoutHistoryCount,
+    linkExerciseToWorkout,
+    resetWorkoutHistory
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { showConfirmModal } from "../components/modals.js";
@@ -86,7 +88,8 @@ function drawWorkoutRows(list) {
         item.appendChild(createMoreButton(`Options for ${workout.name}`, function() {
             return workoutMenu(workout, {
                 addExercise: function() { addExercise(workout.id, renderWorkouts); },
-                pastSessions: function() { viewPastSessions(workout.id, renderWorkouts); }
+                pastSessions: function() { viewPastSessions(workout.id, renderWorkouts); },
+                afterReset: renderWorkouts
             });
         }));
         list.appendChild(item);
@@ -97,15 +100,51 @@ function drawWorkoutRows(list) {
    sessions come back to wherever it was opened from, so the caller passes
    those; no addExercise means no Add exercise item (the workout's page
    has its own button). repeatItems are the workout page's Edit and Stop for
-   a repeating plan. Delete always ends on the list. */
+   a repeating plan. afterReset() redraws the page it was opened from once
+   Reset workout has gone through. Delete always ends on the list. */
 export function workoutMenu(workout, actions) {
     return [
         ...(actions.addExercise ? [{ label: "Add exercise", onSelect: actions.addExercise }] : []),
         { label: "Past sessions", onSelect: actions.pastSessions },
         { label: "Schedule", onSelect: function() { scheduleWorkout(workout); } },
         ...(actions.repeatItems || []),
+        { label: "Reset workout", danger: true, onSelect: function() { resetWorkout(workout, actions.afterReset); } },
         { label: "Delete workout", danger: true, onSelect: function() { removeWorkout(workout); } }
     ];
+}
+
+/* Deletes every finished session of the workout, with its sets
+   (SessionService.resetWorkoutHistory); the workout, its exercises and its
+   repeat stay, and so does one being done right now. Says how much first
+   and always asks. */
+async function resetWorkout(workout, afterReset) {
+    let count;
+    try {
+        count = await fetchWorkoutHistoryCount(workout.id);
+    } catch (e) {
+        await showConfirmModal("Couldn't reset. Check your connection and try again.", "OK");
+        return;
+    }
+    if (count.sessions === 0) {
+        await showConfirmModal(`${workout.name} has no history to reset.`, "OK");
+        return;
+    }
+    const sets = count.sets === 1 ? "1 set" : `${count.sets} sets`;
+    const what = count.sessions === 1
+        ? `The workout you've done of it is deleted, with its ${sets}`
+        : `All ${count.sessions} workouts you've done of it are deleted, with their ${sets}`;
+    const inProgress = state.currentWorkoutId === workout.id || getStartedWorkoutId() === workout.id
+        ? " The one in progress stays." : "";
+    const confirmed = await showConfirmModal(
+        `Reset ${workout.name}? ${what}.${inProgress} This can't be undone.`, "Reset");
+    if (!confirmed) return;
+    try {
+        await resetWorkoutHistory(workout.id);
+    } catch (e) {
+        await showConfirmModal("Couldn't reset. Check your connection and try again.", "OK");
+        return;
+    }
+    if (afterReset) afterReset();
 }
 
 async function removeWorkout(workout) {

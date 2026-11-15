@@ -15,4 +15,9 @@ public interface SessionExerciseRepository extends JpaRepository<SessionExercise
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM SessionExercise se WHERE se.exercise.id = :exerciseId AND se.session.id IN :sessionIds")
     int deleteByExerciseInSessions(@Param("exerciseId") Long exerciseId, @Param("sessionIds") List<Long> sessionIds);
+
+    // Reset a workout's history: these sessions' summaries go.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM SessionExercise se WHERE se.session.id IN :sessionIds")
+    int deleteInSessions(@Param("sessionIds") List<Long> sessionIds);
 }

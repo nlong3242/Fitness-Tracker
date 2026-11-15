@@ -373,6 +373,34 @@ public class SessionService {
         return exerciseSetRepository.findFinishedSetsOldestFirst(exerciseId, userId);
     }
 
+    // What resetting a workout would delete: its finished sessions and their sets.
+    public HistoryCount countWorkoutHistory(Long workoutId) {
+        int sessions = finishedSessionsOf(workoutId).size();
+        return new HistoryCount((int) exerciseSetRepository.countFinishedInWorkout(workoutId), sessions);
+    }
+
+    /* Reset a workout: every finished session of it goes (its sets and
+       summary with it), each calendar day undone like an emptied session's
+       (removeEmptiedSession). The workout, its exercises and its repeat
+       stay, and a session of it in progress is left alone. */
+    @Transactional
+    public HistoryCount resetWorkoutHistory(Long workoutId) {
+        List<Long> sessionIds = finishedSessionsOf(workoutId).stream().map(Session::getId).toList();
+        if (sessionIds.isEmpty()) return new HistoryCount(0, 0);
+        int sets = (int) exerciseSetRepository.countFinishedInWorkout(workoutId);
+        // In bulk first: a session's sets list needn't hold every set of it
+        // (sets are saved on their own), so cascading alone could miss some.
+        exerciseSetRepository.deleteInSessions(sessionIds);
+        sessionExerciseRepository.deleteInSessions(sessionIds);
+        for (Long sessionId : sessionIds) removeEmptiedSession(sessionId);
+        return new HistoryCount(sets, sessionIds.size());
+    }
+
+    private List<Session> finishedSessionsOf(Long workoutId) {
+        ownedWorkout(workoutId);
+        return sessionRepository.findByWorkout_IdAndFinishedTrue(workoutId);
+    }
+
     private static List<Long> sessionIdsOf(List<ExerciseSet> sets) {
         return sets.stream().map(ExerciseSet::getSessionId).distinct().toList();
     }

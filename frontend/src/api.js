@@ -192,6 +192,16 @@ export function resetExerciseHistory(exerciseId) {
     return requestJson("DELETE", `/exercises/${exerciseId}/history`);
 }
 
+// What Reset workout would delete: { sets, sessions } of its finished workouts.
+export function fetchWorkoutHistoryCount(workoutId) {
+    return requestJson("GET", `/workouts/${workoutId}/history/count`);
+}
+
+// Reset workout: deletes every finished session of it; answers { sets, sessions }.
+export function resetWorkoutHistory(workoutId) {
+    return requestJson("DELETE", `/workouts/${workoutId}/history`);
+}
+
 // The workout's exercises become exactly these, in order ("Update the
 // workout" at Finish when nothing was logged, so there's no session).
 export function setWorkoutExerciseList(workoutId, exerciseIds) {

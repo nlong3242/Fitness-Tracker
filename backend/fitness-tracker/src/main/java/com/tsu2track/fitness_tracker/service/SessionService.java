@@ -529,10 +529,20 @@ public class SessionService {
         Optional<Session> session = sessionRepository.findByIdAndUserId(sessionId, CurrentUser.id());
         Optional<Exercise> exercise = exerciseRepository.findUsable(exerciseId, CurrentUser.id());
         if (session.isPresent() && exercise.isPresent()) {
+            /* A finished workout can be edited (editing history), but only
+               its own exercises, as they were logged: the finish snapshot's
+               type and sidedness, not the exercise's current ones. Adding a
+               whole exercise to it isn't supported yet. */
+            LogType logType = exercise.get().getLogType();
+            Boolean unilateral = exercise.get().getUnilateral();
             if (session.get().isFinished()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
+                SessionExercise snapshot = sessionExerciseRepository
+                    .findFirstBySession_IdAndExercise_Id(sessionId, exerciseId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Exercise isn't in this workout"));
+                logType = snapshot.getLogType();
+                unilateral = snapshot.getUnilateral();
             }
-            boolean isUnilateral = Boolean.TRUE.equals(exercise.get().getUnilateral());
+            boolean isUnilateral = Boolean.TRUE.equals(unilateral);
             if (isUnilateral && req.side() == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side is required for unilateral exercises");
             }
@@ -540,7 +550,7 @@ public class SessionService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Side must not be set for bilateral exercises");
             }
             ExerciseSet set = new ExerciseSet();
-            set.setLogType(exercise.get().getLogType());
+            set.setLogType(logType);
             setNumbers(set, req.weight(), req.reps(), req.durationSeconds(), req.distanceKm());
             set.setSide(req.side());
             set.setExercise(exercise.get());
@@ -555,9 +565,6 @@ public class SessionService {
         Optional<ExerciseSet> existing = exerciseSetRepository.findByIdAndSession_UserId(setId, CurrentUser.id());
         if (existing.isPresent()) {
             ExerciseSet set = existing.get();
-            if (set.getSession() != null && set.getSession().isFinished()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
-            }
             setNumbers(set, req.weight(), req.reps(), req.durationSeconds(), req.distanceKm());
             if (set.getSession() != null) touch(set.getSession());
             return exerciseSetRepository.save(set);
@@ -567,9 +574,6 @@ public class SessionService {
 
     public void deleteSet(Long setId) {
         Optional<ExerciseSet> existing = exerciseSetRepository.findByIdAndSession_UserId(setId, CurrentUser.id());
-        if (existing.isPresent() && existing.get().getSession() != null && existing.get().getSession().isFinished()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Session is finished");
-        }
         if (existing.isEmpty()) return;
         if (existing.get().getSession() != null) touch(existing.get().getSession());
         exerciseSetRepository.delete(existing.get());
@@ -616,7 +620,9 @@ public class SessionService {
     }
 
     // Any set change counts as activity on its session (see Session.lastActivityAt).
+    // A finished workout edited later (editing history) isn't active again.
     private void touch(Session session) {
+        if (session.isFinished()) return;
         session.setLastActivityAt(Instant.now());
         sessionRepository.save(session);
     }

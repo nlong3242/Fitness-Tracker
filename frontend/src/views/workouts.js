@@ -5,12 +5,11 @@ import {
     createWorkout,
     deleteWorkout,
     fetchWorkouts,
-    fetchWorkoutHistoryCount,
-    linkExerciseToWorkout,
-    resetWorkoutHistory
+    linkExerciseToWorkout
 } from "../api.js";
 import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { showConfirmModal } from "../components/modals.js";
+import { resetWorkout } from "../components/resetWorkout.js";
 import { createMoreButton } from "../components/actionMenu.js";
 import { liveWorkout } from "../components/liveWorkout.js";
 import { setActiveTab, setNavGuard, clearNavGuard } from "../components/bottomNav.js";
@@ -108,43 +107,11 @@ export function workoutMenu(workout, actions) {
         { label: "Past sessions", onSelect: actions.pastSessions },
         { label: "Schedule", onSelect: function() { scheduleWorkout(workout); } },
         ...(actions.repeatItems || []),
-        { label: "Reset workout", danger: true, onSelect: function() { resetWorkout(workout, actions.afterReset); } },
+        { label: "Reset workout", danger: true, onSelect: async function() {
+            if (await resetWorkout(workout) && actions.afterReset) actions.afterReset();
+        } },
         { label: "Delete workout", danger: true, onSelect: function() { removeWorkout(workout); } }
     ];
-}
-
-/* Deletes every finished session of the workout, with its sets
-   (SessionService.resetWorkoutHistory); the workout, its exercises and its
-   repeat stay, and so does one being done right now. Says how much first
-   and always asks. */
-async function resetWorkout(workout, afterReset) {
-    let count;
-    try {
-        count = await fetchWorkoutHistoryCount(workout.id);
-    } catch (e) {
-        await showConfirmModal("Couldn't reset. Check your connection and try again.", "OK");
-        return;
-    }
-    if (count.sessions === 0) {
-        await showConfirmModal(`${workout.name} has no history to reset.`, "OK");
-        return;
-    }
-    const sets = count.sets === 1 ? "1 set" : `${count.sets} sets`;
-    const what = count.sessions === 1
-        ? `The workout you've done of it is deleted, with its ${sets}`
-        : `All ${count.sessions} workouts you've done of it are deleted, with their ${sets}`;
-    const inProgress = state.currentWorkoutId === workout.id || getStartedWorkoutId() === workout.id
-        ? " The one in progress stays." : "";
-    const confirmed = await showConfirmModal(
-        `Reset ${workout.name}? ${what}.${inProgress} This can't be undone.`, "Reset");
-    if (!confirmed) return;
-    try {
-        await resetWorkoutHistory(workout.id);
-    } catch (e) {
-        await showConfirmModal("Couldn't reset. Check your connection and try again.", "OK");
-        return;
-    }
-    if (afterReset) afterReset();
 }
 
 async function removeWorkout(workout) {

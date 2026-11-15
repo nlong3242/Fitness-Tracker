@@ -58,7 +58,10 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     const title = await page.$eval(".workout-title-row h2", e => e.textContent);
     check("title is the workout and its day", title.startsWith(`${workout.name} - `), title);
     check("two pills, on 1", (await page.$$eval("#exercise-pills .exercise-pill", ps => ps.map(p => p.classList.contains("active")))).join() === "true,false");
-    check("tab bar shown", await page.$eval("#bottom-nav", n => getComputedStyle(n).display !== "none" && !document.body.classList.contains("nav-hidden")));
+    const navShown = () => page.$eval("#bottom-nav", n => getComputedStyle(n).display !== "none" && !document.body.classList.contains("nav-hidden"));
+    check("no tab bar, as in a live workout", !(await navShown()));
+    const navBottom = await page.$eval("#exercise-nav-row", e => Math.round(window.innerHeight - e.getBoundingClientRect().bottom));
+    check("Prev / Next at the bottom edge", navBottom <= 1, navBottom);
     check("no stopwatch, rest timer or ⋮",
         !(await page.$("#workout-stopwatch")) && !(await page.$("#rest-timer-btn")) && !(await page.$(".exercise-card .more-btn, .workout-title-row .more-btn")));
     await t.shot("edit-session-01-open");
@@ -120,6 +123,7 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     await wait(300);
     check("Next on the last goes to the summary",
         page.url().endsWith(`#/workouts/${workout.id}/sessions/${past.id}?date=${past.date}`), page.url());
+    check("the tab bar is back", await navShown());
     await t.shot("edit-session-02-summary");
 
     // 7. ‹ Back also goes to the summary (opened by address, as after a reload)
@@ -127,4 +131,5 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     await page.click("#edit-session-back-btn");
     await page.waitForSelector("#summary-back-btn");
     check("‹ Back goes to the summary", page.url().includes(`/sessions/${past.id}?date=`), page.url());
+    check("with the tab bar back", await navShown());
 });

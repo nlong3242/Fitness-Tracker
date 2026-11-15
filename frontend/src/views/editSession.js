@@ -2,7 +2,7 @@ import { findWorkout } from "../state.js";
 import { fetchSessionExercises, fetchSessionSets, fetchLastSets, fetchLastDone } from "../api.js";
 import { setHints, appendExerciseCard } from "../components/exerciseCard.js";
 import { settleSaves } from "../components/setInputRow.js";
-import { clearNavGuard } from "../components/bottomNav.js";
+import { clearNavGuard, setNavVisible } from "../components/bottomNav.js";
 import { setRoute } from "../router.js";
 import { escapeHtml, formatShortDate } from "../utils/format.js";
 
@@ -10,8 +10,9 @@ import { escapeHtml, formatShortDate } from "../utils/format.js";
    page as a live one: its exercises as they were logged (the finish
    snapshot), pills and Prev / Next, every set saving as it's typed
    (setInputRow.js, via workout.pastSessionId). Next on the last exercise
-   goes to onDone (its summary). Nothing of a live workout: no rest timer,
-   stopwatch, auto-end, ⋮ menus, review or Finish, and the tab bar stays.
+   goes to onDone (its summary). No tab bar, as in a live workout. Nothing
+   else of a live workout: no rest timer, stopwatch, auto-end, ⋮ menus,
+   review or Finish.
    A live workout open meanwhile is untouched.
 
    options:
@@ -69,8 +70,12 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
     async function leave(then) {
         if (document.activeElement) document.activeElement.blur();
         await settleSaves();
+        setNavVisible(true);
         if (then) then();
     }
+    // No tab bar, as in a live workout; ‹ Back and Next are the ways out,
+    // and both bring it back (leave).
+    setNavVisible(false);
     document.getElementById("edit-session-back-btn").onclick = function() { leave(opts.onBack); };
 
     const pillsRow = document.getElementById("exercise-pills");

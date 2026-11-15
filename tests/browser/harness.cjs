@@ -84,11 +84,38 @@ async function seedAccount({ prefix, workoutName, exercises = 1, restSeconds }) 
    `hash`, hands over to body(t), then prints the result and exits.
    onRequest(req, url) may answer a request itself (e.g. abort it to
    fake a lost connection) by returning true. */
+/* Resolves when a request matching test() has finished (or failed): unlike
+   waitForResponse, its body has arrived, so the page is about to use it. */
+function untilRequestDone(page, test) {
+    return new Promise(resolve => {
+        const done = req => {
+            if (!test(req)) return;
+            page.off("requestfinished", done);
+            page.off("requestfailed", done);
+            resolve();
+        };
+        page.on("requestfinished", done);
+        page.on("requestfailed", done);
+    });
+}
+
+/* Waits until the app has finished starting up, i.e. its one check for a
+   workout in progress (main.js restoreInProgressSession, the last call
+   before it opens the page) has come back. Seeding data any earlier can
+   race it: a session the test opens and finishes through the API could be
+   seen open, and Start then asks to discard it (a test that hangs). The
+   page's own resource timings are per page load, so a reload starts over. */
+async function appStarted(page) {
+    await page.waitForFunction(() => performance.getEntriesByType("resource")
+        .some(e => e.name.includes("/sessions/unfinished") && e.responseEnd > 0), { timeout: 15000 });
+}
+
 function run(seed, hash, body) {
     let failures = 0;
     let checks = 0;
     let onRequest = null;
     let browser;
+    let page;
 
     function check(name, ok, detail) {
         checks++;
@@ -99,7 +126,7 @@ function run(seed, hash, body) {
     (async () => {
         const { token, workout } = await seedAccount(seed);
         browser = await puppeteer.launch({ executablePath: findChrome(), headless: true });
-        const page = await browser.newPage();
+        page = await browser.newPage();
         await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
         await page.setRequestInterception(true);
         page.on("request", req => {
@@ -115,6 +142,7 @@ function run(seed, hash, body) {
         await page.evaluate(t => { localStorage.clear(); localStorage.setItem("fitness.authToken", t); }, token);
         await page.goto(APP + hash, { waitUntil: "domcontentloaded" });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await appStarted(page);
 
         fs.mkdirSync(SHOTS, { recursive: true });
         const t = {
@@ -146,9 +174,14 @@ function run(seed, hash, body) {
                     await page.waitForSelector("#home-greeting");
                 }
                 const tab = await page.waitForSelector('#bottom-nav [data-tab="workouts"]', { visible: true });
+                // The list draws twice (cache, then server): click once the
+                // server's list is in, or the click can land on a button
+                // that's about to be replaced and do nothing.
+                const fresh = untilRequestDone(page, r => r.method() === "GET" && /\/workouts$/.test(r.url()));
                 await tab.click();
+                await fresh;
+                await wait(150);
                 await page.waitForSelector(selector);
-                await wait(800); // the list draws twice (cache, then server)
                 await page.evaluate(s => document.querySelector(s).click(), selector);
                 // The bar (with ⏱) comes first; the exercise cards once
                 // last time's sets have loaded.
@@ -157,9 +190,19 @@ function run(seed, hash, body) {
             }
         };
         await body(t);
-    })().catch(e => {
+    })().catch(async e => {
         console.log(`FAIL  test stopped: ${e.stack || e.message}`);
         failures++;
+        // What was on screen, to tell a slow page from an unexpected one.
+        if (page) {
+            const seen = await page.evaluate(() => ({
+                route: location.hash,
+                dialog: (document.querySelector(".modal-message") || {}).textContent || null,
+                title: (document.querySelector("h1, h2") || {}).textContent || null
+            })).catch(() => null);
+            console.log(`      on screen: ${JSON.stringify(seen)}`);
+            await page.screenshot({ path: path.join(SHOTS, `FAILED-${seed.prefix}.png`) }).catch(() => {});
+        }
     }).finally(async () => {
         if (browser) await browser.close().catch(() => {});
         console.log(failures === 0 ? `\nALL PASS (${checks} checks)` : `\n${failures} FAILED of ${checks}`);

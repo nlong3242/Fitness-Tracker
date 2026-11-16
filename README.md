@@ -26,7 +26,9 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 ### After a workout
 - **Summary**: totals (exercises, sets, reps, volume, time) and each exercise compared with the previous session.
 - **Past sessions** per workout, newest first, each opening its summary. They can be deleted from their ⋮.
-- **Edit a finished workout**: tap an exercise's box on any summary, or a session on an exercise's History tab. The workout opens on the same set-logging page as a live one, on that exercise. Change, add or delete sets; they save as you go, with no Save or Finish. ‹ Back returns to where you came from, and Next on the last exercise shows the updated summary. Hints compare with the workout before that one, and a new set is logged the way that workout logged the exercise. Records, PRs, charts and next time's hints update on their own. The date and time stay the same, and removing every set keeps the workout (delete it from Past sessions). A workout in progress at the same time isn't affected.
+- **Edit a finished workout**: tap an exercise's box on any summary, or a session on an exercise's History tab. The workout opens on the same set-logging page as a live one, on that exercise. Change, add or delete sets; they save as you go, with no Save or Finish. ‹ Back returns to where you came from, and Next on the last exercise shows the updated summary. Hints compare with the workout before that one, and a new set is logged the way that workout logged the exercise. Records, PRs, charts and next time's hints update on their own. The date and time stay the same. A workout in progress at the same time isn't affected.
+  - **Change its exercises**, that day only (the workout's own list stays): **Add exercise** from the title's ⋮, and **Replace**, **Remove** or **Reset** from each exercise's ⋮, as in a live workout. Sets that would go are asked about first, and Remove isn't offered on the last exercise. Reset clears the exercise's history everywhere but keeps it in this workout with empty rows.
+  - **An emptied workout is tidied away**: a past workout left with no sets at all is deleted when you leave its page (its calendar day goes back to planned), or at the next app start if the app was closed on it.
 
 ### Exercise library
 - **584 built-in exercises** (from the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db)) plus your own **Custom** ones. Search, category pills, and an eye icon to show only Custom exercises.
@@ -99,13 +101,13 @@ Open the printed `http://<tailscale-ip>:5500` in Safari on the phone and add it 
 
 ## Tests
 
-- **Backend** (339 tests, in-memory database, safe to run while the app is up):
+- **Backend** (353 tests, in-memory database, safe to run while the app is up):
   ```
   cd backend/fitness-tracker
   ./mvnw test
   ```
   They also run on GitHub Actions for every push and pull request.
-- **Browser** (20 scripts covering set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
+- **Browser** (21 scripts covering set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
   ```
   cd tests/browser
   npm install
@@ -126,8 +128,8 @@ Every call except sign-up and login needs `Authorization: Bearer <token>`. Anoth
 | Workout exercises | `GET/POST /workouts/{id}/exercises`; `POST …/exercises/{exerciseId}/link`; `PUT/DELETE …/exercises/{id}`; `PUT …/exercises/{id}/replace/{replacementId}`; `PATCH …/exercises/order` |
 | Repeats | `GET/PUT/DELETE /workouts/{id}/repeat` |
 | Exercises | `GET/POST /exercises`; `GET/PUT/DELETE /exercises/{id}`; `POST /exercises/{id}/copy`; `PUT /exercises/{id}/note` |
-| Exercise history | `GET /exercises/{id}/history`; `GET /exercises/{id}/last-done`; `GET /exercises/{id}/history/count`, `DELETE /exercises/{id}/history` |
-| Sessions | `GET/POST /workouts/{id}/sessions`; `GET /sessions/{id}`, `/sessions/unfinished`, `/sessions/overview`, `/sessions/{id}/exercises`; `POST /sessions/{id}/finish`; `DELETE /sessions/{id}`; `GET /workouts/{id}/sessions/{sessionId}/previous-totals` |
+| Exercise history | `GET /exercises/{id}/history`; `GET /exercises/{id}/last-done`; `GET /exercises/{id}/history/count`, `DELETE /exercises/{id}/history` (`?keepSessionId=` keeps it in a finished workout being edited) |
+| Sessions | `GET/POST /workouts/{id}/sessions`; `GET /sessions/{id}`, `/sessions/unfinished`, `/sessions/overview`, `/sessions/{id}/exercises`; `POST /sessions/{id}/finish`; `DELETE /sessions/{id}`; a finished one's exercises: `POST /sessions/{id}/exercises`, `DELETE /sessions/{id}/exercises/{exerciseId}`, `PUT …/{exerciseId}/replace/{replacementId}`; `POST /sessions/{id}/remove-if-empty`; `GET /workouts/{id}/sessions/{sessionId}/previous-totals` |
 | Sets | `GET/POST /sessions/{id}/sets`; `PUT/DELETE /sets/{id}` (also on a finished session); `GET /workouts/{id}/exercises/{exerciseId}/last-sets` |
 | Calendar | `GET/POST /scheduled-workouts`; `GET /scheduled-workouts/by-date/{date}`; `PATCH/DELETE /scheduled-workouts/{id}` |
 | Bodyweight | `GET /bodyweight`, `/bodyweight/summary`; `PUT/DELETE /bodyweight/{date}` |

@@ -19,6 +19,8 @@ import { escapeHtml, formatShortDate } from "../utils/format.js";
    - exerciseId: the exercise to open on (default the first)
    - onBack(): ‹ Back
    - onDone(): Next on the last exercise
+   - backRoute: where onBack goes, kept in the route so a reload knows
+     ("exercises/7/history": opened from that History tab; router.js)
    Returns false if the session can't be loaded (deleted meanwhile). */
 export async function editPastSession(workoutId, sessionId, sessionDate, options) {
     const opts = options || {};
@@ -107,7 +109,7 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
         }
         counter.textContent = `${index + 1} / ${total}`;
         prevBtn.disabled = index === 0;
-        setRoute(editSessionRoute(workoutId, sessionId, sessionDate, workout.exercises[index].id));
+        setRoute(editSessionRoute(workoutId, sessionId, sessionDate, workout.exercises[index].id, opts.backRoute));
         const pill = pillsRow.children[index];
         if (pill) pill.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
@@ -127,6 +129,7 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
     return true;
 }
 
-export function editSessionRoute(workoutId, sessionId, sessionDate, exerciseId) {
-    return `#/workouts/${workoutId}/sessions/${sessionId}/edit?date=${sessionDate}&exercise=${exerciseId}`;
+export function editSessionRoute(workoutId, sessionId, sessionDate, exerciseId, backRoute) {
+    return `#/workouts/${workoutId}/sessions/${sessionId}/edit?date=${sessionDate}&exercise=${exerciseId}`
+        + (backRoute ? `&back=${backRoute}` : "");
 }

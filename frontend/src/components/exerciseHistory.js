@@ -10,7 +10,11 @@ import { lineChartHtml } from "./lineChart.js";
    ★ marks the set shown in the Best set card, one per side for a
    unilateral exercise (the backend decides; see ExerciseHistoryService).
    Every session shows its sets as they were logged; where the exercise's
-   type changed, a divider says how the older sessions were logged. */
+   type changed, a divider says how the older sessions were logged.
+
+   opts.onOpenSession(session): tapping a session opens it (the exercise
+   page: editing that workout). Left out in the live workout's popup, and
+   for a session whose workout is gone. */
 
 const PAGE_SIZE = 10;
 
@@ -23,7 +27,8 @@ const RANGES = [
 
 let trendRange = "3M";   // kept while the app is open
 
-export async function renderExerciseHistory(container, exerciseId) {
+export async function renderExerciseHistory(container, exerciseId, opts) {
+    const onOpen = opts && opts.onOpenSession;
     container.innerHTML = `<p class="exh-empty">Loading…</p>`;
     let first;
     try {
@@ -63,17 +68,26 @@ export async function renderExerciseHistory(container, exerciseId) {
     // The session above the next one appended (none yet: the type is the
     // exercise's own), for the dividers.
     let above = { logType: first.records.logType, date: null };
+    const shown = [];   // every session listed, by its data-index
 
     function append(history) {
         const html = history.sessions.map(function(session) {
             const divider = session.logType !== above.logType ? dividerHtml(session.logType, above) : "";
             above = session;
-            return divider + sessionHtml(session);
+            const open = onOpen && findWorkout(session.workoutId) ? shown.length : null;
+            shown.push(session);
+            return divider + sessionHtml(session, open);
         });
         list.insertAdjacentHTML("beforeend", html.join(""));
         more.hidden = !history.hasMore;
     }
     append(first);
+    if (onOpen) {
+        list.onclick = function(e) {
+            const row = e.target.closest(".exh-session-open");
+            if (row) onOpen(shown[Number(row.dataset.index)]);
+        };
+    }
 
     more.onclick = async function() {
         more.disabled = true;
@@ -245,7 +259,8 @@ function setText(set, logType) {
     }
 }
 
-function sessionHtml(s) {
+// index: its place in the list when it can be opened (tapped), else null.
+function sessionHtml(s, index) {
     const workout = findWorkout(s.workoutId);
     const chip = set => `
         <span class="exh-set${set.pr ? " pr" : ""}">${set.pr ? `<span class="exh-star" aria-label="PR">★</span>` : ""}${setText(set, s.logType)}</span>`;
@@ -258,7 +273,7 @@ function sessionHtml(s) {
             <div class="exh-set-row">${side ? `<span class="exh-side exh-row-side">${label}</span>` : ""}${sets.map(chip).join("")}</div>`)
         .join("");
     return `
-        <div class="exh-session">
+        <div class="exh-session${index === null ? "" : ` exh-session-open" data-index="${index}" role="button" tabindex="0`}">
             <div class="exh-session-head">
                 <span class="exh-session-date">${shortDate(s.date)}</span>
                 <span class="exh-session-workout">${escapeHtml(workout ? workout.name : "Workout")}</span>

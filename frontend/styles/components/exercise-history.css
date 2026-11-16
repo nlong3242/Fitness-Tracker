@@ -93,6 +93,15 @@
     padding: 10px 0;
 }
 
+/* Opens that workout for editing (the exercise page's History tab only). */
+.exh-session.exh-session-open {
+    cursor: pointer;
+}
+
+.exh-session-open .exh-session-workout::after {
+    content: " \203A";
+}
+
 .exh-session-head {
     display: flex;
     justify-content: space-between;

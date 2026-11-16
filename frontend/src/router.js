@@ -8,7 +8,7 @@ import { renderProfilePage } from "./views/profile.js";
 import { startWorkout } from "./views/activeWorkout.js";
 import { viewWorkout } from "./views/workoutDetail.js";
 import { viewPastSessions } from "./views/pastSessions.js";
-import { viewSessionSummary } from "./views/summary.js";
+import { viewSessionSummary, sessionSummaryRoute } from "./views/summary.js";
 import { editPastSession } from "./views/editSession.js";
 import { navigateToCalendarDay, navigateToCalendarMonth } from "./views/calendar.js";
 import { renderExercisePage } from "./views/exercisePage.js";
@@ -26,6 +26,7 @@ import { renderExerciseEditPage } from "./views/exerciseEdit.js";
      #/workouts                              #/workouts/12
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
      #/workouts/12/sessions/345/edit?date=2026-10-24&exercise=7  (editing a finished workout)
+       either session route + &back=exercises/7/history: opened from that History tab
      #/workouts/12/exercises/7               #/workouts/12/exercises/7/history (/edit)
      #/calendar/2026-10                      #/calendar/2026-10-25
      #/calendar/2026-10-25/sessions/345?workout=12
@@ -86,6 +87,7 @@ export async function restoreRoute() {
 
 const MONTH = /^\d{4}-\d{2}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const BACK_TO_HISTORY = /^(exercises|workouts\/\d+\/exercises)\/\d+\/history$/;
 
 function id(s) {
     return /^\d+$/.test(s || "") ? Number(s) : null;
@@ -133,17 +135,26 @@ async function openWorkouts(parts, params) {
         await setActiveTab("workouts");
         return true;
     }
-    highlightTab("workouts");
+    // Opened from an exercise's History tab: "back" is that tab's route.
+    const back = BACK_TO_HISTORY.test(params.get("back") || "") ? params.get("back") : null;
+    highlightTab(back && back.startsWith("exercises") ? "exercises" : "workouts");
     if (parts[2] === "sessions") {
         const sessionId = id(parts[3]);
         const date = params.get("date");
         if (sessionId !== null && DAY.test(date || "")) {
-            const summary = function() {
-                return viewSessionSummary(workoutId, sessionId, date, function() { viewPastSessions(workoutId); });
+            const toHistory = back && function() {
+                history.replaceState(null, "", `#/${back}`);
+                return restoreRoute();
             };
-            // Editing a finished workout: after a reload, Back and Next go to its summary.
+            const summary = function() {
+                return viewSessionSummary(workoutId, sessionId, date, toHistory || function() { viewPastSessions(workoutId); },
+                    back ? `${sessionSummaryRoute(workoutId, sessionId, date)}&back=${back}` : undefined);
+            };
+            // Editing a finished workout: after a reload, Back goes to its
+            // summary (or the History tab it was opened from), Next to its summary.
             if (parts[4] === "edit" && await editPastSession(workoutId, sessionId, date, {
-                exerciseId: id(params.get("exercise")), onBack: summary, onDone: summary
+                exerciseId: id(params.get("exercise")), onBack: toHistory || summary, onDone: summary,
+                backRoute: back
             })) return true;
             try {
                 await summary();

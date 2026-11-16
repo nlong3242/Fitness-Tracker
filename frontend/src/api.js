@@ -251,11 +251,22 @@ export function finishSession(sessionId, orderedExerciseIds, finishedAt, exact) 
 }
 
 // Home page stats for the week starting weekStart (local Monday, YYYY-MM-DD):
-// { sessionsThisWeek, lastSession: { id, workoutId, date, ... } | null,
-//   weekStreak, nextPlanned: { id, workoutId, date, ... } | null }; today
-//   (local YYYY-MM-DD) decides which plans still count as upcoming.
+// { sessionsThisWeek, lastSession: { id, workoutId, date, durationSeconds,
+//   ... } | null, weekStreak, nextPlanned: { id, workoutId, date, ... } | null,
+//   plannedThatDay, weekDays (as fetchWeek), lastSessionSets, nextLastDone,
+//   latestPr: { exerciseId, exerciseName, logType, sessionId, workoutId, date,
+//   sides: [{ side, weight, reps, durationSeconds, distanceKm }] } | null };
+//   today (local YYYY-MM-DD) decides which plans still count as upcoming.
 export function fetchOverview(weekStart, today) {
     return requestJson("GET", `/sessions/overview?weekStart=${weekStart}&today=${today}`);
+}
+
+// One week's days for Home's week strip, Monday (weekStart, local
+// YYYY-MM-DD) to Sunday: [{ date, done, planned, sessions: [{ sessionId,
+//   workoutId, workoutName, sets, durationSeconds }], plans: [{ scheduleId,
+//   workoutId, workoutName }] }]. The overview carries this week's too.
+export function fetchWeek(weekStart) {
+    return requestJson("GET", `/sessions/week?weekStart=${weekStart}`);
 }
 
 // --- Exercise history ---

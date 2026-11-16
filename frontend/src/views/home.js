@@ -1,5 +1,5 @@
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
-import { fetchOverview, fetchBodyWeightSummary, logBodyWeight } from "../api.js";
+import { fetchOverview, fetchWeek, fetchBodyWeightSummary, logBodyWeight } from "../api.js";
 import { state, findWorkout } from "../state.js";
 import { startWorkout } from "./activeWorkout.js";
 import { liveWorkout } from "../components/liveWorkout.js";
@@ -36,23 +36,57 @@ const SNEAKER = pixelArt([
     "oooooooooooooo",
 ], { o: "#3B2723", f: "#E8B4A4", w: "#FBF5EA" }, "home-tile-icon");
 
-// Settings gear: rose cogs round an open centre.
-const GEAR = pixelArt([
-    ".....oooo.....",
-    ".oo..offo..oo.",
-    ".offooffooffo.",
-    "..offffffffo..",
-    "..offffffffo..",
-    "ooofffoofffooo",
-    "offffo..offffo",
-    "offffo..offffo",
-    "ooofffoofffooo",
-    "..offffffffo..",
-    "..offffffffo..",
-    ".offooffooffo.",
-    ".oo..offo..oo.",
-    ".....oooo.....",
-], { o: "#3B2723", f: "#E8B4A4" }, "home-settings-icon");
+// Settings: a line gear in the tab bar icons' style, 8 squared teeth
+// round a ring with a hole in the middle, drawn from points so it's even.
+const GEAR = (() => {
+    const pts = [];
+    for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        for (const [da, r] of [[-0.30, 7.2], [-0.20, 9.6], [0.20, 9.6], [0.30, 7.2]]) {
+            pts.push([12 + r * Math.cos(a + da), 12 + r * Math.sin(a + da)].map(n => n.toFixed(2)).join(" "));
+        }
+    }
+    return `<svg class="home-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M${pts.join(" L")} Z"/><circle cx="12" cy="12" r="3"/></svg>`;
+})();
+
+// A soft sprig after the wordmark: two round pink buds and sage leaves,
+// edged in darker pink and green rather than the dark outline. Drawn
+// leaning left, towards the wordmark.
+const SPRIG = pixelArt([
+    "......rrr...",
+    ".....rPPpr..",
+    ".....rPppr..",
+    "......rrr...",
+    ".rrr...s....",
+    "rPPpr..s....",
+    "rPppr.s.....",
+    ".rrrsssLL...",
+    "......sLlL..",
+    ".LL..s.LlL..",
+    "LlLLs...LL..",
+    ".LlLs.......",
+    "..LLs.LL....",
+    "....sLlLL...",
+    "....s.LL....",
+    "....s.......",
+].map(row => [...row].reverse().join("")),
+{ r: "#C98275", P: "#F6D3CB", p: "#E8A99C", l: "#A9C795", L: "#6E9460", s: "#6E9460" }, "home-sprig");
+
+// The streak's flame.
+const FLAME = pixelArt([
+    "...o....",
+    "..ofo...",
+    "..offo..",
+    ".offfo.o",
+    ".offyfoo",
+    "offyyffo",
+    "ofyyyyfo",
+    "offyyffo",
+    ".oooooo.",
+], { o: "#3B2723", f: "#D29C8B", y: "#F8E0D7" }, "home-flame");
+
+// The tick on a done day's badge.
+const CHECK = `<svg class="home-check" viewBox="0 0 10 8" aria-hidden="true"><path d="M1 4l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>`;
 
 // Placeholder week of steps for the Steps tile (Mon..today) until step
 // tracking exists.
@@ -64,11 +98,29 @@ export function renderHomePage() {
     setRoute("#/home");
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <div class="home-hero">
-            <h1 class="home-title">Tsu2Track</h1>
-            <p class="home-greeting" id="home-greeting" hidden></p>
-            <button type="button" class="btn-secondary home-settings-btn" id="home-settings-btn" aria-label="Settings">${GEAR}</button>
+        <header class="home-top">
+            <span class="home-brand"><h1 class="home-title">Tsu2Track</h1>${SPRIG}</span>
+            <button type="button" class="home-settings-btn" id="home-settings-btn" aria-label="Settings">${GEAR}</button>
+        </header>
+
+        <!-- "Hi, name", and the selected day with Today (faded while on today). -->
+        <div class="home-greeting-row">
+            <span class="home-greeting" id="home-greeting"></span>
+            <span class="home-sel">
+                <span class="home-sel-date" id="home-sel-date"></span>
+                <button type="button" class="home-today-btn here" id="home-today-btn">Today</button>
+            </span>
         </div>
+
+        <!-- Week strip: tap a day to select it; arrows or a swipe step a week. -->
+        <section class="home-week" aria-label="Week">
+            <div class="home-strip" id="home-strip">
+                <button type="button" class="home-week-arrow" id="home-week-prev" aria-label="Previous week">&#8249;</button>
+                <div class="home-days" id="home-days"></div>
+                <button type="button" class="home-week-arrow" id="home-week-next" aria-label="Next week">&#8250;</button>
+            </div>
+            <div class="home-week-foot" id="home-week-foot"></div>
+        </section>
 
         <button class="home-cta" id="home-start-btn">Start a Workout</button>
 
@@ -104,17 +156,6 @@ export function renderHomePage() {
                 <div class="home-stat-sub" id="home-next-when"></div>
             </div>
             <div class="home-stat">
-                <div class="home-stat-label">Streak</div>
-                <div class="home-stat-value" id="home-streak">–</div>
-                <div class="home-stat-sub" id="home-streak-note"></div>
-            </div>
-            <div class="home-stat">
-                <div class="home-stat-label">This week</div>
-                <div class="home-stat-value" id="home-week-count">–</div>
-                <div class="home-meter home-week-meter" id="home-week-meter" hidden><div class="home-meter-fill" id="home-week-fill"></div></div>
-                <div class="home-stat-sub" id="home-week-note"></div>
-            </div>
-            <div class="home-stat">
                 <div class="home-stat-label">Last session</div>
                 <div class="home-stat-value" id="home-last-name">–</div>
                 <div class="home-stat-sub" id="home-last-when"></div>
@@ -124,6 +165,9 @@ export function renderHomePage() {
 
     document.getElementById("home-settings-btn").onclick = function() { renderSettingsPage(); };
     showGreeting();
+    resetWeek();
+    wireWeek();
+    renderWeek();
     wireStartButton();
     wireWeightLogging();
     loadStats();
@@ -137,21 +181,130 @@ function showGreeting() {
     if (!greeting) return;
     const name = state.profile && state.profile.name;
     greeting.textContent = name ? `Hi, ${name}` : "";
-    greeting.hidden = !name;
 }
 
-/* This week: "2 sessions", or with a weekly goal (profile) "2 / 4
-   sessions" over a meter, with a note once it's reached. */
-function showWeek(n) {
-    const goal = state.profile && state.profile.weeklyGoal;
-    const unit = n === 1 && !goal ? "session" : "sessions";
-    document.getElementById("home-week-count").innerHTML = goal
-        ? `${n}<span class="home-tile-unit"> / ${goal} ${unit}</span>`
-        : withUnit(n, unit);
-    const meter = document.getElementById("home-week-meter");
-    meter.hidden = !goal;
-    if (goal) document.getElementById("home-week-fill").style.width = `${Math.min(100, Math.round((n / goal) * 100))}%`;
-    document.getElementById("home-week-note").textContent = goal && n >= goal ? "Goal reached" : "";
+/* --- Week strip ---
+   A Monday-start week with its seven days. The selected day shows by the
+   greeting (date + Today); tapping a day selects it; the arrows or a swipe
+   step a week, keeping the weekday. This week's days come with the
+   overview; other weeks are fetched when shown. Today: its letter in a
+   dark pill. Selected: a ring round the box. Done: green, number kept, a
+   tick badge. Planned (still to do): dashed rose. Home always opens on
+   today. */
+const LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
+let week = null;            // { start: Monday "YYYY-MM-DD", days: [...] | null while loading }
+let selected = null;        // "YYYY-MM-DD"
+let thisWeekDays = null;    // this week's days from the overview, reused by Today
+let weekStreak = null;      // from the overview; null until it's in
+let weekRequest = 0;        // the latest week fetch; older answers are ignored
+
+function resetWeek() {
+    week = { start: thisMonday(), days: null };
+    selected = localIso(new Date());
+    thisWeekDays = null;
+    weekStreak = null;
+}
+
+function thisMonday() {
+    return localIso(mondayOf(new Date()));
+}
+
+function wireWeek() {
+    document.getElementById("home-days").onclick = function(e) {
+        const day = e.target.closest(".home-day");
+        if (!day) return;
+        selected = day.dataset.date;
+        renderWeek();
+    };
+    document.getElementById("home-week-prev").onclick = function() { stepWeek(-1); };
+    document.getElementById("home-week-next").onclick = function() { stepWeek(1); };
+    document.getElementById("home-today-btn").onclick = function() {
+        goToWeek(thisMonday(), localIso(new Date()));
+    };
+    // A sideways swipe on the strip steps a week (not a mostly-vertical one).
+    const strip = document.getElementById("home-strip");
+    let startX = null, startY = null;
+    strip.addEventListener("touchstart", function(e) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+    strip.addEventListener("touchend", function(e) {
+        if (startX === null) return;
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        startX = null;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) stepWeek(dx < 0 ? 1 : -1);
+    });
+}
+
+function stepWeek(by) {
+    const weekday = daysBetween(week.start, selected);
+    const start = addDays(week.start, 7 * by);
+    goToWeek(start, addDays(start, weekday));
+}
+
+async function goToWeek(start, day) {
+    week = { start, days: start === thisMonday() ? thisWeekDays : null };
+    selected = day;
+    renderWeek();
+    if (week.days) return;
+    const request = ++weekRequest;
+    let days;
+    try {
+        days = await fetchWeek(start);
+    } catch (e) {
+        return;   // the boxes stay plain; the arrows or Today can try again
+    }
+    if (request !== weekRequest || week.start !== start || !document.getElementById("home-days")) return;
+    if (start === thisMonday()) thisWeekDays = days;
+    week.days = days;
+    renderWeek();
+}
+
+function renderWeek() {
+    const daysEl = document.getElementById("home-days");
+    if (!daysEl) return;
+    const today = localIso(new Date());
+    daysEl.innerHTML = LETTERS.map(function(letter, i) {
+        const date = addDays(week.start, i);
+        const info = week.days ? week.days[i] : null;
+        const done = !!(info && info.done);
+        const planned = !done && !!(info && info.planned);
+        const classes = ["home-day"];
+        if (done) classes.push("done");
+        if (planned) classes.push("planned");
+        if (date === today) classes.push("today");
+        if (date === selected) classes.push("selected");
+        const label = longDate(date) + (date === today ? ", today" : "") + (done ? ", done" : planned ? ", planned" : "");
+        return `<button type="button" class="${classes.join(" ")}" data-date="${date}" aria-label="${label}" aria-pressed="${date === selected}">
+                <span class="home-day-letter">${letter}</span>
+                <span class="home-day-box">${Number(date.slice(8))}${done ? `<span class="home-day-badge">${CHECK}</span>` : ""}</span>
+            </button>`;
+    }).join("");
+
+    document.getElementById("home-sel-date").textContent = dayHeading(selected);
+    document.getElementById("home-today-btn").classList.toggle("here", selected === today);
+    renderWeekFoot();
+}
+
+/* Under the strip: "1 / 3 sessions done this week · 4-week streak" (with
+   a flame). The goal is this week's only (a past week may have had
+   another), so other weeks just count: "3 sessions done that week".
+   Blank while the week loads. */
+function renderWeekFoot() {
+    const foot = document.getElementById("home-week-foot");
+    if (!week.days) { foot.innerHTML = ""; return; }
+    const n = week.days.reduce(function(sum, day) { return sum + day.sessions.length; }, 0);
+    const isThisWeek = week.start === thisMonday();
+    const goal = isThisWeek && state.profile && state.profile.weeklyGoal;
+    const count = goal ? `${n} / ${goal} ${goal === 1 ? "session" : "sessions"}` : `${n} ${n === 1 ? "session" : "sessions"}`;
+    let html = `<span><b>${count}</b> done ${isThisWeek ? "this" : "that"} week</span>`;
+    if (weekStreak !== null && weekStreak !== undefined) {
+        html += `<span class="home-sep">·</span>${FLAME}` + (weekStreak > 0
+            ? `<span><b>${weekStreak}-week</b> streak</span>`
+            : "<span>no streak yet</span>");
+    }
+    foot.innerHTML = html;
 }
 
 // Latest summary, kept for the input's "last time" hint.
@@ -307,24 +460,13 @@ async function loadStats() {
     } catch (e) {
         return;
     }
-    const countEl = document.getElementById("home-week-count");
-    if (!countEl) return;
+    if (!document.getElementById("home-days")) return;
 
-    const n = overview.sessionsThisWeek;
-    showWeek(n);
+    weekStreak = overview.weekStreak;
+    thisWeekDays = overview.weekDays || null;
+    if (week.start === thisMonday() && !week.days) week.days = thisWeekDays;
+    renderWeek();
 
-    // Older backends don't send these; leave the placeholders.
-    if (overview.weekStreak !== undefined) {
-        const weeks = overview.weekStreak;
-        document.getElementById("home-streak").innerHTML = withUnit(weeks, weeks === 1 ? "week" : "weeks");
-        // This week counts once it meets the weekly goal (one with none).
-        const goal = state.profile && state.profile.weeklyGoal;
-        const left = (goal || 1) - n;
-        document.getElementById("home-streak-note").textContent =
-            left <= 0 ? "This week done"
-            : goal ? `${left} more this week`
-            : weeks > 0 ? "Train to keep it" : "Train to start one";
-    }
     if (overview.nextPlanned !== undefined) showNextUp(overview.nextPlanned, overview.plannedThatDay || 0, today);
 
     const last = overview.lastSession;
@@ -391,11 +533,6 @@ function workoutName(workoutId) {
     return workout ? workout.name : "Workout";
 }
 
-// "3" big with a small "weeks" after it, like the tiles' kg.
-function withUnit(n, unit) {
-    return `${n}<span class="home-tile-unit"> ${unit}</span>`;
-}
-
 // "Today" / "Tomorrow" / "Yesterday", else "Thu 29 Oct" ahead or "25 Oct" back.
 function relativeDay(yyyyMmDd, todayIso) {
     const days = daysBetween(todayIso, yyyyMmDd);
@@ -450,6 +587,26 @@ function ordinalDate(yyyyMmDd) {
     const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[d % 10] || "th");
     const month = new Date(y, m - 1, d).toLocaleDateString("en-GB", { month: "short" });
     return `${d}${suffix} ${month}` + (y !== new Date().getFullYear() ? ` ${y}` : "");
+}
+
+// "Tue 17 Nov", with the year added when it isn't this year.
+function dayHeading(yyyyMmDd) {
+    const [y, m, d] = yyyyMmDd.split("-").map(Number);
+    const opts = { weekday: "short", day: "numeric", month: "short" };
+    if (y !== new Date().getFullYear()) opts.year = "numeric";
+    return new Date(y, m - 1, d).toLocaleDateString("en-GB", opts).replace(",", "");
+}
+
+// "Tuesday 17 November", for screen readers.
+function longDate(yyyyMmDd) {
+    const [y, m, d] = yyyyMmDd.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+}
+
+// The YYYY-MM-DD n days after (before, if negative) another.
+function addDays(yyyyMmDd, n) {
+    const [y, m, d] = yyyyMmDd.split("-").map(Number);
+    return localIso(new Date(y, m - 1, d + n));
 }
 
 function localIso(d) {

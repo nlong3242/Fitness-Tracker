@@ -1,26 +1,310 @@
 /* Home page — views/home.js.
-   Dashboard layout: app-name title + primary CTA + tiles + stat strip (this week's
-   finished sessions, last session; filled from GET /sessions/overview).
-   On phones (<=480px) the stat row collapses to a single column. */
+   Top to bottom: wordmark + settings, "Hi, name" with the selected day and
+   Today, the week strip, the start button, the Bodyweight / Steps tiles and
+   the stat cards (filled from GET /sessions/overview and /sessions/week). */
 
-.home-hero {
-    text-align: center;
-    margin: 30px 0 24px 0;
+/* --- Header: small wordmark with a sprig, settings gear on the right --- */
+.home-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 6px 0 2px;
 }
 
-/* Sign-board title: rose letters with a hard 3px dark outline (eight
+.home-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* Sign-board title: rose letters with a hard 2px dark outline (eight
    zero-blur text-shadows) and a drop shadow, like the pixel logos. */
 .home-title {
-    font-size: 3.4em;
+    font-size: 2em;
     line-height: 1;
     margin: 0;
     color: var(--accent-pink-light);
     text-shadow:
-        3px 0 0 var(--frame), -3px 0 0 var(--frame),
-        0 3px 0 var(--frame), 0 -3px 0 var(--frame),
-        3px 3px 0 var(--frame), -3px -3px 0 var(--frame),
-        3px -3px 0 var(--frame), -3px 3px 0 var(--frame),
-        0 7px 0 var(--shadow-hard);
+        2px 0 0 var(--frame), -2px 0 0 var(--frame),
+        0 2px 0 var(--frame), 0 -2px 0 var(--frame),
+        2px 2px 0 var(--frame), -2px -2px 0 var(--frame),
+        2px -2px 0 var(--frame), -2px 2px 0 var(--frame),
+        0 5px 0 var(--shadow-hard);
+}
+
+/* 16 pixel rows at 2px each: crisp, about the wordmark's height. */
+.home-sprig {
+    height: 32px;
+    width: auto;
+}
+
+/* Just the line gear, no button shape; still a 42px tap area, its right
+   edge in line with the cards. */
+.home-settings-btn {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    margin-right: -9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    box-shadow: none;
+    color: var(--text-primary);
+}
+
+.home-settings-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.home-gear {
+    width: 26px;
+    height: 26px;
+}
+
+/* --- "Hi, name" on the left; the selected day and Today on the right --- */
+.home-greeting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 6px 2px 12px;
+}
+
+.home-greeting {
+    font-size: 1.15em;
+    color: var(--text-on-bg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.home-sel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.home-sel-date {
+    font-size: 0.9em;
+    color: var(--text-on-bg);
+    white-space: nowrap;
+}
+
+/* Boxed like a key; faded while today is already shown (still tappable). */
+.home-today-btn {
+    padding: 2px 9px;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background-color: var(--accent-pink-light);
+    box-shadow: none;
+}
+
+.home-today-btn.here {
+    background-color: transparent;
+    border-color: var(--frame-soft);
+    color: var(--text-muted);
+}
+
+/* --- Week strip: arrows at both ends, seven day buttons between --- */
+.home-week {
+    margin: 0 0 14px;
+    color: var(--text-on-bg);
+}
+
+.home-strip {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.home-week-arrow {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 38px;
+    margin-bottom: 9px;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    color: var(--text-primary);
+    font-size: 1.8em;
+    line-height: 1;
+}
+
+.home-week-arrow:active {
+    box-shadow: none;
+}
+
+.home-days {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 9px;
+}
+
+/* Each day is a button: its letter over its box. */
+.home-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    color: inherit;
+    font-weight: 400;
+}
+
+.home-day:active {
+    transform: none;
+    box-shadow: none;
+}
+
+.home-day-letter {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
+/* Today: its letter in a small dark pill, whichever day is selected. */
+.home-day.today .home-day-letter {
+    background-color: var(--frame);
+    color: var(--surface);
+}
+
+.home-day-box {
+    position: relative;
+    width: 100%;
+    max-width: 38px;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--frame-soft);
+    border-radius: 3px;
+    background-color: var(--input-bg);
+    color: var(--text-muted);
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+/* Planned, still to do: dashed rose. */
+.home-day.planned .home-day-box {
+    border-style: dashed;
+    border-color: var(--accent-pink-deep);
+    background-color: var(--accent-pink-light);
+    color: var(--text-primary);
+}
+
+/* Done: green, keeping its number, with a small square tick badge. */
+.home-day.done .home-day-box {
+    border-color: #5E8A50;
+    background-color: var(--action);
+    color: var(--text-primary);
+}
+
+.home-day-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 1;
+    width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 2px;
+    color: var(--action-text);
+    box-sizing: border-box;
+}
+
+.home-check {
+    width: 9px;
+    height: 8px;
+}
+
+/* Selected: a square dark ring just outside the box; the box keeps its
+   own look. */
+.home-day.selected .home-day-box {
+    color: var(--text-primary);
+    outline: 2px solid var(--frame);
+    outline-offset: 2px;
+}
+
+.home-day:focus-visible {
+    outline: none;
+}
+
+.home-day:focus-visible .home-day-box {
+    outline: 2px dashed var(--frame);
+    outline-offset: 2px;
+}
+
+/* "1 / 3 sessions done this week · 4-week streak" */
+.home-week-foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 18px;
+    font-size: 0.9em;
+    color: var(--text-on-bg-muted);
+}
+
+.home-week-foot b {
+    font-weight: 400;
+    color: var(--text-on-bg);
+}
+
+.home-flame {
+    height: 16px;
+    width: auto;
+}
+
+.home-sep {
+    color: var(--frame-soft);
+}
+
+/* The bare buttons (gear, arrows, days) skip the shared pink hover; the
+   gear and arrows darken a touch instead, and a day's box takes the hover
+   tint. Today keeps its own colours. */
+@media (hover: hover) {
+    .home-settings-btn:hover,
+    .home-week-arrow:hover,
+    .home-day:hover {
+        background: none;
+    }
+
+    .home-settings-btn:hover,
+    .home-week-arrow:hover {
+        color: var(--frame);
+        opacity: 0.75;
+    }
+
+    .home-day:not(.done):not(.planned):hover .home-day-box {
+        background-color: var(--surface-hover);
+    }
+
+    .home-today-btn:hover {
+        background-color: var(--accent-pink);
+    }
+
+    .home-today-btn.here:hover {
+        background-color: transparent;
+    }
 }
 
 .home-cta {
@@ -297,45 +581,19 @@
         0 1px 0 var(--shadow-hard);
 }
 
-/* Settings gear: a small square button in the top-right corner, level
-   with the top of the title. */
+/* The big centred title on the login and profile set-up pages
+   (views/login.js, views/profile.js); Home's own is the small one above. */
 .home-hero {
-    position: relative;
+    text-align: center;
+    margin: 30px 0 24px 0;
 }
 
-.home-settings-btn {
-    position: absolute;
-    top: -22px;
-    right: 0;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.home-settings-icon {
-    width: 28px;
-    height: 28px;
-}
-
-/* "Hi, Long" under the title, from the profile. */
-.home-greeting {
-    margin: 14px 0 0 0;
-    font-size: 1.1em;
-    font-weight: 600;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* This week, with a weekly goal: progress toward it. */
-.home-week-meter {
-    margin-top: 6px;
-}
-
-.home-week-meter[hidden] {
-    display: none;
+.home-hero .home-title {
+    font-size: 3.4em;
+    text-shadow:
+        3px 0 0 var(--frame), -3px 0 0 var(--frame),
+        0 3px 0 var(--frame), 0 -3px 0 var(--frame),
+        3px 3px 0 var(--frame), -3px -3px 0 var(--frame),
+        3px -3px 0 var(--frame), -3px 3px 0 var(--frame),
+        0 7px 0 var(--shadow-hard);
 }

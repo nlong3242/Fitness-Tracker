@@ -19,7 +19,7 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 - **Hints from other workouts**: an exercise never done in this workout uses the last time you did it anywhere, and says where ("Last time: from Push Day, 14 Nov").
 - **Rest timer**: starts on its own when you log a set, using your rest time. Quick times (0:30 to 5:00) and −/+ 15 s are also available. It keeps the right time through sleep, reloads and closing the app.
 - **Workout stopwatch**: times the workout from Start to Finish. The time is saved on the summary and in past sessions. It can be hidden in Settings.
-- **No tab bar during a workout**, so it stays focused. A ‹ Home link leaves it running in the background.
+- **No tab bar during a workout**, so it stays focused. A ‹ Home link leaves it running in the background. The bar also stays hidden while creating a workout or an exercise, in the exercise picker, and on the summary right after Finish.
 - **Auto-end**: a workout with nothing logged for 5 hours is finished automatically, and its sets are kept.
 - **Notes** per exercise.
 
@@ -39,8 +39,16 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 ### Planning and progress
 - **Calendar**: plan a workout on a day, skip or delete it, and see finished days marked done.
 - **Repeating plans**: on chosen weekdays or every N days, with an optional end date.
-- **Home**: "Hi, name", Start a Workout, this week's workouts against your weekly goal, a week streak (weeks that met that week's goal), next planned workout, last session, and the bodyweight tile.
+- **Home**, on one phone screen:
+  - "Hi, name" and a **week strip**: tap a day, swipe or use the arrows for other weeks, and **Today** to come back. Days are marked done, planned or skipped, like the calendar. Under it, this week's workouts against your weekly goal and the week streak (weeks that met their goal).
+  - A **card for the selected day**: start today's plan (or any workout), **Resume** one in progress, what was done (View Summary), or what's planned. It always keeps the same size, so nothing jumps while it loads.
+  - **Bodyweight** (log today's weigh-in right on the tile) and **Steps** tiles.
+  - **Latest PR** (opens that exercise's History) and **Last session** (opens its summary). Back from anything opened on Home returns to the same day, even after a reload.
 - **Bodyweight**: log a weigh-in per day and see the chart (1W and longer ranges).
+
+### Getting around
+- A floating, frosted **tab bar** (Home, Workouts, Calendar, Exercises), icons only. A green light on Home shows while a workout is open.
+- Every page you open has the same **‹ Back** at its top left, going back to where you came from.
 
 ### Accounts
 - Sign up with an **invite code**, then log in. Each account only sees its own data.
@@ -101,13 +109,13 @@ Open the printed `http://<tailscale-ip>:5500` in Safari on the phone and add it 
 
 ## Tests
 
-- **Backend** (353 tests, in-memory database, safe to run while the app is up):
+- **Backend** (369 tests, in-memory database, safe to run while the app is up):
   ```
   cd backend/fitness-tracker
   ./mvnw test
   ```
   They also run on GitHub Actions for every push and pull request.
-- **Browser** (21 scripts covering set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
+- **Browser** (30 scripts covering Home, the tab bar and Back links, set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
   ```
   cd tests/browser
   npm install
@@ -129,7 +137,7 @@ Every call except sign-up and login needs `Authorization: Bearer <token>`. Anoth
 | Repeats | `GET/PUT/DELETE /workouts/{id}/repeat` |
 | Exercises | `GET/POST /exercises`; `GET/PUT/DELETE /exercises/{id}`; `POST /exercises/{id}/copy`; `PUT /exercises/{id}/note` |
 | Exercise history | `GET /exercises/{id}/history`; `GET /exercises/{id}/last-done`; `GET /exercises/{id}/history/count`, `DELETE /exercises/{id}/history` (`?keepSessionId=` keeps it in a finished workout being edited) |
-| Sessions | `GET/POST /workouts/{id}/sessions`; `GET /sessions/{id}`, `/sessions/unfinished`, `/sessions/overview`, `/sessions/{id}/exercises`; `POST /sessions/{id}/finish`; `DELETE /sessions/{id}`; a finished one's exercises: `POST /sessions/{id}/exercises`, `DELETE /sessions/{id}/exercises/{exerciseId}`, `PUT …/{exerciseId}/replace/{replacementId}`; `POST /sessions/{id}/remove-if-empty`; `GET /workouts/{id}/sessions/{sessionId}/previous-totals` |
+| Sessions | `GET/POST /workouts/{id}/sessions`; `GET /sessions/{id}`, `/sessions/unfinished`, `/sessions/overview` (everything Home shows), `/sessions/week?weekStart=` (another week's strip), `/sessions/{id}/exercises`; `POST /sessions/{id}/finish`; `DELETE /sessions/{id}`; a finished one's exercises: `POST /sessions/{id}/exercises`, `DELETE /sessions/{id}/exercises/{exerciseId}`, `PUT …/{exerciseId}/replace/{replacementId}`; `POST /sessions/{id}/remove-if-empty`; `GET /workouts/{id}/sessions/{sessionId}/previous-totals` |
 | Sets | `GET/POST /sessions/{id}/sets`; `PUT/DELETE /sets/{id}` (also on a finished session); `GET /workouts/{id}/exercises/{exerciseId}/last-sets` |
 | Calendar | `GET/POST /scheduled-workouts`; `GET /scheduled-workouts/by-date/{date}`; `PATCH/DELETE /scheduled-workouts/{id}` |
 | Bodyweight | `GET /bodyweight`, `/bodyweight/summary`; `PUT/DELETE /bodyweight/{date}` |
@@ -138,4 +146,3 @@ Every call except sign-up and login needs `Authorization: Bearer <token>`. Anoth
 
 - iOS app through TestFlight, then **Screen Time blocking** of distracting apps during a workout
 - Real step counts on the Home Steps tile
-- A "Latest PR" card on Home

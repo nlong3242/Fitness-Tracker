@@ -1,6 +1,7 @@
 /* Editing a finished workout (views/editSession.js) on the set-logging
    page: its sets saved as they're typed, hints from the workout before it,
-   nothing of a live workout (tab bar shown, no stopwatch, rest timer or ⋮),
+   nothing else of a live workout (no tab bar, stopwatch or rest timer; its ⋮ menus are in
+   edit-session-exercises),
    Next on the last exercise to its summary, and a live workout open at the
    same time left alone, even when every past set is deleted. */
 const { run, wait } = require("./harness.cjs");
@@ -62,8 +63,7 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     check("no tab bar, as in a live workout", !(await navShown()));
     const navBottom = await page.$eval("#exercise-nav-row", e => Math.round(window.innerHeight - e.getBoundingClientRect().bottom));
     check("Prev / Next at the bottom edge", navBottom <= 1, navBottom);
-    check("no stopwatch, rest timer or ⋮",
-        !(await page.$("#workout-stopwatch")) && !(await page.$("#rest-timer-btn")) && !(await page.$(".exercise-card .more-btn, .workout-title-row .more-btn")));
+    check("no stopwatch or rest timer", !(await page.$("#workout-stopwatch")) && !(await page.$("#rest-timer-btn")));
     await t.shot("edit-session-01-open");
 
     // 2. Changing a set saves it into the past workout

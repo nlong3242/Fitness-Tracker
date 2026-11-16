@@ -18,6 +18,14 @@ export function setHints(exercise, lastSets, elsewhere) {
     }
 }
 
+// Replace / Remove asking first: "The set you logged for Bench is deleted."
+// / "The 3 sets … are deleted."
+export function loggedSetsGo(n, name) {
+    return n === 1
+        ? `The set you logged for ${name} is deleted.`
+        : `The ${n} sets you logged for ${name} are deleted.`;
+}
+
 /* Builds the card into cards (it must be on the page before its rows are
    numbered): the title (tap for details), an optional ⋮ (menu() returns its
    items), the "Last time: from …" note when the hints are from elsewhere,

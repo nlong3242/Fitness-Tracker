@@ -425,3 +425,17 @@ export function copyExercise(exerciseId) {
 export function updateExerciseNote(exerciseId, content) {
     return requestJson("PUT", `/exercises/${exerciseId}/note`, { content });
 }
+
+// Editing a finished workout's exercises, that day only (SessionController);
+// each answers the session's exercises as they now are.
+export function addSessionExercises(sessionId, exerciseIds) {
+    return requestJson("POST", `/sessions/${sessionId}/exercises`, { exerciseIds });
+}
+
+export function removeSessionExercise(sessionId, exerciseId) {
+    return requestJson("DELETE", `/sessions/${sessionId}/exercises/${exerciseId}`);
+}
+
+export function replaceSessionExercise(sessionId, exerciseId, replacementId) {
+    return requestJson("PUT", `/sessions/${sessionId}/exercises/${exerciseId}/replace/${replacementId}`);
+}

@@ -153,7 +153,7 @@ async function openWorkouts(parts, params) {
             // Editing a finished workout: after a reload, Back goes to its
             // summary (or the History tab it was opened from), Next to its summary.
             if (parts[4] === "edit" && await editPastSession(workoutId, sessionId, date, {
-                exerciseId: id(params.get("exercise")), onBack: toHistory || summary, onDone: summary,
+                exerciseId: id(params.get("exercise")), onBack: toHistory || summary, onDone: summary, onGone: toHistory,
                 backRoute: back
             })) return true;
             try {

@@ -1,6 +1,12 @@
 import { findWorkout } from "../state.js";
-import { fetchSessionExercises, fetchSessionSets, fetchLastSets, fetchLastDone } from "../api.js";
-import { setHints, appendExerciseCard } from "../components/exerciseCard.js";
+import { fetchSessionExercises, fetchSessionSets, fetchLastSets, fetchLastDone,
+         addSessionExercises, removeSessionExercise, replaceSessionExercise } from "../api.js";
+import { setHints, appendExerciseCard, loggedSetsGo } from "../components/exerciseCard.js";
+import { createMoreButton } from "../components/actionMenu.js";
+import { showConfirmModal } from "../components/modals.js";
+import { resetExercise } from "../components/resetExercise.js";
+import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
+import { viewPastSessions } from "./pastSessions.js";
 import { settleSaves } from "../components/setInputRow.js";
 import { clearNavGuard, setNavVisible } from "../components/bottomNav.js";
 import { setRoute } from "../router.js";
@@ -10,15 +16,19 @@ import { escapeHtml, formatShortDate } from "../utils/format.js";
    page as a live one: its exercises as they were logged (the finish
    snapshot), pills and Prev / Next, every set saving as it's typed
    (setInputRow.js, via workout.pastSessionId). Next on the last exercise
-   goes to onDone (its summary). No tab bar, as in a live workout. Nothing
-   else of a live workout: no rest timer, stopwatch, auto-end, ⋮ menus,
-   review or Finish.
+   goes to onDone (its summary). No tab bar, as in a live workout. The ⋮
+   menus as live, for that day only (the workout's own list stays): Add
+   exercise on the title, Replace / Remove / Reset exercise on each card.
+   Nothing else of a live workout: no rest timer, stopwatch, auto-end,
+   Reset / Discard workout, review or Finish.
    A live workout open meanwhile is untouched.
 
    options:
    - exerciseId: the exercise to open on (default the first)
    - onBack(): ‹ Back
    - onDone(): Next on the last exercise
+   - onGone(): when the workout is deleted from here (Reset exercise on
+     the only exercise logged in it); default its Past sessions
    - backRoute: where onBack goes, kept in the route so a reload knows
      ("exercises/7/history": opened from that History tab; router.js)
    Returns false if the session can't be loaded (deleted meanwhile). */
@@ -80,6 +90,116 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
     setNavVisible(false);
     document.getElementById("edit-session-back-btn").onclick = function() { leave(opts.onBack); };
 
+    // After a change: the page again (fetched afresh, so hints and rows
+    // follow) on that exercise; if the workout is gone, out.
+    async function rebuild(exerciseId) {
+        const opened = await editPastSession(workoutId, sessionId, sessionDate, { ...opts, exerciseId });
+        if (!opened) leave(opts.onGone || function() { viewPastSessions(workoutId); });
+    }
+    // A row being typed in saves first, so a change starts from what's saved.
+    async function settle() {
+        if (document.activeElement) document.activeElement.blur();
+        await settleSaves();
+    }
+    async function failed(exerciseId) {
+        await showConfirmModal("Couldn't change the workout. Check your connection and try again.", "OK");
+        rebuild(exerciseId);
+    }
+
+    // Pick one or more; they go at the end, the first of them shows.
+    async function addExercises() {
+        await settle();
+        const showing = workout.exercises[currentIndex];
+        renderMultiSelectExercisePicker({
+            title: `Add to ${workout.name} - ${formatShortDate(sessionDate)}`,
+            excludedIds: workout.exercises.map(e => e.id),
+            confirmLabel: n => n === 1 ? "Add 1 exercise" : `Add ${n} exercises`,
+            onCancel: function() { rebuild(showing.id); },
+            onConfirm: async function(selected) {
+                try {
+                    await addSessionExercises(sessionId, selected.map(e => e.id));
+                } catch (e) {
+                    return failed(showing.id);
+                }
+                rebuild(selected[0].id);
+            }
+        });
+    }
+
+    // Pick one; it takes the old one's place, whose sets here go (asked first).
+    async function replaceOne(exercise) {
+        await settle();
+        renderMultiSelectExercisePicker({
+            title: `Replace ${exercise.name}`,
+            workoutLabel: workout.name,
+            excludedIds: workout.exercises.map(e => e.id),
+            single: true,
+            confirmLabel: () => "Replace",
+            onCancel: function() { rebuild(exercise.id); },
+            onConfirm: async function(selected) {
+                const replacement = selected[0];
+                const n = exercise.sets.length;
+                if (n > 0 && !(await showConfirmModal(
+                        `Replace ${exercise.name} with ${replacement.name}? ${loggedSetsGo(n, exercise.name)}`, "Replace"))) {
+                    return rebuild(exercise.id);
+                }
+                try {
+                    await replaceSessionExercise(sessionId, exercise.id, replacement.id);
+                } catch (e) {
+                    return failed(exercise.id);
+                }
+                rebuild(replacement.id);
+            }
+        });
+    }
+
+    // Its sets here go; the next one shows (the last: the one before).
+    async function removeOne(exercise) {
+        await settle();
+        const n = exercise.sets.length;
+        if (!(await showConfirmModal(n > 0
+                ? `Remove ${exercise.name}? ${loggedSetsGo(n, "it")}`
+                : `Remove ${exercise.name} from this workout?`, "Remove"))) return;
+        const index = workout.exercises.indexOf(exercise);
+        try {
+            await removeSessionExercise(sessionId, exercise.id);
+        } catch (e) {
+            return failed(exercise.id);
+        }
+        const rest = workout.exercises.filter(e => e !== exercise);
+        rebuild(rest[Math.min(index, rest.length - 1)].id);
+    }
+
+    /* Reset exercise as anywhere else: its history in every workout goes.
+       Logged here, it also leaves this workout (and a workout with nothing
+       else logged goes too), so the question says so; the next one shows. */
+    async function resetOne(exercise) {
+        await settle();
+        const here = exercise.sets.length > 0;
+        const othersLogged = workout.exercises.some(e => e !== exercise && e.sets.length > 0);
+        const more = !here ? ""
+            : othersLogged ? " It's taken out of this workout too."
+            : " Nothing else is logged in this workout, so it's deleted too.";
+        if (!(await resetExercise(exercise, 0, more))) return;
+        if (!here) return rebuild(exercise.id);
+        const index = workout.exercises.indexOf(exercise);
+        const rest = workout.exercises.filter(e => e !== exercise);
+        rebuild(rest.length > 0 ? rest[Math.min(index, rest.length - 1)].id : null);
+    }
+
+    function exerciseMenu(exercise) {
+        const items = [{ label: "Replace exercise", onSelect: function() { replaceOne(exercise); } }];
+        if (workout.exercises.length > 1) {
+            items.push({ label: "Remove exercise", danger: true, onSelect: function() { removeOne(exercise); } });
+        }
+        items.push({ label: "Reset exercise", danger: true, onSelect: function() { resetOne(exercise); } });
+        return items;
+    }
+
+    page.querySelector(".workout-title-row").appendChild(createMoreButton("Workout options", function() {
+        return [{ label: "Add exercise", onSelect: addExercises }];
+    }));
+
     const pillsRow = document.getElementById("exercise-pills");
     const cards = document.getElementById("exercise-cards");
     const counter = document.getElementById("exercise-nav-counter");
@@ -96,7 +216,9 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
         pill.onclick = function() { setActive(i); };
         pillsRow.appendChild(pill);
 
-        appendExerciseCard(cards, workout, exercise, i, { saved, elsewhere: elsewhere[i] });
+        appendExerciseCard(cards, workout, exercise, i, {
+            saved, elsewhere: elsewhere[i], menu: function() { return exerciseMenu(exercise); }
+        });
     });
 
     let currentIndex = 0;

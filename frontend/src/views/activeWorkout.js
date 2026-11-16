@@ -16,7 +16,7 @@ import {
 } from "../api.js";
 import { showConfirmModal, showChoiceModal } from "../components/modals.js";
 import { createMoreButton } from "../components/actionMenu.js";
-import { setHints, appendExerciseCard } from "../components/exerciseCard.js";
+import { setHints, appendExerciseCard, loggedSetsGo } from "../components/exerciseCard.js";
 import {
     createInputRow,
     updateHeaderVisibility,
@@ -229,13 +229,6 @@ export async function startWorkout(workoutId, options) {
             reopen(exercise.id);
             return false;
         }
-    }
-
-    // "The set you logged for Bench is deleted." / "The 3 sets … are deleted."
-    function loggedSetsGo(n, name) {
-        return n === 1
-            ? `The set you logged for ${name} is deleted.`
-            : `The ${n} sets you logged for ${name} are deleted.`;
     }
 
     async function removeExercise(exercise) {

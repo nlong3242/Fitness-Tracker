@@ -86,7 +86,7 @@ async function openSession(exercise, opts, session) {
             sessionSummaryRoute(session.workoutId, session.sessionId, session.date) + `&back=${backRoute}`);
     };
     const opened = await editPastSession(session.workoutId, session.sessionId, session.date,
-        { exerciseId: exercise.id, onBack: history, onDone: summary, backRoute });
+        { exerciseId: exercise.id, onBack: history, onDone: summary, onGone: history, backRoute });
     if (!opened) history();   // deleted meanwhile: the list without it
 }
 

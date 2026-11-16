@@ -144,7 +144,13 @@ const CHECK = `<svg class="home-check" viewBox="0 0 10 8" aria-hidden="true"><pa
 const SAMPLE_STEPS = [5200, 6100, 7400, 11800, 5900, 4800, 6379];
 const STEP_GOAL = 10000;
 
-export function renderHomePage() {
+/* Home starts on today (the Home tab, opening the app, a new day). Back
+   from a page opened on Home (a summary, an exercise's History, the
+   Bodyweight page) comes back to the day that was selected instead, even
+   after a reload there: the day is kept for this tab's session (cleared
+   when the app is closed) and only counts on the day it was picked.
+   opts.keepDay: come back to it (backToHome). */
+export function renderHomePage(opts) {
     clearNavGuard();
     setRoute("#/home");
     const container = document.getElementById("app-content");
@@ -224,10 +230,12 @@ export function renderHomePage() {
 
     document.getElementById("home-settings-btn").onclick = function() { renderSettingsPage(); };
     showGreeting();
-    resetWeek();
+    resetWeek(opts && opts.keepDay ? rememberedDay() : null);
     wireWeek();
     wireDayCard();
     renderWeek();
+    // A kept day in another week: fetch that week's days.
+    if (week.start !== thisMonday()) goToWeek(week.start, selected);
     wireWeightLogging();
     loadStats();
     loadBodyWeight();
@@ -296,10 +304,36 @@ function refreshHome() {
     }
 }
 
-function resetWeek() {
+// Back to Home from a page opened on it: the same day selected.
+export function backToHome() {
+    highlightTab("home");
+    document.getElementById("app-scroll").scrollTo(0, 0);
+    renderHomePage({ keepDay: true });
+}
+
+const DAY_KEY = "fitness.homeDay";
+
+function rememberDay() {
+    try {
+        sessionStorage.setItem(DAY_KEY, JSON.stringify({ day: selected, on: localIso(new Date()) }));
+    } catch (e) { /* private mode etc.: Back just starts on today */ }
+}
+
+// The day picked earlier today in this session, or null.
+function rememberedDay() {
+    try {
+        const kept = JSON.parse(sessionStorage.getItem(DAY_KEY));
+        if (kept && kept.on === localIso(new Date()) && /^\d{4}-\d{2}-\d{2}$/.test(kept.day)) return kept.day;
+    } catch (e) { /* nothing kept */ }
+    return null;
+}
+
+// day: the day to select (null: today), its week shown.
+function resetWeek(day) {
     shownOn = localIso(new Date());
-    week = { start: thisMonday(), days: null };
-    selected = localIso(new Date());
+    selected = day || localIso(new Date());
+    const [y, m, d] = selected.split("-").map(Number);
+    week = { start: localIso(mondayOf(new Date(y, m - 1, d))), days: null };
     thisWeekDays = null;
     weekStreak = null;
     overview = null;
@@ -387,6 +421,7 @@ function renderWeek() {
 
     document.getElementById("home-sel-date").textContent = dayHeading(selected);
     document.getElementById("home-today-btn").classList.toggle("here", selected === today);
+    rememberDay();
     renderWeekFoot();
     renderDayCard();
 }
@@ -634,7 +669,7 @@ async function openPrHistory(exerciseId) {
     renderExercisePage(exercise, {
         routeFor: id => `#/exercises/${id}`,
         tab: "history",
-        onBack: function() { setActiveTab("home"); }
+        onBack: backToHome
     });
 }
 
@@ -656,7 +691,7 @@ function showLastSession(last, sets) {
     stats.textContent = setCount(sets) + (last.durationSeconds ? ` · ${duration(last.durationSeconds)}` : "");
     row.setAttribute("aria-label", `Last session: ${name}, ${dayHeading(last.date)}, ${stats.textContent}. Open its summary`);
     setRow(row, true, function() {
-        viewSessionSummary(last.workoutId, last.id, last.date, function() { setActiveTab("home"); },
+        viewSessionSummary(last.workoutId, last.id, last.date, backToHome,
             `${sessionSummaryRoute(last.workoutId, last.id, last.date)}&back=home`);
     });
 }
@@ -811,7 +846,7 @@ function wireDayCard() {
             const workoutId = Number(btn.dataset.workout);
             const sessionId = Number(btn.dataset.session);
             const date = btn.dataset.date;
-            viewSessionSummary(workoutId, sessionId, date, function() { setActiveTab("home"); },
+            viewSessionSummary(workoutId, sessionId, date, backToHome,
                 `${sessionSummaryRoute(workoutId, sessionId, date)}&back=home`);
         }
     };

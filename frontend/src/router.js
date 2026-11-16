@@ -9,6 +9,7 @@ import { startWorkout } from "./views/activeWorkout.js";
 import { viewWorkout } from "./views/workoutDetail.js";
 import { viewPastSessions } from "./views/pastSessions.js";
 import { viewSessionSummary, sessionSummaryRoute } from "./views/summary.js";
+import { backToHome } from "./views/home.js";
 import { editPastSession } from "./views/editSession.js";
 import { navigateToCalendarDay, navigateToCalendarMonth } from "./views/calendar.js";
 import { renderExercisePage } from "./views/exercisePage.js";
@@ -144,7 +145,8 @@ async function openWorkouts(parts, params) {
         if (sessionId !== null && DAY.test(date || "")) {
             const toHistory = back && function() {
                 history.replaceState(null, "", `#/${back}`);
-                return restoreRoute();
+                // Home: back to the day it showed, not today.
+                return back === "home" ? backToHome() : restoreRoute();
             };
             const summary = function() {
                 return viewSessionSummary(workoutId, sessionId, date, toHistory || function() { viewPastSessions(workoutId); },

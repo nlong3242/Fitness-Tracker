@@ -1,5 +1,6 @@
-import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
+import { clearNavGuard } from "../components/bottomNav.js";
 import { setRoute } from "../router.js";
+import { backToHome } from "./home.js";
 import { fetchBodyWeightHistory, logBodyWeight, deleteBodyWeight } from "../api.js";
 import { showWeighInModal } from "../components/modals.js";
 import { lineChartHtml } from "../components/lineChart.js";
@@ -38,7 +39,8 @@ export async function renderBodyWeightPage() {
         </div>
         <div id="bw-list"><p class="bw-empty">Loading…</p></div>
     `;
-    document.getElementById("bw-back-btn").onclick = function() { setActiveTab("home"); };
+    // Opened from Home's tile: back to the day it showed.
+    document.getElementById("bw-back-btn").onclick = backToHome;
 
     let entries;
     try {

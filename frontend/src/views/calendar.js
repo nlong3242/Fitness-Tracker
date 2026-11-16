@@ -297,9 +297,13 @@ async function renderDayDetail(iso) {
     if (schedules.length === 0) {
         listEl.innerHTML = `<p class="day-detail-empty">Nothing planned for this day.</p>`;
     } else {
-        listEl.innerHTML = schedules.map(function(s, index) {
-            return renderScheduleRow(s, index, todayIso);
-        }).join("");
+        // A later day's plans can't be started yet (renderScheduleRow): say
+        // so once, above them, so the grey Start doesn't look broken.
+        const futurePlan = iso > todayIso && schedules.some(s => effectiveStatus(s, todayIso) === "PLANNED");
+        listEl.innerHTML = (futurePlan ? `<p class="day-detail-note">Future scheduled workouts can't be started.</p>` : "")
+            + schedules.map(function(s, index) {
+                return renderScheduleRow(s, index, todayIso);
+            }).join("");
         wireScheduleRowActions(listEl, schedules, iso);
     }
 }
@@ -349,9 +353,12 @@ function renderScheduleRow(s, index, todayIso) {
     const displayStatus = effectiveStatus(s, todayIso);
     /* Start additionally requires the workout to have at least one
        exercise — same rule as workoutDetail's Start button. Prevents
-       landing on an empty preview page with nothing to do. */
+       landing on an empty preview page with nothing to do. And the day
+       must have come: a workout is always saved on the day it's done, so
+       starting a later day's plan would log it on the wrong day (and
+       tick that later day off). Reschedule it to today to do it early. */
     const hasExercises = workoutExerciseCount(s.workoutId) > 0;
-    const isStartable = displayStatus === "PLANNED" && hasExercises;
+    const isStartable = displayStatus === "PLANNED" && hasExercises && s.date <= todayIso;
     /* Reschedule stays disabled on COMPLETED rows (moving a workout that
        already happened makes no sense). Delete is available on every saved
        row: on COMPLETED rows it removes the entry and its finished session.
@@ -444,6 +451,7 @@ async function openWorkoutDetailFromSchedule(schedule) {
 }
 
 function startFromSchedule(schedule, dayIso, btn) {
+    if (dayIso > isoDate(new Date())) return; // a later day: Start is greyed out (renderScheduleRow)
     if (!findWorkout(schedule.workoutId)) {
         showErrorBanner("Couldn't find this workout — it may have been deleted.");
         return;

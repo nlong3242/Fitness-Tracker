@@ -282,6 +282,13 @@
     margin: 0;
 }
 
+/* "Future scheduled workouts can't be started." above a later day's plans */
+.day-detail-note {
+    color: var(--text-on-bg-muted);
+    font-size: 0.9em;
+    margin: 0 0 10px 0;
+}
+
 .schedule-row {
     background: var(--surface);
     border: 2px solid var(--frame);

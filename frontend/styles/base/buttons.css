@@ -89,3 +89,55 @@ button:disabled {
         background-color: var(--danger-hover);
     }
 }
+
+/* "‹ Back": every page's way back to where it was opened from (and the
+   live workout's "‹ Home"), top left, like an iPhone's. Plain text on the
+   page, no box; 48px tall so it's an easy thumb target. The ‹ is drawn
+   (an SVG chevron, not a font character) so it centres on the word
+   exactly; the word's own box is trimmed to its letters for the same. */
+.back-link {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--text-on-bg);
+    font-weight: 700;
+    font-size: 1.3em;
+    line-height: 1;
+    min-height: 48px;
+    padding: 0 14px 0 0;
+    margin: 4px 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.15s;
+}
+
+.back-link:active {
+    transform: none;
+    box-shadow: none;
+    color: var(--accent-pink-deep);
+}
+
+@media (hover: hover) {
+    .back-link:hover {
+        color: var(--accent-pink-deep);
+        background: transparent;
+        transform: none;
+    }
+}
+
+.back-glyph {
+    flex: none;
+    width: 0.55em;
+    height: 0.9em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+}
+
+.page-top .back-link {
+    margin: 0;
+}

@@ -176,11 +176,11 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
         `
         : "";
 
-    // A finished session's Back sits on top, like every page's; the live
-    // workout's preview keeps its small "‹ Back" link.
+    // "‹ Back" on top, like every page's (the live workout's preview: only
+    // with an onBack).
     const topBackHtml = mode === "preview"
-        ? (onBack ? `<button class="summary-back-link" id="summary-top-back-btn"><span class="summary-back-glyph">&#8249;</span> Back</button>` : "")
-        : `<div class="page-actions page-top${opts.justFinished ? " task-flow" : ""}"><button class="btn-secondary" id="summary-back-btn">${backLabel}</button></div>`;
+        ? (onBack ? `<button type="button" class="back-link" id="summary-top-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>` : "")
+        : `<div class="page-actions page-top${opts.justFinished ? " task-flow" : ""}"><button type="button" class="back-link" id="summary-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> ${backLabel}</button></div>`;
 
     target.innerHTML = `
         ${topBackHtml}

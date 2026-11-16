@@ -14,7 +14,7 @@ export async function renderExerciseLibrary(initialCategory, initialQuery, initi
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="page-actions page-top">
-            <button class="btn-secondary" id="library-back-btn">Back</button>
+            <button type="button" class="back-link" id="library-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>
         </div>
         <h2 class="page-title">Exercise Library</h2>
         <div class="page-actions">

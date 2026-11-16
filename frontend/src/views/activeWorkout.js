@@ -291,7 +291,7 @@ export async function startWorkout(workoutId, options) {
 
     const pageContainer = document.getElementById("app-content");
     pageContainer.innerHTML = `
-        <button class="summary-back-link" id="workout-home-btn"><span class="summary-back-glyph">&#8249;</span> Home</button>
+        <button type="button" class="back-link" id="workout-home-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Home</button>
         <div class="workout-title-row">
             <h2>${escapeHtml(workout.name)} - Workout</h2>
             <span class="workout-stopwatch" id="workout-stopwatch" role="timer" hidden></span>

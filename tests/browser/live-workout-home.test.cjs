@@ -22,10 +22,10 @@ run({ prefix: "livehome", workoutName: "Live Home", exercises: 2 }, "#/workouts"
         const title = document.querySelector(".workout-title-row").getBoundingClientRect();
         const r = b.getBoundingClientRect();
         return { text: b.textContent.replace(/\s+/g, " ").trim(), above: r.bottom <= title.top + 1,
-            backStyle: b.classList.contains("summary-back-link") };
+            backStyle: b.classList.contains("back-link"), chevron: !!b.querySelector("svg.back-glyph") };
     });
     check("‹ Home above the title, in the review's Back style",
-        home.text === "‹ Home" && home.above && home.backStyle, JSON.stringify(home));
+        home.text === "Home" && home.chevron && home.above && home.backStyle, JSON.stringify(home));
     const rowGap = await page.$eval("#exercise-nav-row", r => Math.round(window.innerHeight - r.getBoundingClientRect().bottom));
     check("Prev / Next sits at the bottom edge", rowGap === 0, rowGap);
     await t.shot("live-home-01-exercise");

@@ -26,7 +26,7 @@ export function renderWorkouts() {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="page-actions page-top">
-            <button class="btn-secondary" id="workouts-back-btn">Back</button>
+            <button type="button" class="back-link" id="workouts-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>
         </div>
         <h2 class="page-title">My Workouts</h2>
         <div class="page-actions">
@@ -141,7 +141,7 @@ export function renderCreateWorkoutPage(initialState, options) {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="page-actions page-top task-flow">
-            <button class="btn-secondary" id="back-btn">Back</button>
+            <button type="button" class="back-link" id="back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>
         </div>
         <h2 class="page-title">Create Workout</h2>
         <div class="create-workout-form">

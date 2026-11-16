@@ -262,8 +262,8 @@ async function renderDayDetail(iso) {
         <div class="day-detail-page">
             <div class="calendar-error-banner" id="cal-error" hidden></div>
 
-            <div class="page-actions">
-                <button class="btn-secondary" id="day-back">← Back to ${escapeHtml(monthLabel)}</button>
+            <div class="page-actions page-top">
+                <button type="button" class="back-link" id="day-back"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> ${escapeHtml(monthLabel)}</button>
             </div>
 
             <h2 class="day-detail-date">

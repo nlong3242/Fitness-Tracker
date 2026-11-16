@@ -24,7 +24,7 @@ export async function renderSettingsPage(notice = "") {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="page-actions page-top">
-            <button class="btn-secondary" id="settings-back-btn">Back</button>
+            <button type="button" class="back-link" id="settings-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>
         </div>
         <h2 class="page-title">Settings</h2>
         <p class="settings-notice" id="settings-notice" role="status" hidden></p>
@@ -81,7 +81,7 @@ export function renderRestTimerPage() {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="page-actions page-top">
-            <button class="btn-secondary" id="rest-back-btn">Back</button>
+            <button type="button" class="back-link" id="rest-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>
         </div>
         <h2 class="page-title">Timers</h2>
         <div class="settings-panel" id="stopwatch-settings">
@@ -273,7 +273,7 @@ export function renderChangePasswordPage() {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <div class="page-actions page-top">
-            <button class="btn-secondary" id="password-back-btn">Back</button>
+            <button type="button" class="back-link" id="password-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>
         </div>
         <h2 class="page-title">Change password</h2>
         <form class="auth-panel" id="password-form" novalidate>

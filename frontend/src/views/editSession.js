@@ -62,7 +62,7 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
     clearNavGuard();
     const page = document.getElementById("app-content");
     page.innerHTML = `
-        <button class="summary-back-link" id="edit-session-back-btn"><span class="summary-back-glyph">&#8249;</span> Back</button>
+        <button type="button" class="back-link" id="edit-session-back-btn"><svg class="back-glyph" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg> Back</button>
         <div class="workout-title-row">
             <h2>${escapeHtml(workout.name)} - ${formatShortDate(sessionDate)}</h2>
         </div>

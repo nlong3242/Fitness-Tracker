@@ -135,23 +135,39 @@ public class SessionService {
         return streak;
     }
 
-    /* Home's week strip, one per day Monday to Sunday. done: a finished
-       session that day. planned: a plan still to do that day (saved or
-       from a repeat rule; done and skipped ones don't count). Both can be
-       true; the page shows done first. */
-    public record WeekDay(LocalDate date, boolean done, boolean planned) {}
+    /* Home's week strip and selected-day card, one per day Monday to
+       Sunday. done: a finished session that day. planned: a plan still to
+       do that day (saved or from a repeat rule; done and skipped ones don't
+       count). Both can be true; the page shows done first.
+       sessions: that day's finished workouts, in the order they were made,
+       with their set count (each side on its own, like the summary) and
+       length (null without a stopwatch time). plans: that day's plans still
+       to do, saved ones first; scheduleId is null for a repeat rule's day. */
+    public record DaySession(Long sessionId, Long workoutId, String workoutName, long sets, Long durationSeconds) {}
+    public record DayPlan(Long scheduleId, Long workoutId, String workoutName) {}
+    public record WeekDay(LocalDate date, boolean done, boolean planned,
+                          List<DaySession> sessions, List<DayPlan> plans) {}
 
     public List<WeekDay> weekDays(LocalDate weekStart) {
         LocalDate weekEnd = weekStart.plusDays(6);
-        Set<LocalDate> done = new HashSet<>(
-            sessionRepository.findFinishedSessionDatesBetween(CurrentUser.id(), weekStart, weekEnd));
-        Set<LocalDate> planned = new HashSet<>();
+        Map<LocalDate, List<DaySession>> sessions = new HashMap<>();
+        for (Session session : sessionRepository
+                .findByUserIdAndFinishedTrueAndDateBetweenOrderByDateAscIdAsc(CurrentUser.id(), weekStart, weekEnd)) {
+            sessions.computeIfAbsent(session.getDate(), d -> new ArrayList<>()).add(new DaySession(
+                session.getId(), session.getWorkoutId(), session.getWorkout().getName(),
+                countSets(session), session.getDurationSeconds()));
+        }
+        Map<LocalDate, List<DayPlan>> plans = new HashMap<>();
         for (ScheduledWorkout plan : calendarPlans.between(weekStart, weekEnd)) {
-            if (plan.getStatus() == ScheduleStatus.PLANNED) planned.add(plan.getDate());
+            if (plan.getStatus() != ScheduleStatus.PLANNED) continue;
+            plans.computeIfAbsent(plan.getDate(), d -> new ArrayList<>())
+                .add(new DayPlan(plan.getId(), plan.getWorkoutId(), plan.getWorkout().getName()));
         }
         List<WeekDay> days = new ArrayList<>();
         for (LocalDate day = weekStart; !day.isAfter(weekEnd); day = day.plusDays(1)) {
-            days.add(new WeekDay(day, done.contains(day), planned.contains(day)));
+            List<DaySession> done = sessions.getOrDefault(day, List.of());
+            List<DayPlan> planned = plans.getOrDefault(day, List.of());
+            days.add(new WeekDay(day, !done.isEmpty(), !planned.isEmpty(), done, planned));
         }
         return days;
     }

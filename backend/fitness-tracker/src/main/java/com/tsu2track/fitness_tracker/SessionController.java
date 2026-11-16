@@ -98,6 +98,13 @@ public class SessionController {
             exerciseHistoryService.latestPr());
     }
 
+    // One week's days for Home's week strip, Monday (weekStart) to Sunday,
+    // when stepping to another week (the overview has this week's).
+    @GetMapping("/sessions/week")
+    public List<SessionService.WeekDay> getWeek(@RequestParam LocalDate weekStart) {
+        return sessionService.weekDays(weekStart);
+    }
+
     // startedAt (optional): when Start was tapped, for the workout stopwatch.
     public static class CreateSessionBody {
         private Instant startedAt;

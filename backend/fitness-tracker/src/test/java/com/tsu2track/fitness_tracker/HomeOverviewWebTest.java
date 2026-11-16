@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,8 @@ class HomeOverviewWebTest {
     @Autowired MockMvc mvc;
     @Autowired WorkoutRepository workouts;
     @Autowired SessionRepository sessions;
+    @Autowired ExerciseRepository exercises;
+    @Autowired ExerciseSetRepository setsRepo;
 
     private String bearer;
     private long userId;
@@ -82,6 +85,63 @@ class HomeOverviewWebTest {
             .andExpect(day(4, true, true))
             .andExpect(day(5, false, true))
             .andExpect(day(6, false, false));
+    }
+
+    // --- each day's workouts and plans, and GET /sessions/week for other weeks ---
+
+    @Test
+    void eachDayListsItsWorkoutsAndPlans() throws Exception {
+        Workout newLegs = new Workout("Legs");
+        newLegs.setUserId(userId);
+        Workout legs = workouts.save(newLegs);
+        Exercise bench = new Exercise("Bench");
+        bench.setCategory(ExerciseCategory.CHEST);
+        bench.setUserId(userId);
+        bench = exercises.save(bench);
+
+        Session push = session(MON, true);          // Mon: two workouts, in the order done
+        push.setStartedAt(Instant.parse("2026-03-02T08:00:00Z"));
+        push.setFinishedAt(Instant.parse("2026-03-02T08:52:00Z"));
+        sessions.save(push);
+        sets(push, bench, 3);
+        Session core = session(MON, true);
+        core.setWorkout(legs);
+        sessions.save(core);
+        sets(core, bench, 1);
+        session(MON, false);                        // unfinished: not listed
+        plan(MON.plusDays(3), null);                // Thu: a saved plan
+        plan(MON.plusDays(4), "SKIPPED");           // Fri: skipped, not listed
+        repeat(SATURDAYS);                          // Sat: a repeat rule's day
+
+        for (ResultActions week : List.of(overview(), mvc.perform(get("/sessions/week")
+                .param("weekStart", MON.toString()).header("Authorization", bearer)).andExpect(status().isOk()))) {
+            week.andExpect(result -> {
+                String json = result.getResponse().getContentAsString();
+                String root = json.startsWith("[") ? "$" : "$.weekDays";
+                jsonPath(root + "[0].sessions", hasSize(2)).match(result);
+                jsonPath(root + "[0].sessions[0].sessionId").value(push.getId()).match(result);
+                jsonPath(root + "[0].sessions[0].workoutName").value("Push Day").match(result);
+                jsonPath(root + "[0].sessions[0].sets").value(3).match(result);
+                jsonPath(root + "[0].sessions[0].durationSeconds").value(52 * 60).match(result);
+                jsonPath(root + "[0].sessions[1].workoutId").value(legs.getId()).match(result);
+                jsonPath(root + "[0].sessions[1].workoutName").value("Legs").match(result);
+                jsonPath(root + "[0].sessions[1].sets").value(1).match(result);
+                jsonPath(root + "[0].sessions[1].durationSeconds").isEmpty().match(result);
+                jsonPath(root + "[0].plans", hasSize(0)).match(result);
+                jsonPath(root + "[3].plans", hasSize(1)).match(result);
+                jsonPath(root + "[3].plans[0].workoutName").value("Push Day").match(result);
+                jsonPath(root + "[3].plans[0].scheduleId").isNumber().match(result);
+                jsonPath(root + "[4].plans", hasSize(0)).match(result);
+                jsonPath(root + "[5].plans[0].workoutId").value(workout.getId()).match(result);
+                jsonPath(root + "[5].plans[0].scheduleId").isEmpty().match(result);
+                jsonPath(root + "[6].sessions", hasSize(0)).match(result);
+            });
+        }
+    }
+
+    @Test
+    void weekNeedsWeekStart() throws Exception {
+        mvc.perform(get("/sessions/week").header("Authorization", bearer)).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -213,6 +273,17 @@ class HomeOverviewWebTest {
             jsonPath("$.weekDays[" + i + "].done").value(done).match(result);
             jsonPath("$.weekDays[" + i + "].planned").value(planned).match(result);
         };
+    }
+
+    private void sets(Session session, Exercise exercise, int n) {
+        for (int i = 0; i < n; i++) {
+            ExerciseSet set = new ExerciseSet();
+            set.setSession(session);
+            set.setExercise(exercise);
+            set.setWeight(60);
+            set.setReps(5);
+            setsRepo.save(set);
+        }
     }
 
     private Session session(LocalDate date, boolean finished) {

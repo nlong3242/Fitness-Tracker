@@ -3,7 +3,9 @@
    nothing else of a live workout (no tab bar, stopwatch or rest timer; its ⋮ menus are in
    edit-session-exercises),
    Next on the last exercise to its summary, and a live workout open at the
-   same time left alone, even when every past set is deleted. */
+   same time left alone, even when every past set is deleted (an emptied
+   one is kept while its page is open; tidied on leaving, in
+   edit-session-exercises). */
 const { run, wait } = require("./harness.cjs");
 
 run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts", async t => {
@@ -116,6 +118,15 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     check("today's workout is still open", open2 && open2.id === live.id, JSON.stringify(open2 && open2.id));
     const liveSets = await t.api("GET", `/sessions/${live.id}/sets`);
     check("with its set", liveSets.length === 1 && liveSets[0].weight === 90, JSON.stringify(liveSets));
+    // One back, so it isn't tidied away on leaving (edit-session-exercises).
+    await page.click(".exercise-card.active > .add-set-btn");
+    const backRow = (await page.$$(".exercise-card.active .set-input-row")).pop();
+    const postedBack = page.waitForResponse(x => x.request().method() === "POST" && /\/sets\?exerciseId=/.test(x.url()));
+    await (await backRow.$(".weight-input")).type("22");
+    await (await backRow.$(".reps-input")).type("8");
+    await page.evaluate(() => document.activeElement.blur());
+    await postedBack;
+    await wait(300);
 
     // 6. Next on the last exercise: its summary
     await page.click("#exercise-nav-next");

@@ -2,8 +2,9 @@
    ⋮ has Add exercise, each card's ⋮ Replace / Remove / Reset exercise, as
    live. Changes are that day's only: the workout's own list stays. Logged
    sets that go are asked about first; Remove isn't offered on the last
-   exercise; Reset of the only exercise logged deletes the workout and
-   goes to its Past sessions. */
+   exercise. Reset keeps the exercise here with empty rows. A workout left
+   with no sets at all (Reset or ✕) is tidied away when the page is left,
+   or at the next start if the app closed on it. */
 const { run, wait } = require("./harness.cjs");
 
 run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workouts", async t => {
@@ -152,30 +153,108 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     await (await page.$$(".summary-exercise-card .summary-exercise-count"))[1].click();
     await onExercise(dip.name);
 
-    // 6. Reset the Dip (logged here, the Bench too): it leaves this workout
+    // A Reset's request, to wait on before the page rebuilds.
+    const resetDone = () => page.waitForResponse(r => r.request().method() === "DELETE" && r.url().includes("/history?keepSessionId="));
+
+    // 6. Reset the Dip: it stays here with empty rows; logging again keeps the workout
     await cardMenu();
     await choose("Reset exercise");
     msg = await confirmText();
-    check("Reset says it leaves this workout", msg.includes("taken out of this workout too"), msg);
+    check("Reset says it stays in this workout", msg.includes("It stays in this workout, with no sets"), msg);
+    let reset = resetDone();
+    await page.click(".modal-confirm");
+    await reset;
+    await wait(600);
+    await onExercise(dip.name);
+    check("reset: still in the workout", JSON.stringify(await titles()) === JSON.stringify([first.name, dip.name]),
+        (await titles()).join(", "));
+    check("reset: its sets are gone", (await setsOf(dip.id)) === 0);
+    check("reset: no saved rows", (await page.$$(".exercise-card.active .set-input-row.saved")).length === 0);
+    await logSet(17.5, 6);
+    await page.click("#edit-session-back-btn");
+    await page.waitForSelector(".summary-exercise-card");
+    await wait(500);
+    check("logged again: Back to its summary, kept", page.url().includes(`/sessions/${s.id}?date=`), page.url());
+
+    // 7. Reset it again and Remove it (no sets: the plain question); one left: no Remove
+    await (await page.$$(".summary-exercise-card .summary-exercise-count"))[1].click();
+    await onExercise(dip.name);
+    await cardMenu();
+    await choose("Reset exercise");
+    await confirmText();
+    reset = resetDone();
+    await page.click(".modal-confirm");
+    await reset;
+    await wait(600);
+    await onExercise(dip.name);
+    await cardMenu();
+    await choose("Remove exercise");
+    msg = await confirmText();
+    check("removing one with no sets: the plain question", msg === `Remove ${dip.name} from this workout?`, msg);
     await page.click(".modal-confirm");
     await onExercise(first.name);
-    check("reset: gone from the workout", JSON.stringify(await titles()) === JSON.stringify([first.name]), (await titles()).join(", "));
     await cardMenu();
     check("one left: no Remove", JSON.stringify(await menuLabels()) === JSON.stringify(["Replace exercise", "Reset exercise"]),
         (await menuLabels()).join(", "));
 
-    // 7. Reset the only one logged: the workout goes, so does the page
+    // 8. Reset the Bench, the last sets: kept while here (even over a
+    //    reload), tidied away on leaving with nothing logged
     await choose("Reset exercise");
-    msg = await confirmText();
-    check("Reset says the workout goes too", msg.includes("so it's deleted too"), msg);
+    await confirmText();
+    reset = resetDone();
     await page.click(".modal-confirm");
+    await reset;
+    await wait(600);
+    await onExercise(first.name);
+    check("emptied but still here", (await t.api("GET", `/sessions/${s.id}/sets`)).length === 0
+        && JSON.stringify(await snapshot()) === JSON.stringify([first.id]), JSON.stringify(await snapshot()));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await onExercise(first.name);
+    check("a reload: still there", (await t.api("GET", `/workouts/${workout.id}/sessions`)).content.length === 1);
+    await page.click("#edit-session-back-btn");
     await page.waitForFunction(() => location.hash.endsWith("/sessions") && !document.querySelector("#edit-session-back-btn"),
         { timeout: 15000 });
     await wait(400);
-    check("then its Past sessions", page.url().endsWith(`#/workouts/${workout.id}/sessions`), page.url());
+    check("Back: its Past sessions", page.url().endsWith(`#/workouts/${workout.id}/sessions`), page.url());
     check("the tab bar is back", !(await page.evaluate(() => document.body.classList.contains("nav-hidden"))));
-    const left = await t.api("GET", `/workouts/${workout.id}/sessions`);
-    check("the workout is deleted", left.content.length === 0, JSON.stringify(left.content.map(x => x.id)));
+    let left = await t.api("GET", `/workouts/${workout.id}/sessions`);
+    check("the emptied workout is tidied away", left.content.length === 0, JSON.stringify(left.content.map(x => x.id)));
     check("the workout's own list still stays", JSON.stringify(await workoutList()) === JSON.stringify([first.id, second.id]));
     await t.shot("edit-exercises-03-gone");
+
+    // A finished workout with one bench set, its editing page open.
+    const openOneSet = async () => {
+        const one = await t.api("POST", `/workouts/${workout.id}/sessions`, {});
+        await t.api("POST", `/sessions/${one.id}/sets?exerciseId=${first.id}`, { weight: 70, reps: 5 });
+        await t.api("POST", `/sessions/${one.id}/finish`, {});
+        await page.goto(base + `#/workouts/${workout.id}/sessions/${one.id}/edit?date=${one.date}&exercise=${first.id}`,
+            { waitUntil: "domcontentloaded" });
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await onExercise(first.name);
+        const del = page.waitForResponse(r => r.request().method() === "DELETE" && /\/sets\/\d+$/.test(r.url()));
+        await page.click(".exercise-card.active .set-input-row .set-input-cancel");
+        await del;
+        await wait(300);
+        return one;
+    };
+
+    // 9. Every set deleted by hand (✕): tidied away on Back too
+    await openOneSet();
+    await page.click("#edit-session-back-btn");
+    await page.waitForFunction(() => location.hash.endsWith("/sessions") && !document.querySelector("#edit-session-back-btn"),
+        { timeout: 15000 });
+    left = await t.api("GET", `/workouts/${workout.id}/sessions`);
+    check("✕ every set, Back: tidied away", left.content.length === 0, JSON.stringify(left.content.map(x => x.id)));
+
+    // 10. The app closed on the page instead: tidied at the next start
+    const closed = await openOneSet();
+    check("still there while the app is shut", (await t.api("GET", `/workouts/${workout.id}/sessions`)).content.length === 1);
+    const tidied = page.waitForResponse(r => r.request().method() === "POST" && r.url().includes(`/sessions/${closed.id}/remove-if-empty`));
+    await page.goto(base + "#/home", { waitUntil: "domcontentloaded" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await tidied;
+    left = await t.api("GET", `/workouts/${workout.id}/sessions`);
+    check("next start: tidied away", left.content.length === 0, JSON.stringify(left.content.map(x => x.id)));
+    const note = await page.evaluate(() => localStorage.getItem("fitness.tidyAfterEdit"));
+    check("and no longer noted", note === "[]", note);
 });

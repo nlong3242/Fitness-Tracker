@@ -173,6 +173,14 @@ public class SessionController {
         return sessionService.replaceSessionExercise(sessionId, exerciseId, replacementId);
     }
 
+    public record Removed(boolean removed) {}
+
+    // Leaving a past workout's editing page: one left with no sets goes.
+    @PostMapping("/sessions/{sessionId}/remove-if-empty")
+    public Removed removeIfEmpty(@PathVariable Long sessionId) {
+        return new Removed(sessionService.removeIfEmpty(sessionId));
+    }
+
     @DeleteMapping("/sessions/{sessionId}")
     public void deleteSession(@PathVariable Long sessionId) {
         sessionService.deleteSession(sessionId);

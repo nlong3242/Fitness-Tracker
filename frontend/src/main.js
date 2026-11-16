@@ -6,6 +6,7 @@ import { renderLoginPage } from "./views/login.js";
 import { showProfileSetup } from "./views/profile.js";
 import { renderHomePage } from "./views/home.js";
 import { restoreRoute } from "./router.js";
+import { tidyLeftSessions } from "./views/editSession.js";
 import { initLiveWorkout } from "./components/liveWorkout.js";
 import { initRestTimer } from "./components/restTimer.js";
 import { startIdleWatch } from "./autoEnd.js";
@@ -88,6 +89,8 @@ async function bootstrap() {
     initLiveWorkout();
     initRestTimer();
     await restoreRoute();
+    // A past workout emptied on its editing page while the app closed there.
+    tidyLeftSessions();
     // Home shows the name and weekly goal: draw it again once they exist.
     if (needsProfile) showProfileSetup(function() { if (document.getElementById("home-greeting")) renderHomePage(); });
     startIdleWatch();

@@ -1,6 +1,6 @@
 import { findWorkout } from "../state.js";
 import { fetchSessionExercises, fetchSessionSets, fetchLastSets, fetchLastDone,
-         addSessionExercises, removeSessionExercise, replaceSessionExercise } from "../api.js";
+         addSessionExercises, removeSessionExercise, replaceSessionExercise, removeSessionIfEmpty, ApiError } from "../api.js";
 import { setHints, appendExerciseCard, loggedSetsGo } from "../components/exerciseCard.js";
 import { createMoreButton } from "../components/actionMenu.js";
 import { showConfirmModal } from "../components/modals.js";
@@ -22,13 +22,16 @@ import { escapeHtml, formatShortDate } from "../utils/format.js";
    Nothing else of a live workout: no rest timer, stopwatch, auto-end,
    Reset / Discard workout, review or Finish.
    A live workout open meanwhile is untouched.
+   Left with no sets at all (✕, Remove or Reset), the session is tidied
+   away on leaving, as every other way of emptying a workout does; if the
+   app is closed instead, at its next start (tidyLeftSessions).
 
    options:
    - exerciseId: the exercise to open on (default the first)
    - onBack(): ‹ Back
    - onDone(): Next on the last exercise
-   - onGone(): when the workout is deleted from here (Reset exercise on
-     the only exercise logged in it); default its Past sessions
+   - onGone(): instead of onBack / onDone when leaving tidies the session
+     away; default its Past sessions
    - backRoute: where onBack goes, kept in the route so a reload knows
      ("exercises/7/history": opened from that History tab; router.js)
    Returns false if the session can't be loaded (deleted meanwhile). */
@@ -77,11 +80,16 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
         </div>
         <div id="exercise-cards"></div>
     `;
+    // Checked on leaving; noted on the device in case the app is closed here.
+    noteToTidy(sessionId, true);
     // A row being typed in saves when it loses focus: wait for that (and any
-    // save on its way) so the page left to shows the change.
+    // save on its way) so the page left to shows the change. With no sets
+    // left at all, the session goes.
+    const gone = opts.onGone || function() { viewPastSessions(workoutId); };
     async function leave(then) {
         if (document.activeElement) document.activeElement.blur();
         await settleSaves();
+        if (await tidy(sessionId)) then = gone;
         setNavVisible(true);
         if (then) then();
     }
@@ -94,7 +102,7 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
     // follow) on that exercise; if the workout is gone, out.
     async function rebuild(exerciseId) {
         const opened = await editPastSession(workoutId, sessionId, sessionDate, { ...opts, exerciseId });
-        if (!opened) leave(opts.onGone || function() { viewPastSessions(workoutId); });
+        if (!opened) leave(gone);
     }
     // A row being typed in saves first, so a change starts from what's saved.
     async function settle() {
@@ -170,21 +178,13 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
         rebuild(rest[Math.min(index, rest.length - 1)].id);
     }
 
-    /* Reset exercise as anywhere else: its history in every workout goes.
-       Logged here, it also leaves this workout (and a workout with nothing
-       else logged goes too), so the question says so; the next one shows. */
+    /* Reset exercise as anywhere else (its history in every workout goes),
+       but this workout keeps it, with empty rows, and itself even with no
+       sets left until the page is left (leave). */
     async function resetOne(exercise) {
         await settle();
-        const here = exercise.sets.length > 0;
-        const othersLogged = workout.exercises.some(e => e !== exercise && e.sets.length > 0);
-        const more = !here ? ""
-            : othersLogged ? " It's taken out of this workout too."
-            : " Nothing else is logged in this workout, so it's deleted too.";
-        if (!(await resetExercise(exercise, 0, more))) return;
-        if (!here) return rebuild(exercise.id);
-        const index = workout.exercises.indexOf(exercise);
-        const rest = workout.exercises.filter(e => e !== exercise);
-        rebuild(rest.length > 0 ? rest[Math.min(index, rest.length - 1)].id : null);
+        if (!(await resetExercise(exercise, 0, sessionId))) return;
+        rebuild(exercise.id);
     }
 
     function exerciseMenu(exercise) {
@@ -254,4 +254,49 @@ export async function editPastSession(workoutId, sessionId, sessionDate, options
 export function editSessionRoute(workoutId, sessionId, sessionDate, exerciseId, backRoute) {
     return `#/workouts/${workoutId}/sessions/${sessionId}/edit?date=${sessionDate}&exercise=${exerciseId}`
         + (backRoute ? `&back=${backRoute}` : "");
+}
+
+/* Past workouts whose editing page was opened and not yet checked on
+   leaving (the app closed on it, or offline then): ids on the device. */
+const TIDY_KEY = "fitness.tidyAfterEdit";
+
+function notedToTidy() {
+    try {
+        const ids = JSON.parse(localStorage.getItem(TIDY_KEY));
+        return Array.isArray(ids) ? ids.filter(Number.isInteger) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function noteToTidy(sessionId, on) {
+    const ids = notedToTidy().filter(id => id !== sessionId);
+    if (on) ids.push(sessionId);
+    try {
+        localStorage.setItem(TIDY_KEY, JSON.stringify(ids));
+    } catch (e) { /* private mode etc.: only the check on leaving */ }
+}
+
+// The session goes if it has no sets left. True if it went. The note is
+// kept only when the check couldn't be made (offline), for the next start.
+async function tidy(sessionId) {
+    try {
+        const { removed } = await removeSessionIfEmpty(sessionId);
+        noteToTidy(sessionId, false);
+        return removed;
+    } catch (e) {
+        if (e instanceof ApiError) noteToTidy(sessionId, false);   // gone, or not finished
+        return false;
+    }
+}
+
+/* At start-up (main.js, after the route is open): the noted sessions are
+   checked, except one whose editing page just reopened (checked when it's
+   left). */
+export async function tidyLeftSessions() {
+    const open = location.hash.match(/^#\/workouts\/\d+\/sessions\/(\d+)\/edit/);
+    for (const id of notedToTidy()) {
+        if (open && Number(open[1]) === id) continue;
+        await tidy(id);
+    }
 }

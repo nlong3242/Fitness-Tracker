@@ -175,6 +175,46 @@ class EditHistoryExercisesWebTest {
         assertThat(setsOf(session)).hasSize(3);
     }
 
+    @Test
+    void resetKeepsTheExerciseInTheWorkoutBeingEdited() throws Exception {
+        long other = finishedSession(85, 62);
+        send(delete("/exercises/" + bench + "/history?keepSessionId=" + session), null);
+        // the one being edited keeps the bench, with no sets
+        assertThat(exercisesOf(session)).containsExactly(bench, press);
+        assertThat(setsOf(session)).containsExactly("60.0x5");
+        // the other loses it, as with any Reset
+        assertThat(exercisesOf(other)).containsExactly(press);
+        assertThat(setsOf(other)).containsExactly("62.0x5");
+    }
+
+    @Test
+    void aKeptWorkoutStaysEvenWithNoSetsUntilItsPageTidiesIt() throws Exception {
+        long s = id(send(post("/workouts/" + push + "/sessions"), "{}"));
+        logSet(s, bench, 70);
+        send(post("/sessions/" + s + "/finish"), "{}");
+
+        send(delete("/exercises/" + bench + "/history?keepSessionId=" + s), null);
+        assertThat(setsOf(s)).isEmpty();
+        assertThat(exercisesOf(s)).contains(bench);
+
+        // leaving its page: emptied, so it goes
+        String json = send(post("/sessions/" + s + "/remove-if-empty"), null);
+        assertThat((Boolean) JsonPath.read(json, "$.removed")).isTrue();
+        call(get("/sessions/" + s), null).andExpect(status().isNotFound());
+        assertThat(workoutList()).containsExactly(bench, press);
+    }
+
+    @Test
+    void aWorkoutWithSetsIsntTidiedAway() throws Exception {
+        String json = send(post("/sessions/" + session + "/remove-if-empty"), null);
+        assertThat((Boolean) JsonPath.read(json, "$.removed")).isFalse();
+        assertThat(setsOf(session)).hasSize(3);
+
+        long live = id(send(post("/workouts/" + push + "/sessions"), "{}"));
+        call(post("/sessions/" + live + "/remove-if-empty"), null).andExpect(status().isConflict());
+        getJson("/sessions/" + live);
+    }
+
     // --- helpers ---
 
     private void logSet(long sessionId, long exerciseId, int kg) throws Exception {

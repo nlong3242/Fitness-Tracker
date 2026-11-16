@@ -6,9 +6,10 @@ import { showConfirmModal } from "./modals.js";
    (SessionService.resetExerciseHistory). Says how much first and always
    asks. todaysSets: sets logged for it in the workout being done, which
    stay (a workout in progress is left alone), so the question says so.
-   more: a sentence added to the question (a past workout's page says what
-   happens to that workout). True once it's reset. */
-export async function resetExercise(exercise, todaysSets = 0, more = "") {
+   keepSessionId: a finished workout being edited (editing history), which
+   keeps the exercise with no sets; the question says so. True once it's
+   reset. */
+export async function resetExercise(exercise, todaysSets = 0, keepSessionId = null) {
     let count;
     try {
         count = await fetchExerciseHistoryCount(exercise.id);
@@ -23,11 +24,12 @@ export async function resetExercise(exercise, todaysSets = 0, more = "") {
     const what = count.sets === 1
         ? "The set you've logged for it is deleted"
         : `All ${count.sets} sets you've logged for it${count.sessions > 1 ? `, in ${count.sessions} workouts,` : ""} are deleted`;
-    const today = todaysSets > 0 ? " Today's sets stay." : "";
-    const confirmed = await showConfirmModal(`Reset ${exercise.name}? ${what}.${today}${more} This can't be undone.`, "Reset");
+    const today = todaysSets > 0 ? " Today's sets stay."
+        : keepSessionId ? " It stays in this workout, with no sets." : "";
+    const confirmed = await showConfirmModal(`Reset ${exercise.name}? ${what}.${today} This can't be undone.`, "Reset");
     if (!confirmed) return false;
     try {
-        await resetExerciseHistory(exercise.id);
+        await resetExerciseHistory(exercise.id, keepSessionId);
     } catch (e) {
         await showConfirmModal("Couldn't reset. Check your connection and try again.", "OK");
         return false;

@@ -188,8 +188,15 @@ export function fetchExerciseHistoryCount(exerciseId) {
 }
 
 // Reset exercise: deletes all of its finished history; answers { sets, sessions }.
-export function resetExerciseHistory(exerciseId) {
-    return requestJson("DELETE", `/exercises/${exerciseId}/history`);
+// keepSessionId: a finished workout being edited keeps the exercise (no sets).
+export function resetExerciseHistory(exerciseId, keepSessionId) {
+    return requestJson("DELETE", `/exercises/${exerciseId}/history`
+        + (keepSessionId ? `?keepSessionId=${keepSessionId}` : ""));
+}
+
+// Leaving a past workout's page after a Reset there: an emptied one goes.
+export function removeSessionIfEmpty(sessionId) {
+    return requestJson("POST", `/sessions/${sessionId}/remove-if-empty`);
 }
 
 // What Reset workout would delete: { sets, sessions } of its finished workouts.

@@ -60,9 +60,11 @@ public class ExerciseSetController {
 
     // Reset exercise: deletes the account's finished history of it
     // (SessionService.resetExerciseHistory); answers what went.
+    // keepSessionId: the finished workout being edited keeps the exercise.
     @DeleteMapping("/exercises/{exerciseId}/history")
-    public SessionService.HistoryCount resetHistory(@PathVariable Long exerciseId) {
-        return sessionService.resetExerciseHistory(exerciseId);
+    public SessionService.HistoryCount resetHistory(@PathVariable Long exerciseId,
+                                                    @RequestParam(required = false) Long keepSessionId) {
+        return sessionService.resetExerciseHistory(exerciseId, keepSessionId);
     }
 
     @PostMapping("/sessions/{sessionId}/sets")

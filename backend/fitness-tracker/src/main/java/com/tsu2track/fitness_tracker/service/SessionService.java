@@ -356,15 +356,25 @@ public class SessionService {
        session left with no sets at all goes too, its calendar day back to
        planned. A workout in progress is left alone, and the exercise stays
        in the library and in its workouts. A built-in's other accounts keep
-       theirs. */
-    @Transactional
+       theirs.
+       keepSessionId: the finished workout being edited (editing history)
+       loses the exercise's sets but keeps the exercise and itself, even
+       with no sets left (its page tidies it up on leaving if still empty:
+       removeIfEmpty). */
     public HistoryCount resetExerciseHistory(Long exerciseId) {
+        return resetExerciseHistory(exerciseId, null);
+    }
+
+    @Transactional
+    public HistoryCount resetExerciseHistory(Long exerciseId, Long keepSessionId) {
         List<ExerciseSet> sets = finishedSetsOf(exerciseId);
         List<Long> sessionIds = sessionIdsOf(sets);
         if (sessionIds.isEmpty()) return new HistoryCount(0, 0);
         exerciseSetRepository.deleteByExerciseInSessions(exerciseId, sessionIds);
-        sessionExerciseRepository.deleteByExerciseInSessions(exerciseId, sessionIds);
-        for (Long sessionId : sessionIds) {
+        List<Long> leaving = sessionIds.stream().filter(id -> !id.equals(keepSessionId)).toList();
+        if (leaving.isEmpty()) return new HistoryCount(sets.size(), sessionIds.size());
+        sessionExerciseRepository.deleteByExerciseInSessions(exerciseId, leaving);
+        for (Long sessionId : leaving) {
             if (exerciseSetRepository.existsBySession_Id(sessionId)) continue;
             removeEmptiedSession(sessionId);
         }
@@ -427,6 +437,18 @@ public class SessionService {
             }
         });
         sessionRepository.findById(sessionId).ifPresent(sessionRepository::delete);
+    }
+
+    /* Leaving a finished workout's editing page (or the next app start, if
+       the app closed on it): a session left with no sets goes, as Reset
+       tidies the others (calendar day back to planned). True if it went;
+       409 for a workout in progress. */
+    @Transactional
+    public boolean removeIfEmpty(Long sessionId) {
+        finishedSession(sessionId);
+        if (exerciseSetRepository.existsBySession_Id(sessionId)) return false;
+        removeEmptiedSession(sessionId);
+        return true;
     }
 
     // One of the account's sessions (its summary shows how long it took).

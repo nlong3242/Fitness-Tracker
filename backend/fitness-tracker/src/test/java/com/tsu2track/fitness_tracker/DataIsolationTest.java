@@ -125,6 +125,7 @@ class DataIsolationTest {
         call(b, delete("/sessions/" + finished + "/exercises/" + exercise)).andExpect(status().isNotFound());
         call(b, put("/sessions/" + finished + "/exercises/" + exercise + "/replace/" + exercise))
             .andExpect(status().isNotFound());
+        call(b, post("/sessions/" + finished + "/remove-if-empty")).andExpect(status().isNotFound());
 
         send(b, post("/scheduled-workouts"), "{\"date\": \"" + DAY + "\", \"workoutId\": " + workout + "}")
             .andExpect(status().isBadRequest());

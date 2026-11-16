@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import com.tsu2track.fitness_tracker.security.SecurityConfig;
+import com.tsu2track.fitness_tracker.service.ExerciseHistoryService;
 import com.tsu2track.fitness_tracker.service.SessionService;
 
 /* HTTP layer only (service mocked): ValidationExceptionHandler's error
@@ -38,6 +39,7 @@ class WebLayerTest {
 
     @Autowired MockMvc mvc;
     @MockitoBean SessionService sessionService;
+    @MockitoBean ExerciseHistoryService exerciseHistoryService;
 
     // --- MethodArgumentNotValidException branch ---
 

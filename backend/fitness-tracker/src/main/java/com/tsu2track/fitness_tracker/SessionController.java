@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tsu2track.fitness_tracker.service.ExerciseHistoryService;
 import com.tsu2track.fitness_tracker.service.SessionService;
 
 @RestController
@@ -24,9 +25,11 @@ public class SessionController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final SessionService sessionService;
+    private final ExerciseHistoryService exerciseHistoryService;
 
-    public SessionController(SessionService sessionService) {
+    public SessionController(SessionService sessionService, ExerciseHistoryService exerciseHistoryService) {
         this.sessionService = sessionService;
+        this.exerciseHistoryService = exerciseHistoryService;
     }
 
     @GetMapping("/workouts/{workoutId}/sessions")
@@ -69,11 +72,13 @@ public class SessionController {
        (weekStart) to Sunday. lastSessionSets: sets logged in lastSession (0
        with none); its length is lastSession.durationSeconds. nextLastDone:
        when nextPlanned's workout was last finished (null if never, or no
-       nextPlanned). */
+       nextPlanned). latestPr: the newest ★ (ExerciseHistoryService.latestPr),
+       null with none. */
     public record HomeOverview(long sessionsThisWeek, Session lastSession,
                                int weekStreak, ScheduledWorkout nextPlanned,
                                long plannedThatDay, List<SessionService.WeekDay> weekDays,
-                               long lastSessionSets, LocalDate nextLastDone) {}
+                               long lastSessionSets, LocalDate nextLastDone,
+                               ExerciseHistoryService.LatestPr latestPr) {}
 
     // today defaults to the server's date for pages cached before it was sent.
     @GetMapping("/sessions/overview")
@@ -89,7 +94,8 @@ public class SessionController {
             next != null ? sessionService.countPlannedOn(next.getDate()) : 0,
             sessionService.weekDays(weekStart),
             last != null ? sessionService.countSets(last) : 0,
-            next != null ? sessionService.lastDone(next.getWorkoutId()).orElse(null) : null);
+            next != null ? sessionService.lastDone(next.getWorkoutId()).orElse(null) : null,
+            exerciseHistoryService.latestPr());
     }
 
     // startedAt (optional): when Start was tapped, for the workout stopwatch.

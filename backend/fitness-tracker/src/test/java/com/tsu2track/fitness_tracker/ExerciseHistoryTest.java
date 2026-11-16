@@ -2,6 +2,7 @@ package com.tsu2track.fitness_tracker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,6 +20,7 @@ import com.tsu2track.fitness_tracker.service.ExerciseHistoryService;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.History;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySession;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.HistorySet;
+import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.LatestPr;
 import com.tsu2track.fitness_tracker.service.ExerciseHistoryService.TrendPoint;
 
 /* Exercise history: finished sessions of an exercise across workouts,
@@ -227,6 +229,93 @@ class ExerciseHistoryTest {
             .hasMessageContaining("404");
     }
 
+    // --- Home's Latest PR: the newest session holding a ★ ---
+
+    @Test
+    void latestPrIsTheNewestSessionHoldingAStar() {
+        Exercise squat = exercise("Squat", false);
+        set(session(upper, DAY, true), bench, 80, 5, null);
+        set(session(upper, DAY.plusDays(3), true), squat, 100, 5, null);
+        Session newest = session(push, DAY.plusDays(7), true);
+        set(newest, bench, 85, 5, null);
+        set(session(upper, DAY.plusDays(9), false), bench, 120, 5, null);   // in progress: doesn't count
+
+        LatestPr pr = service.latestPr();
+
+        assertThat(pr).extracting("exerciseId", "exerciseName", "sessionId", "workoutId", "date")
+            .containsExactly(bench.getId(), "Bench Press", newest.getId(), push.getId(), DAY.plusDays(7));
+        assertThat(pr.sides()).extracting("side", "weight", "reps").containsExactly(tuple(null, 85.0, 5));
+    }
+
+    @Test
+    void aPlateauWalksBackPastPagesOfSessionsWithNoStar() {
+        Exercise squat = exercise("Squat", false);
+        set(session(upper, DAY, true), bench, 85, 5, null);
+        Session squatPr = session(upper, DAY.plusDays(1), true);
+        set(squatPr, squat, 100, 5, null);
+        // More than a page of sessions with nothing new.
+        for (int i = 0; i < ExerciseHistoryService.SESSIONS_PER_PAGE + 5; i++) {
+            set(session(upper, DAY.plusDays(2 + i), true), bench, 70, 5, null);
+        }
+
+        assertThat(service.latestPr()).extracting("exerciseName", "sessionId").containsExactly("Squat", squatPr.getId());
+    }
+
+    @Test
+    void aPrEditedAwayHandsBackToTheOneBefore() {
+        Session first = session(upper, DAY, true);
+        set(first, bench, 80, 5, null);
+        ExerciseSet beaten = set(session(upper, DAY.plusDays(7), true), bench, 85, 5, null);
+        assertThat(service.latestPr().date()).isEqualTo(DAY.plusDays(7));
+
+        beaten.setWeight(75);
+        em.flush();
+
+        assertThat(service.latestPr()).extracting("sessionId", "date").containsExactly(first.getId(), DAY);
+    }
+
+    @Test
+    void oneSidedListsEachSideThatSetItsStarInThatSession() {
+        Exercise curl = exercise("DB Curl", true);
+        Session first = session(upper, DAY, true);
+        set(first, curl, 12, 10, Side.LEFT);
+        set(first, curl, 10, 10, Side.RIGHT);
+        Session second = session(upper, DAY.plusDays(7), true);
+        set(second, curl, 11, 10, Side.LEFT);
+        set(second, curl, 11, 10, Side.RIGHT);
+
+        // Only RIGHT went up in the second session.
+        assertThat(service.latestPr().sides()).extracting("side", "weight").containsExactly(tuple(Side.RIGHT, 11.0));
+
+        Session third = session(upper, DAY.plusDays(14), true);
+        set(third, curl, 12, 12, Side.RIGHT);
+        set(third, curl, 13, 10, Side.LEFT);
+
+        // Both went up: LEFT first, whichever order they were logged in.
+        assertThat(service.latestPr().sides()).extracting("side", "weight")
+            .containsExactly(tuple(Side.LEFT, 13.0), tuple(Side.RIGHT, 12.0));
+    }
+
+    @Test
+    void twoStarsInOneSessionShowTheOneLoggedLast() {
+        Exercise squat = exercise("Squat", false);
+        Session day = session(upper, DAY, true);
+        set(day, squat, 100, 5, null);
+        set(day, bench, 85, 5, null);
+
+        assertThat(service.latestPr().exerciseName()).isEqualTo("Bench Press");
+    }
+
+    @Test
+    void noStarAnywhereIsNoLatestPr() {
+        assertThat(service.latestPr()).isNull();
+
+        set(session(upper, DAY, true), exercise("Pull-up", false), 0, 8, null);   // 0 kg: no Best set
+        set(session(upper, DAY.plusDays(1), false), bench, 100, 5, null);         // unfinished
+
+        assertThat(service.latestPr()).isNull();
+    }
+
     private Exercise exercise(String name, boolean unilateral) {
         Exercise e = new Exercise(name);
         e.setCategory(ExerciseCategory.CHEST);
@@ -242,7 +331,7 @@ class ExerciseHistoryTest {
         return em.persist(s);
     }
 
-    private void set(Session session, Exercise exercise, double weight, int reps, Side side) {
+    private ExerciseSet set(Session session, Exercise exercise, double weight, int reps, Side side) {
         ExerciseSet s = new ExerciseSet();
         s.setSession(session);
         s.setExercise(exercise);
@@ -251,5 +340,6 @@ class ExerciseHistoryTest {
         s.setSide(side);
         em.persist(s);
         em.flush();
+        return s;
     }
 }

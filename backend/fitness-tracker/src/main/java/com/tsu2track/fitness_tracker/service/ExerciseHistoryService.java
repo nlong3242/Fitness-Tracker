@@ -3,6 +3,7 @@ package com.tsu2track.fitness_tracker.service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ import com.tsu2track.fitness_tracker.ExerciseSet;
 import com.tsu2track.fitness_tracker.ExerciseSetRepository;
 import com.tsu2track.fitness_tracker.LogType;
 import com.tsu2track.fitness_tracker.Session;
+import com.tsu2track.fitness_tracker.SessionRepository;
 import com.tsu2track.fitness_tracker.Side;
 import com.tsu2track.fitness_tracker.security.CurrentUser;
 
@@ -41,11 +44,14 @@ import com.tsu2track.fitness_tracker.security.CurrentUser;
 public class ExerciseHistoryService {
     private final ExerciseRepository exerciseRepository;
     private final ExerciseSetRepository exerciseSetRepository;
+    private final SessionRepository sessionRepository;
 
     public ExerciseHistoryService(ExerciseRepository exerciseRepository,
-                                  ExerciseSetRepository exerciseSetRepository) {
+                                  ExerciseSetRepository exerciseSetRepository,
+                                  SessionRepository sessionRepository) {
         this.exerciseRepository = exerciseRepository;
         this.exerciseSetRepository = exerciseSetRepository;
+        this.sessionRepository = sessionRepository;
     }
 
     public record HistorySet(double weight, int reps, Integer durationSeconds, Double distanceKm,
@@ -89,12 +95,8 @@ public class ExerciseHistoryService {
 
         Record heaviest = null;
         Record fastestPace = null;
-        // Best set per side; the null key is two-sided sets. Their ids get the ★.
-        Map<Side, Record> best = new HashMap<>();
-        Map<Side, Long> bestId = new HashMap<>();
         for (ExerciseSet set : sets) {
-            if (set.getLogType() != type) continue;
-            if (type == LogType.WEIGHT_REPS && set.getWeight() <= 0) continue;
+            if (!counts(type, set)) continue;
             Record here = record(set);
             if (type == LogType.WEIGHT_REPS && (heaviest == null || set.getWeight() > heaviest.weight()
                     || (set.getWeight() == heaviest.weight() && set.getReps() > heaviest.reps()))) {
@@ -104,13 +106,11 @@ public class ExerciseHistoryService {
                     && (fastestPace == null || pace(here) < pace(fastestPace))) {
                 fastestPace = here;
             }
-            Record current = best.get(set.getSide());
-            if (current == null || better(type, here, current)) {
-                best.put(set.getSide(), here);
-                bestId.put(set.getSide(), set.getId());
-            }
         }
-        Set<Long> starred = new HashSet<>(bestId.values());
+        // Best set per side (the null key: two-sided); these get the ★.
+        Map<Side, ExerciseSet> best = bestSets(type, sets);
+        Set<Long> starred = new HashSet<>();
+        for (ExerciseSet set : best.values()) starred.add(set.getId());
 
         Map<Long, HistorySession> sessions = new LinkedHashMap<>();
         for (ExerciseSet set : sets) {
@@ -125,10 +125,59 @@ public class ExerciseHistoryService {
         Collections.reverse(newestFirst);
         int from = Math.min(page * size, newestFirst.size());
         int to = Math.min(from + size, newestFirst.size());
-        Records records = new Records(type, heaviest, best.get(null), best.get(Side.LEFT), best.get(Side.RIGHT),
-            fastestPace);
+        Records records = new Records(type, heaviest, recordOf(best.get(null)), recordOf(best.get(Side.LEFT)),
+            recordOf(best.get(Side.RIGHT)), fastestPace);
         return new History(records, newestFirst.subList(from, to), to < newestFirst.size(),
             page == 0 ? trend(type, sets) : null);
+    }
+
+    /* Home's Latest PR: the newest finished session (by its date, then
+       the order they were made) that holds a ★, i.e. some exercise's
+       current Best set, the same as the History tab shows. sides: that
+       exercise's ★ sets in that session, one for a two-sided exercise, one
+       or both (LEFT first) for a one-sided one. Several exercises with a ★
+       in that session: the one logged last. Null with no ★ anywhere.
+
+       Walks back from the newest session and stops at the first hit, so
+       usually only the last few sessions' exercises are looked at; each
+       exercise's history is loaded at most once. */
+    public record PrSide(Side side, double weight, int reps, Integer durationSeconds, Double distanceKm) {}
+    public record LatestPr(Long exerciseId, String exerciseName, LogType logType, Long sessionId,
+                           Long workoutId, LocalDate date, List<PrSide> sides) {}
+
+    public static final int SESSIONS_PER_PAGE = 20;
+
+    @Transactional(readOnly = true)
+    public LatestPr latestPr() {
+        Long userId = CurrentUser.id();
+        Map<Long, Map<Side, ExerciseSet>> bestByExercise = new HashMap<>();
+        for (int page = 0; ; page++) {
+            List<Session> sessions = sessionRepository.findByUserIdAndFinishedTrueOrderByDateDescIdDesc(
+                userId, PageRequest.of(page, SESSIONS_PER_PAGE));
+            for (Session session : sessions) {
+                // This session's ★ sets, by exercise.
+                Map<Long, List<ExerciseSet>> starred = new HashMap<>();
+                for (ExerciseSet set : exerciseSetRepository.findBySession_Id(session.getId())) {
+                    Exercise exercise = set.getExercise();
+                    Map<Side, ExerciseSet> best = bestByExercise.computeIfAbsent(exercise.getId(), id ->
+                        bestSets(exercise.getLogType(), exerciseSetRepository.findFinishedSetsOldestFirst(id, userId)));
+                    if (best.get(set.getSide()) != null && best.get(set.getSide()).getId().equals(set.getId())) {
+                        starred.computeIfAbsent(exercise.getId(), id -> new ArrayList<>()).add(set);
+                    }
+                }
+                if (starred.isEmpty()) continue;
+                List<ExerciseSet> pr = starred.values().stream()
+                    .max(Comparator.comparing(sets -> sets.stream().mapToLong(ExerciseSet::getId).max().getAsLong()))
+                    .get();
+                pr.sort(Comparator.comparing(set -> set.getSide() == Side.RIGHT));
+                Exercise exercise = pr.get(0).getExercise();
+                return new LatestPr(exercise.getId(), exercise.getName(), exercise.getLogType(), session.getId(),
+                    session.getWorkoutId(), session.getDate(),
+                    pr.stream().map(set -> new PrSide(set.getSide(), set.getWeight(), set.getReps(),
+                        set.getDurationSeconds(), set.getDistanceKm())).toList());
+            }
+            if (sessions.size() < SESSIONS_PER_PAGE) return null;
+        }
     }
 
     private static Trend trend(LogType type, List<ExerciseSet> sets) {
@@ -157,6 +206,29 @@ public class ExerciseHistoryService {
                 (a, b) -> b.value() > a.value() ? b : a);
         }
         return new Trend(metric, new ArrayList<>(points.values()));
+    }
+
+    /* Each side's Best set (the null key: two-sided sets), the ones with
+       the ★. Shared by the History tab and Home's Latest PR so they always
+       agree. Sets come oldest first, so the earliest wins a tie. */
+    static Map<Side, ExerciseSet> bestSets(LogType type, List<ExerciseSet> oldestFirst) {
+        Map<Side, ExerciseSet> best = new HashMap<>();
+        for (ExerciseSet set : oldestFirst) {
+            if (!counts(type, set)) continue;
+            ExerciseSet current = best.get(set.getSide());
+            if (current == null || better(type, record(set), record(current))) best.put(set.getSide(), set);
+        }
+        return best;
+    }
+
+    // Whether a set counts towards records: the exercise's current type,
+    // and above 0 kg for Weight & reps.
+    private static boolean counts(LogType type, ExerciseSet set) {
+        return set.getLogType() == type && !(type == LogType.WEIGHT_REPS && set.getWeight() <= 0);
+    }
+
+    private static Record recordOf(ExerciseSet set) {
+        return set == null ? null : record(set);
     }
 
     private static Record record(ExerciseSet set) {

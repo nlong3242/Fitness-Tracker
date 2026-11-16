@@ -17,6 +17,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
     Page<Session> findByWorkout_IdOrderByDateDescIdDesc(Long workoutId, Pageable pageable);
     Optional<Session> findFirstByUserIdAndFinishedFalseOrderByDateDescIdDesc(Long userId);
     Optional<Session> findFirstByUserIdAndFinishedTrueOrderByDateDescIdDesc(Long userId);
+    List<Session> findByUserIdAndFinishedTrueOrderByDateDescIdDesc(Long userId, Pageable pageable);
     Optional<Session> findFirstByUserIdAndWorkout_IdAndFinishedTrueOrderByDateDescIdDesc(Long userId, Long workoutId);
     long countByUserIdAndFinishedTrueAndDateBetween(Long userId, LocalDate from, LocalDate to);
 

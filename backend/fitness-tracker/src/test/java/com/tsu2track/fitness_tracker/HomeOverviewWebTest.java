@@ -99,7 +99,35 @@ class HomeOverviewWebTest {
             .andExpect(jsonPath("$.weekDays[?(@.done == true || @.planned == true)]", hasSize(0)))
             .andExpect(jsonPath("$.lastSession").isEmpty())
             .andExpect(jsonPath("$.lastSessionSets").value(0))
-            .andExpect(jsonPath("$.nextLastDone").isEmpty());
+            .andExpect(jsonPath("$.nextLastDone").isEmpty())
+            .andExpect(jsonPath("$.latestPr").isEmpty());
+    }
+
+    // --- latestPr (worked out in ExerciseHistoryService; see ExerciseHistoryTest) ---
+
+    @Test
+    void latestPrComesWithTheExerciseSessionAndEachSide() throws Exception {
+        long bench = exercise("Bench", false);
+        long row = exercise("One-Arm Row", true);
+        long session = start(null);
+        set(session, bench, "{\"weight\": 80, \"reps\": 5}");
+        set(session, row, "{\"weight\": 20, \"reps\": 8, \"side\": \"LEFT\"}");
+        set(session, row, "{\"weight\": 18, \"reps\": 8, \"side\": \"RIGHT\"}");
+        finish(session);
+
+        overview()
+            .andExpect(jsonPath("$.latestPr.exerciseId").value(row))
+            .andExpect(jsonPath("$.latestPr.exerciseName").value("One-Arm Row"))
+            .andExpect(jsonPath("$.latestPr.logType").value("WEIGHT_REPS"))
+            .andExpect(jsonPath("$.latestPr.sessionId").value(session))
+            .andExpect(jsonPath("$.latestPr.workoutId").value(workout.getId()))
+            .andExpect(jsonPath("$.latestPr.date").value(LocalDate.now().toString()))
+            .andExpect(jsonPath("$.latestPr.sides", hasSize(2)))
+            .andExpect(jsonPath("$.latestPr.sides[0].side").value("LEFT"))
+            .andExpect(jsonPath("$.latestPr.sides[0].weight").value(20.0))
+            .andExpect(jsonPath("$.latestPr.sides[0].reps").value(8))
+            .andExpect(jsonPath("$.latestPr.sides[1].side").value("RIGHT"))
+            .andExpect(jsonPath("$.latestPr.sides[1].weight").value(18.0));
     }
 
     // --- nextLastDone: "last done Mon 10 Nov" ---

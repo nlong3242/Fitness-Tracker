@@ -91,15 +91,17 @@
 }
 
 .home-sel-date {
-    font-size: 0.9em;
+    font-size: 1em;
     color: var(--text-on-bg);
     white-space: nowrap;
 }
 
-/* Boxed like a key; faded while today is already shown (still tappable). */
+/* Boxed like a key; faded while today is already shown (still tappable).
+   Big enough for a thumb: 34px tall. */
 .home-today-btn {
-    padding: 2px 9px;
-    font-size: 0.8em;
+    min-height: 34px;
+    padding: 5px 13px;
+    font-size: 0.9em;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background-color: var(--accent-pink-light);
@@ -121,21 +123,30 @@
 .home-strip {
     display: flex;
     align-items: flex-end;
-    gap: 2px;
 }
 
+/* A 30 × 44 tap area that reaches into the page's side margin, so the
+   days keep the width. */
 .home-week-arrow {
     flex: 0 0 auto;
-    width: 22px;
-    height: 38px;
-    margin-bottom: 9px;
+    width: 30px;
+    height: 44px;
+    margin-bottom: 6px;
     padding: 0;
     background: none;
     border: none;
     box-shadow: none;
     color: var(--text-primary);
-    font-size: 1.8em;
+    font-size: 2.2em;
     line-height: 1;
+}
+
+#home-week-prev {
+    margin-left: -16px;
+}
+
+#home-week-next {
+    margin-right: -16px;
 }
 
 .home-week-arrow:active {
@@ -171,7 +182,7 @@
 }
 
 .home-day-letter {
-    font-size: 0.8em;
+    font-size: 0.9em;
     color: var(--text-muted);
     padding: 1px 6px;
     border-radius: 3px;
@@ -186,7 +197,7 @@
 .home-day-box {
     position: relative;
     width: 100%;
-    max-width: 38px;
+    max-width: 44px;
     aspect-ratio: 1;
     display: flex;
     align-items: center;
@@ -195,7 +206,7 @@
     border-radius: 3px;
     background-color: var(--input-bg);
     color: var(--text-muted);
-    font-size: 1em;
+    font-size: 1.15em;
     box-sizing: border-box;
 }
 

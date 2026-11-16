@@ -76,6 +76,18 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
         /^1 \/ 3 sessions done this week ?· ?no streak yet$/.test(s.foot), s.foot);
     const pill = await page.$eval(".home-day.today .home-day-letter", l => getComputedStyle(l).backgroundColor);
     check("today's letter sits in a dark pill", pill === "rgb(59, 39, 35)", pill);
+    // Thumb-sized: Today, the arrows and the day boxes; the ring stays clear of the next box.
+    const sizes = await page.evaluate(() => {
+        const r = s => document.querySelector(s).getBoundingClientRect();
+        const boxes = [...document.querySelectorAll(".home-day-box")].map(b => b.getBoundingClientRect());
+        return { today: Math.round(r("#home-today-btn").height), prevW: Math.round(r("#home-week-prev").width),
+            prevH: Math.round(r("#home-week-prev").height), prevLeft: Math.round(r("#home-week-prev").left),
+            nextRight: Math.round(window.innerWidth - r("#home-week-next").right),
+            box: Math.round(boxes[0].width), gap: Math.round(boxes[1].left - boxes[0].right) };
+    });
+    check("Today button at least 34px tall", sizes.today >= 34, JSON.stringify(sizes));
+    check("arrows: 30×44 tap areas, inside the screen", sizes.prevW >= 30 && sizes.prevH >= 44 && sizes.prevLeft >= 0 && sizes.nextRight >= 0, JSON.stringify(sizes));
+    check("day boxes about 40px, ring clear of the next box", sizes.box >= 40 && sizes.gap >= 5, JSON.stringify(sizes));
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check("no sideways overflow", overflow <= 0, overflow);
     await t.shot("home-week-01-today");

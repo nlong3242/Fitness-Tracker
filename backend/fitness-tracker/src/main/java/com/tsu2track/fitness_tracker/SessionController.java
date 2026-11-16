@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -116,11 +117,17 @@ public class SessionController {
         public void setScheduledWorkoutId(Long scheduledWorkoutId) { this.scheduledWorkoutId = scheduledWorkoutId; }
     }
 
+    /* Only one workout in progress per account: with one already open
+       (e.g. started on another device), 409 with that session, so the app
+       can offer to discard it or go to it instead. */
     @PostMapping("/workouts/{workoutId}/sessions")
-    public Session createSession(@PathVariable Long workoutId,
-                                 @RequestBody(required = false) CreateSessionBody body) {
-        return body == null ? sessionService.createSession(workoutId, null)
+    public ResponseEntity<Session> createSession(@PathVariable Long workoutId,
+                                                 @RequestBody(required = false) CreateSessionBody body) {
+        Optional<Session> open = sessionService.findUnfinishedSession();
+        if (open.isPresent()) return ResponseEntity.status(HttpStatus.CONFLICT).body(open.get());
+        Session created = body == null ? sessionService.createSession(workoutId, null)
             : sessionService.createSession(workoutId, body.getStartedAt(), body.getScheduledWorkoutId());
+        return ResponseEntity.ok(created);
     }
 
     /* finishedAt (optional): when the workout ended, if not now (auto-end).

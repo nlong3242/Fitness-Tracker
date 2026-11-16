@@ -1,4 +1,5 @@
-import { state, clearCurrentSession } from "./state.js";
+import { state, clearCurrentSession, findWorkout } from "./state.js";
+import { showChoiceModal } from "./components/modals.js";
 import { createSession, deleteSession, ApiError } from "./api.js";
 
 /* "Started" workout: opened with Start but nothing logged yet, so no
@@ -96,7 +97,12 @@ export async function ensureCurrentSession(workout) {
         const mine = started && started.workoutId === workout.id;
         const startedAt = mine ? started.startedAt : null;
         const planId = mine && started.planId != null ? started.planId : null;
-        pendingSession = createSession(workout.id, startedAt, planId)
+        const create = function() { return createSession(workout.id, startedAt, planId); };
+        pendingSession = create()
+            .catch(function(e) {
+                if (e instanceof ApiError && e.status === 409 && e.inProgress) return resolveOtherInProgress(e.inProgress, create);
+                throw e;
+            })
             .then(function(session) {
                 state.currentSessionId = session.id;
                 state.currentSessionDate = session.date;
@@ -110,6 +116,40 @@ export async function ensureCurrentSession(workout) {
             .finally(function() { pendingSession = null; });
     }
     return pendingSession;
+}
+
+/* The first set found another workout already in progress (the server
+   allows one per account), started on another device this one didn't know
+   about. Ask: go to that one, or discard it and log here. Resolves the
+   session to log into; throws if the set shouldn't be saved here (Cancel,
+   or gone to the other workout). */
+async function resolveOtherInProgress(other, create) {
+    const otherWorkout = findWorkout(other.workoutId);
+    const name = otherWorkout ? otherWorkout.name : "Another workout";
+    const choice = await showChoiceModal(`"${name}" is in progress on another device.`, [
+        { label: `Go to ${name}`, value: "go" },
+        { label: "Discard it & log here", value: "discard" }
+    ]);
+    if (choice === "discard") {
+        const response = await deleteSession(other.id);
+        if (!response.ok && response.status !== 404) throw new ApiError(response);
+        return create();
+    }
+    if (choice === "go" && otherWorkout) {
+        // That one becomes the workout in progress here too; open it.
+        clearStartedWorkout();
+        state.currentSessionId = other.id;
+        state.currentSessionDate = other.date;
+        state.currentWorkoutId = other.workoutId;
+        state.currentLastActivityAt = other.lastActivityAt ? Date.parse(other.lastActivityAt) : Date.now();
+        state.currentStartedAt = other.startedAt ? Date.parse(other.startedAt) : null;
+        state.currentPlanId = other.scheduledWorkoutId ?? null;
+        // (imported here: activeWorkout.js imports this file)
+        const { startWorkout } = await import("./views/activeWorkout.js");
+        const { setActiveTab } = await import("./components/bottomNav.js");
+        startWorkout(other.workoutId, { onComplete: function() { setActiveTab("home"); } });
+    }
+    throw new Error("Another workout is in progress");
 }
 
 export async function maybeCleanupOrphanSession(workout) {

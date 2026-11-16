@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -60,8 +61,8 @@ class WorkoutStopwatchWebTest {
     @Test
     void withoutAStartTimeItStartsNow() throws Exception {
         Instant before = Instant.now().minusSeconds(1);
-        assertThat(startedAt(create(null))).isAfter(before);
-        assertThat(startedAt(create("{}"))).isAfter(before);
+        assertThat(startedAt(createAndDiscard(null))).isAfter(before);
+        assertThat(startedAt(createAndDiscard("{}"))).isAfter(before);
     }
 
     @Test
@@ -69,8 +70,8 @@ class WorkoutStopwatchWebTest {
         Instant before = Instant.now().minusSeconds(1);
         String future = Instant.now().plus(1, ChronoUnit.HOURS).toString();
         String twoDaysAgo = Instant.now().minus(2, ChronoUnit.DAYS).toString();
-        assertThat(startedAt(create("{\"startedAt\": \"" + future + "\"}"))).isAfter(before).isBefore(Instant.now().plusSeconds(1));
-        assertThat(startedAt(create("{\"startedAt\": \"" + twoDaysAgo + "\"}"))).isAfter(before);
+        assertThat(startedAt(createAndDiscard("{\"startedAt\": \"" + future + "\"}"))).isAfter(before).isBefore(Instant.now().plusSeconds(1));
+        assertThat(startedAt(createAndDiscard("{\"startedAt\": \"" + twoDaysAgo + "\"}"))).isAfter(before);
     }
 
     // ----- Finish -----
@@ -191,6 +192,14 @@ class WorkoutStopwatchWebTest {
         var request = post("/workouts/" + workoutId + "/sessions").header("Authorization", bearer);
         if (body != null) request = request.contentType(MediaType.APPLICATION_JSON).content(body);
         return mvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    }
+
+    // Only one workout can be in progress: discard it, so the next can start.
+    private String createAndDiscard(String body) throws Exception {
+        String json = create(body);
+        mvc.perform(delete("/sessions/" + JsonPath.read(json, "$.id")).header("Authorization", bearer))
+            .andExpect(status().is2xxSuccessful());
+        return json;
     }
 
     private ResultActions finish(long sessionId, String body) throws Exception {

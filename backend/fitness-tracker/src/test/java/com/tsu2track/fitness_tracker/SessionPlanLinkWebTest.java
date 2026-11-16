@@ -1,6 +1,7 @@
 package com.tsu2track.fitness_tracker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -62,7 +63,10 @@ class SessionPlanLinkWebTest {
 
     @Test
     void startedOnItsOwnHasNoPlan() throws Exception {
-        assertThat((Object) JsonPath.read(start(bearer, workoutId, null), "$.scheduledWorkoutId")).isNull();
+        String first = start(bearer, workoutId, null);
+        assertThat((Object) JsonPath.read(first, "$.scheduledWorkoutId")).isNull();
+        mvc.perform(delete("/sessions/" + JsonPath.read(first, "$.id")).header("Authorization", bearer))
+            .andExpect(status().is2xxSuccessful());
         assertThat((Object) JsonPath.read(start(bearer, workoutId, "{}"), "$.scheduledWorkoutId")).isNull();
     }
 

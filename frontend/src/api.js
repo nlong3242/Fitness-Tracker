@@ -229,11 +229,20 @@ export function fetchSessionsPage(workoutId, page, size) {
 // startedAt: ms timestamp when Start was tapped (the stopwatch counts from
 // it); the server uses now if it is missing or not believable.
 // planId: the calendar plan it was started from, kept on the session.
-export function createSession(workoutId, startedAt, planId) {
+// Only one workout can be in progress: with one already open (another
+// device), it throws an ApiError 409 whose inProgress is that session.
+export async function createSession(workoutId, startedAt, planId) {
     const body = {};
     if (startedAt) body.startedAt = new Date(startedAt).toISOString();
     if (planId != null) body.scheduledWorkoutId = planId;
-    return requestJson("POST", `/workouts/${workoutId}/sessions`, Object.keys(body).length ? body : undefined);
+    const response = await request("POST", `/workouts/${workoutId}/sessions`, Object.keys(body).length ? body : undefined);
+    if (response.status === 409) {
+        const error = new ApiError(response);
+        try { error.inProgress = await response.json(); } catch (e) { error.inProgress = null; }
+        throw error;
+    }
+    if (!response.ok) throw new ApiError(response);
+    return response.json();
 }
 
 export function deleteSession(sessionId) {

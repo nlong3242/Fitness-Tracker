@@ -137,6 +137,8 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
     fetched = weekResponse(nextMon);
     await swipe(-120);
     await fetched;
+    // (drawn just after the answer arrives; a busy machine can take longer)
+    await page.waitForSelector(`.home-day[data-date="${addDays(nextMon, 2)}"].planned`, { timeout: 5000 }).catch(() => {});
     await wait(150);
     s = await strip();
     check("swipe left again: next week", s.days[0].date === nextMon, s.days[0].date);

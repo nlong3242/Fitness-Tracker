@@ -6,7 +6,7 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 
 ### Workouts
 - **Workouts and exercises**: create named workouts, add exercises from the library, drag to reorder, and replace or remove exercises from each one's ⋮ menu.
-- **Start from anywhere**: Start on the workout list, the workout's page, Home, or a planned day on the calendar. An open workout shows **Resume** instead.
+- **Start from anywhere**: Start on the workout list, the workout's page, Home, or today's planned day on the calendar (a later day's plan can't be started yet). An open workout shows **Resume** instead. **One workout in progress at a time**, across all your devices: if another device already has one open, the first set asks whether to go to it or discard it.
 - **Reset workout**: deletes every finished session of a workout and keeps the workout itself, its exercises and its repeat. A workout in progress is left alone.
 
 ### Logging a workout
@@ -109,13 +109,13 @@ Open the printed `http://<tailscale-ip>:5500` in Safari on the phone and add it 
 
 ## Tests
 
-- **Backend** (375 tests, in-memory database, safe to run while the app is up):
+- **Backend** (380 tests, in-memory database, safe to run while the app is up):
   ```
   cd backend/fitness-tracker
   ./mvnw test
   ```
   They also run on GitHub Actions for every push and pull request.
-- **Browser** (32 scripts covering Home, the tab bar and Back links, starting from the calendar, set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
+- **Browser** (33 scripts covering Home, the tab bar and Back links, starting from the calendar, set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
   ```
   cd tests/browser
   npm install

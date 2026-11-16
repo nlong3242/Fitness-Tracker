@@ -152,6 +152,27 @@ public class SessionController {
         return sessionService.findSessionExercises(sessionId);
     }
 
+    /* Editing a finished workout's exercises, that day only (the workout's
+       own list stays). 409 for a workout still in progress. Each answers the
+       session's exercises as they now are. */
+    @PostMapping("/sessions/{sessionId}/exercises")
+    public List<SessionExercise> addSessionExercises(@PathVariable Long sessionId, @RequestBody ExerciseListBody body) {
+        return sessionService.addSessionExercises(sessionId, body.getExerciseIds());
+    }
+
+    // Its sets in that workout go too; 409 for the last one.
+    @DeleteMapping("/sessions/{sessionId}/exercises/{exerciseId}")
+    public List<SessionExercise> removeSessionExercise(@PathVariable Long sessionId, @PathVariable Long exerciseId) {
+        return sessionService.removeSessionExercise(sessionId, exerciseId);
+    }
+
+    // Takes its place in the order; its sets in that workout go.
+    @PutMapping("/sessions/{sessionId}/exercises/{exerciseId}/replace/{replacementId}")
+    public List<SessionExercise> replaceSessionExercise(@PathVariable Long sessionId, @PathVariable Long exerciseId,
+                                                        @PathVariable Long replacementId) {
+        return sessionService.replaceSessionExercise(sessionId, exerciseId, replacementId);
+    }
+
     @DeleteMapping("/sessions/{sessionId}")
     public void deleteSession(@PathVariable Long sessionId) {
         sessionService.deleteSession(sessionId);

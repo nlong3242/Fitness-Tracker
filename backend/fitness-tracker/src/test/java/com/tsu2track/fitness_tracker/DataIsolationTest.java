@@ -120,6 +120,11 @@ class DataIsolationTest {
             .andExpect(content().string(""));
         send(b, put("/sets/" + set), "{\"weight\": 1, \"reps\": 1}").andExpect(content().string(""));
         call(b, delete("/sets/" + set));
+        send(b, post("/sessions/" + finished + "/exercises"), "{\"exerciseIds\": [" + exercise + "]}")
+            .andExpect(status().isNotFound());
+        call(b, delete("/sessions/" + finished + "/exercises/" + exercise)).andExpect(status().isNotFound());
+        call(b, put("/sessions/" + finished + "/exercises/" + exercise + "/replace/" + exercise))
+            .andExpect(status().isNotFound());
 
         send(b, post("/scheduled-workouts"), "{\"date\": \"" + DAY + "\", \"workoutId\": " + workout + "}")
             .andExpect(status().isBadRequest());

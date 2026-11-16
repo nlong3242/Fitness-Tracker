@@ -285,24 +285,29 @@ public class SessionService {
 
         int position = 0;
         for (Exercise ex : exercisesById.values()) {
-            SessionExercise snapshot = new SessionExercise();
-            snapshot.setSession(session);
-            snapshot.setExercise(ex);
-            snapshot.setPosition(position++);
-            snapshot.setName(ex.getName());
-            snapshot.setCategory(ex.getCategory());
-            snapshot.setPrimaryMuscleGroups(ex.getPrimaryMuscleGroups());
-            snapshot.setExerciseType(ex.getExerciseType());
-            snapshot.setCues(ex.getCues());
-            snapshot.setUnilateral(ex.getUnilateral());
-            snapshot.setLogType(ex.getLogType());
-            sessionExerciseRepository.save(snapshot);
+            sessionExerciseRepository.save(snapshotOf(session, ex, position++));
         }
 
         session.setFinished(true);
         Session saved = sessionRepository.save(session);
         applyPendingLogTypes();
         return saved;
+    }
+
+    // The exercise as it is now, as this session's record of it (its history snapshot).
+    private static SessionExercise snapshotOf(Session session, Exercise ex, int position) {
+        SessionExercise snapshot = new SessionExercise();
+        snapshot.setSession(session);
+        snapshot.setExercise(ex);
+        snapshot.setPosition(position);
+        snapshot.setName(ex.getName());
+        snapshot.setCategory(ex.getCategory());
+        snapshot.setPrimaryMuscleGroups(ex.getPrimaryMuscleGroups());
+        snapshot.setExerciseType(ex.getExerciseType());
+        snapshot.setCues(ex.getCues());
+        snapshot.setUnilateral(ex.getUnilateral());
+        snapshot.setLogType(ex.getLogType());
+        return snapshot;
     }
 
     // Type changes made during a workout (Exercise.pendingLogType) take
@@ -441,6 +446,102 @@ public class SessionService {
         return entries;
     }
 
+    /* Editing history: a finished workout's exercises (its finish snapshot)
+       can be added, removed and replaced. That day only: the workout's own
+       list stays as it is. A live workout keeps its list on the device until
+       Finish, so these are 409 for it. Each answers the session's exercises
+       as they now are. */
+
+    // At the end, in order, as they are now (type, sidedness, name...).
+    // 409 if one is already in the workout; 404 for one that isn't usable.
+    @Transactional
+    public List<SessionExercise> addSessionExercises(Long sessionId, List<Long> exerciseIds) {
+        Session session = finishedSession(sessionId);
+        if (exerciseIds == null || exerciseIds.isEmpty()) {
+            throw new ApiFieldException(HttpStatus.BAD_REQUEST, "exerciseIds", "Pick at least one exercise");
+        }
+        List<SessionExercise> current = sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+        Set<Long> present = new HashSet<>();
+        for (SessionExercise entry : current) present.add(entry.getExercise().getId());
+        Map<Long, Exercise> adding = new LinkedHashMap<>();
+        for (Long id : exerciseIds) {
+            if (id == null || adding.containsKey(id)) continue;
+            Exercise ex = usableExercise(id);
+            if (present.contains(id)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getName() + " is already in this workout");
+            }
+            adding.put(id, ex);
+        }
+        int position = current.isEmpty() ? 0 : current.get(current.size() - 1).getPosition() + 1;
+        for (Exercise ex : adding.values()) {
+            sessionExerciseRepository.save(snapshotOf(session, ex, position++));
+        }
+        return findSessionExercises(sessionId);
+    }
+
+    // Its sets go with it. 409 for the last one (delete the workout instead).
+    @Transactional
+    public List<SessionExercise> removeSessionExercise(Long sessionId, Long exerciseId) {
+        finishedSession(sessionId);
+        List<SessionExercise> current = sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+        inSnapshot(current, exerciseId);
+        if (current.size() == 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A workout needs at least one exercise");
+        }
+        deleteFromSession(sessionId, exerciseId);
+        // Close the gap in the order.
+        List<SessionExercise> left = sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+        for (int i = 0; i < left.size(); i++) left.get(i).setPosition(i);
+        return findSessionExercises(sessionId);
+    }
+
+    // The replacement takes its place in the order; its sets go. 409 if the
+    // replacement is already in the workout.
+    @Transactional
+    public List<SessionExercise> replaceSessionExercise(Long sessionId, Long exerciseId, Long replacementId) {
+        finishedSession(sessionId);
+        List<SessionExercise> current = sessionExerciseRepository.findBySession_IdOrderByPositionAsc(sessionId);
+        int position = inSnapshot(current, exerciseId).getPosition();
+        Exercise replacement = usableExercise(replacementId);
+        for (SessionExercise entry : current) {
+            if (entry.getExercise().getId().equals(replacementId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, replacement.getName() + " is already in this workout");
+            }
+        }
+        deleteFromSession(sessionId, exerciseId);
+        // The bulk deletes clear what was loaded: fetch again to save.
+        sessionExerciseRepository.save(snapshotOf(ownedSession(sessionId), usableExercise(replacementId), position));
+        return findSessionExercises(sessionId);
+    }
+
+    // An exercise's sets and record in one session (bulk deletes: the
+    // session's own sets list needn't hold every set).
+    private void deleteFromSession(Long sessionId, Long exerciseId) {
+        exerciseSetRepository.deleteByExerciseInSessions(exerciseId, List.of(sessionId));
+        sessionExerciseRepository.deleteByExerciseInSessions(exerciseId, List.of(sessionId));
+    }
+
+    private Session finishedSession(Long sessionId) {
+        Session session = ownedSession(sessionId);
+        if (!session.isFinished()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This workout is still in progress");
+        }
+        return session;
+    }
+
+    private static SessionExercise inSnapshot(List<SessionExercise> entries, Long exerciseId) {
+        for (SessionExercise entry : entries) {
+            if (entry.getExercise().getId().equals(exerciseId)) return entry;
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise isn't in this workout");
+    }
+
+    private Exercise usableExercise(Long exerciseId) {
+        return exerciseRepository.findUsable(exerciseId, CurrentUser.id())
+            .filter(e -> !e.isDeleted())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found"));
+    }
+
     public Optional<SessionController.SessionTotals> findPreviousTotals(Long workoutId, Long sessionId) {
         ownedWorkout(workoutId);
         Session current = ownedSession(sessionId);
@@ -531,8 +632,8 @@ public class SessionService {
         if (session.isPresent() && exercise.isPresent()) {
             /* A finished workout can be edited (editing history), but only
                its own exercises, as they were logged: the finish snapshot's
-               type and sidedness, not the exercise's current ones. Adding a
-               whole exercise to it isn't supported yet. */
+               type and sidedness, not the exercise's current ones. A whole
+               exercise is added first (addSessionExercises). */
             LogType logType = exercise.get().getLogType();
             Boolean unilateral = exercise.get().getUnilateral();
             if (session.get().isFinished()) {

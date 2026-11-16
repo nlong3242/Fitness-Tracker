@@ -26,6 +26,7 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 ### After a workout
 - **Summary**: totals (exercises, sets, reps, volume, time) and each exercise compared with the previous session.
 - **Past sessions** per workout, newest first, each opening its summary. They can be deleted from their ⋮.
+- **Edit a finished workout**: tap an exercise's box on any summary, or a session on an exercise's History tab. The workout opens on the same set-logging page as a live one, on that exercise. Change, add or delete sets; they save as you go, with no Save or Finish. ‹ Back returns to where you came from, and Next on the last exercise shows the updated summary. Hints compare with the workout before that one, and a new set is logged the way that workout logged the exercise. Records, PRs, charts and next time's hints update on their own. The date and time stay the same, and removing every set keeps the workout (delete it from Past sessions). A workout in progress at the same time isn't affected.
 
 ### Exercise library
 - **584 built-in exercises** (from the public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db)) plus your own **Custom** ones. Search, category pills, and an eye icon to show only Custom exercises.
@@ -98,13 +99,13 @@ Open the printed `http://<tailscale-ip>:5500` in Safari on the phone and add it 
 
 ## Tests
 
-- **Backend** (331 tests, in-memory database, safe to run while the app is up):
+- **Backend** (339 tests, in-memory database, safe to run while the app is up):
   ```
   cd backend/fitness-tracker
   ./mvnw test
   ```
   They also run on GitHub Actions for every push and pull request.
-- **Browser** (17 scripts covering set logging, the timers, the live workout's buttons, changing exercises mid-workout, and Reset). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
+- **Browser** (20 scripts covering set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
   ```
   cd tests/browser
   npm install
@@ -127,7 +128,7 @@ Every call except sign-up and login needs `Authorization: Bearer <token>`. Anoth
 | Exercises | `GET/POST /exercises`; `GET/PUT/DELETE /exercises/{id}`; `POST /exercises/{id}/copy`; `PUT /exercises/{id}/note` |
 | Exercise history | `GET /exercises/{id}/history`; `GET /exercises/{id}/last-done`; `GET /exercises/{id}/history/count`, `DELETE /exercises/{id}/history` |
 | Sessions | `GET/POST /workouts/{id}/sessions`; `GET /sessions/{id}`, `/sessions/unfinished`, `/sessions/overview`, `/sessions/{id}/exercises`; `POST /sessions/{id}/finish`; `DELETE /sessions/{id}`; `GET /workouts/{id}/sessions/{sessionId}/previous-totals` |
-| Sets | `GET/POST /sessions/{id}/sets`; `PUT/DELETE /sets/{id}`; `GET /workouts/{id}/exercises/{exerciseId}/last-sets` |
+| Sets | `GET/POST /sessions/{id}/sets`; `PUT/DELETE /sets/{id}` (also on a finished session); `GET /workouts/{id}/exercises/{exerciseId}/last-sets` |
 | Calendar | `GET/POST /scheduled-workouts`; `GET /scheduled-workouts/by-date/{date}`; `PATCH/DELETE /scheduled-workouts/{id}` |
 | Bodyweight | `GET /bodyweight`, `/bodyweight/summary`; `PUT/DELETE /bodyweight/{date}` |
 

@@ -410,8 +410,9 @@ function wireWeightLogging() {
     };
 }
 
-/* Fills the Bodyweight tile. Badge: TODAY / YESTERDAY / 2–3 DAYS AGO; from
-   4 days old it's replaced by a "Last logged 24th Oct" note. Leaves the
+/* Fills the Bodyweight tile. Badge: TODAY / 1D AGO / 2D AGO / 3D AGO (short:
+   YESTERDAY or "2 DAYS AGO" would squeeze the title at 390px); from 4 days
+   old it's replaced by a "Last logged 24th Oct" note. Leaves the
    placeholders if the request fails or the tile is gone. */
 async function loadBodyWeight() {
     let summary;
@@ -444,10 +445,8 @@ async function loadBodyWeight() {
     if (days === 0) {
         badge.textContent = "Today";
         badge.classList.add("logged");
-    } else if (days === 1) {
-        badge.textContent = "Yesterday";
     } else if (days <= 3) {
-        badge.textContent = `${days} days ago`;
+        badge.textContent = `${days}d ago`;
     } else {
         badge.hidden = true;
         note.textContent = `Last logged ${ordinalDate(latest.date)}`;
@@ -740,7 +739,7 @@ function stepsTileBody() {
     return `
         <div class="home-tile-body">
             ${SNEAKER}
-            <div class="home-tile-value">${today.toLocaleString("en-NZ")}<span class="home-tile-unit"> / ${STEP_GOAL.toLocaleString("en-NZ")}</span></div>
+            <div class="home-tile-value">${today.toLocaleString("en-NZ")}<span class="home-tile-unit"> / ${shortCount(STEP_GOAL)}</span></div>
         </div>
         <div class="home-meter"><div class="home-meter-fill" style="width: ${pct}%"></div></div>
         <div class="home-steps-chart">
@@ -748,6 +747,12 @@ function stepsTileBody() {
             ${bars}
         </div>
     `;
+}
+
+// "10k" for a round thousand, else "8,500": keeps the goal short beside
+// today's count.
+function shortCount(n) {
+    return n >= 1000 && n % 1000 === 0 ? `${n / 1000}k` : n.toLocaleString("en-NZ");
 }
 
 // Monday-start weeks, matching the calendar view.

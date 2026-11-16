@@ -98,7 +98,37 @@ class HomeOverviewWebTest {
             .andExpect(jsonPath("$.weekDays", hasSize(7)))
             .andExpect(jsonPath("$.weekDays[?(@.done == true || @.planned == true)]", hasSize(0)))
             .andExpect(jsonPath("$.lastSession").isEmpty())
-            .andExpect(jsonPath("$.lastSessionSets").value(0));
+            .andExpect(jsonPath("$.lastSessionSets").value(0))
+            .andExpect(jsonPath("$.nextLastDone").isEmpty());
+    }
+
+    // --- nextLastDone: "last done Mon 10 Nov" ---
+
+    @Test
+    void nextLastDoneIsWhenThePlannedWorkoutWasLastFinished() throws Exception {
+        Workout legs = new Workout("Legs");
+        legs.setUserId(userId);
+        legs = workouts.save(legs);
+        session(MON.minusDays(10), true);
+        session(MON.minusDays(6), true);            // Push Day last done here
+        session(MON.minusDays(5), false);           // started, never finished
+        Session other = session(MON.minusDays(3), true);
+        other.setWorkout(legs);                     // another workout, more recent
+        sessions.save(other);
+        plan(MON, null);
+
+        overview()
+            .andExpect(jsonPath("$.nextPlanned.workoutId").value(workout.getId()))
+            .andExpect(jsonPath("$.nextLastDone").value(MON.minusDays(6).toString()));
+    }
+
+    @Test
+    void nextLastDoneIsEmptyForAWorkoutNeverDone() throws Exception {
+        plan(MON.plusDays(1), null);
+
+        overview()
+            .andExpect(jsonPath("$.nextPlanned.workoutId").value(workout.getId()))
+            .andExpect(jsonPath("$.nextLastDone").isEmpty());
     }
 
     // --- lastSessionSets and the length: "14 sets · 52 min" ---

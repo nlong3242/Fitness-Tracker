@@ -100,6 +100,13 @@ public class SessionService {
         return sessionRepository.findFirstByUserIdAndFinishedTrueOrderByDateDescIdDesc(CurrentUser.id());
     }
 
+    // When a workout was last finished ("last done Mon 10 Nov"); empty if never.
+    public Optional<LocalDate> lastDone(Long workoutId) {
+        return sessionRepository
+            .findFirstByUserIdAndWorkout_IdAndFinishedTrueOrderByDateDescIdDesc(CurrentUser.id(), workoutId)
+            .map(Session::getDate);
+    }
+
     // Sets logged in a session, each side of a one-sided exercise counted
     // on its own (the summary's Sets total counts the same way).
     public long countSets(Session session) {

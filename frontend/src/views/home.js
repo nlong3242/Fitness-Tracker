@@ -257,13 +257,53 @@ let thisWeekDays = null;    // this week's days from the overview, reused by Tod
 let weekStreak = null;      // from the overview; null until it's in
 let weekRequest = 0;        // the latest week fetch; older answers are ignored
 let overview = null;        // GET /sessions/overview, for today's plan and Next up
+let overviewFailed = false; // it didn't come: today's card offers Start a Workout
+
+/* Back on screen with Home open (the app was in the background): a new
+   day starts Home over on today; otherwise, after a minute away, its data
+   is fetched again in place, keeping the selected day and week. Not while
+   a weight is being typed: that would end the typing. */
+const REFRESH_AFTER_MS = 60 * 1000;
+let hiddenAt = null;
+let shownOn = null;     // the day Home was last drawn for
+
+document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+    }
+    if (!document.getElementById("home-days")) return;
+    const awayFor = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+    hiddenAt = null;
+    const input = document.getElementById("home-weight-input");
+    if (input && !input.hidden) return;
+    if (localIso(new Date()) !== shownOn) renderHomePage();
+    else if (awayFor >= REFRESH_AFTER_MS) refreshHome();
+});
+
+function refreshHome() {
+    loadStats();
+    loadBodyWeight();
+    // Another week on screen: its days too (this week's come with the stats).
+    if (week.start !== thisMonday()) {
+        const start = week.start;
+        const request = ++weekRequest;
+        fetchWeek(start).then(function(days) {
+            if (request !== weekRequest || week.start !== start || !document.getElementById("home-days")) return;
+            week.days = days;
+            renderWeek();
+        }).catch(function() { /* keep what's shown */ });
+    }
+}
 
 function resetWeek() {
+    shownOn = localIso(new Date());
     week = { start: thisMonday(), days: null };
     selected = localIso(new Date());
     thisWeekDays = null;
     weekStreak = null;
     overview = null;
+    overviewFailed = false;
 }
 
 function thisMonday() {
@@ -521,14 +561,22 @@ async function loadStats() {
     try {
         data = await fetchOverview(localIso(mondayOf(new Date())), today);
     } catch (e) {
+        // Offline or the server's down: keep what's shown (a refresh keeps
+        // its data); on a first load, let today's card start something.
+        if (!overview && document.getElementById("home-days")) {
+            overviewFailed = true;
+            renderDayCard();
+        }
         return;
     }
     if (!document.getElementById("home-days")) return;
+    overviewFailed = false;
 
     overview = data;
     weekStreak = overview.weekStreak;
     thisWeekDays = overview.weekDays || null;
-    if (week.start === thisMonday() && !week.days) week.days = thisWeekDays;
+    // This week on screen takes the fresh days (a refresh may bring new ones).
+    if (week.start === thisMonday()) week.days = thisWeekDays;
     renderWeek();
 
     showLatestPr(overview.latestPr || null);
@@ -649,9 +697,9 @@ function renderDayCard() {
         c = { badge: "In progress", badgeClass: "logged", name: live.name, sub: "In progress",
             foot: `<button type="button" class="home-card-btn live" data-action="resume">Resume ${esc(live.name)}</button>` };
     } else if (!info) {
-        // Still loading (or the request failed): nothing to say yet, but
-        // today can always start something.
-        c = { name: "–", sub: "", foot: isToday ? startAnyButton() : "" };
+        // Still loading: nothing to say yet, and Start waits (today may have
+        // a plan to link it to). Failed: today can still start something.
+        c = { name: "–", sub: "", foot: isToday ? startAnyButton(!overviewFailed && week.start === thisMonday()) : "" };
     } else if (isToday && plans.length) {
         c = todayPlanCard(plans, sessions, today);
     } else if (sessions.length === 1) {
@@ -731,8 +779,9 @@ function todayPlanCard(plans, sessions, today) {
             : `<button type="button" class="home-card-btn secondary" data-action="calendar">View in Calendar</button>` };
 }
 
-function startAnyButton() {
-    return `<button type="button" class="home-card-btn" data-action="workouts">Start a Workout</button>`;
+// waiting: shown but not pressable yet (the card keeps its height).
+function startAnyButton(waiting) {
+    return `<button type="button" class="home-card-btn" data-action="workouts"${waiting ? " disabled" : ""}>Start a Workout</button>`;
 }
 
 // The card's buttons, wired once: the card is redrawn on every change.

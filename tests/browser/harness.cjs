@@ -195,6 +195,10 @@ function run(seed, hash, body) {
                     await home.click();
                     await page.waitForSelector("#home-greeting");
                 }
+                // Nor on the summary right after Finish: its Back first (to
+                // where the workout was started; the bar is waited for below).
+                const done = await page.$(".task-flow #summary-back-btn");
+                if (done && await done.isVisible()) await done.click();
                 const tab = await page.waitForSelector('#bottom-nav [data-tab="workouts"]', { visible: true });
                 // The list draws twice (cache, then server): click once the
                 // server's list is in, or the click can land on a button

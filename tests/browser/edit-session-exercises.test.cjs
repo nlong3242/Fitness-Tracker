@@ -34,7 +34,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     };
     const cardMenu = () => openMenu(".exercise-card.active .exercise-card-head .more-btn");
     const closeMenu = async () => {
-        await page.click(".action-menu-backdrop");
+        await page.mouse.click(4, 4); // outside the menu: the backdrop
         await wait(200);
     };
     const choose = async label => {

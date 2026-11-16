@@ -53,7 +53,7 @@ run({ prefix: "livechg", workoutName: "Live Changes", exercises: 3 }, "#/workout
     check("menu has Replace, Remove and Reset", JSON.stringify(await menuLabels()) === JSON.stringify(["Replace exercise", "Remove exercise", "Reset exercise"]),
         (await menuLabels()).join(", "));
     await t.shot("live-changes-01-menu");
-    await page.click(".action-menu-backdrop");
+    await page.mouse.click(4, 4); // outside the menu: the backdrop
     await wait(200);
 
     // 2. Remove an exercise with nothing logged: asks, then it's gone
@@ -123,7 +123,7 @@ run({ prefix: "livechg", workoutName: "Live Changes", exercises: 3 }, "#/workout
     await page.waitForSelector(".exercise-card.active");
     await openMenu();
     check("last one: Replace and Reset, no Remove", JSON.stringify(await menuLabels()) === JSON.stringify(["Replace exercise", "Reset exercise"]), (await menuLabels()).join(", "));
-    await page.click(".action-menu-backdrop");
+    await page.mouse.click(4, 4); // outside the menu: the backdrop
     await wait(200);
 
     // 6. Finish records exactly today's list; the workout stays as it was

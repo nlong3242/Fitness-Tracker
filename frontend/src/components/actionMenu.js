@@ -51,7 +51,9 @@ export function showActionMenu(anchor, items) {
     const a = anchor.getBoundingClientRect();
     const m = menu.getBoundingClientRect();
     const nav = document.getElementById("bottom-nav");
-    const floor = nav ? nav.getBoundingClientRect().top : window.innerHeight;
+    const navBox = nav && nav.getBoundingClientRect();
+    // (a hidden bar measures 0 high at the top: the screen's edge then)
+    const floor = navBox && navBox.height > 0 ? navBox.top : window.innerHeight;
     let top = a.bottom + gap;
     if (top + m.height > floor - edge) top = Math.max(edge, a.top - gap - m.height);
     const left = Math.max(edge, Math.min(a.right - m.width, window.innerWidth - m.width - edge));

@@ -28,6 +28,7 @@ import { renderExerciseEditPage } from "./views/exerciseEdit.js";
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
      #/workouts/12/sessions/345/edit?date=2026-10-24&exercise=7  (editing a finished workout)
        either session route + &back=exercises/7/history: opened from that History tab (&back=home: from Home)
+       a session route + &done=1: the summary right after Finish (Back goes Home)
      #/workouts/12/exercises/7               #/workouts/12/exercises/7/history (/edit)
      #/calendar/2026-10                      #/calendar/2026-10-25
      #/calendar/2026-10-25/sessions/345?workout=12
@@ -143,14 +144,17 @@ async function openWorkouts(parts, params) {
         const sessionId = id(parts[3]);
         const date = params.get("date");
         if (sessionId !== null && DAY.test(date || "")) {
-            const toHistory = back && function() {
+            // Just finished: Back goes Home (on today, as after a workout).
+            const done = params.get("done") === "1" && parts[4] !== "edit";
+            const toHistory = done ? function() { return setActiveTab("home"); } : back && function() {
                 history.replaceState(null, "", `#/${back}`);
                 // Home: back to the day it showed, not today.
                 return back === "home" ? backToHome() : restoreRoute();
             };
             const summary = function() {
                 return viewSessionSummary(workoutId, sessionId, date, toHistory || function() { viewPastSessions(workoutId); },
-                    back ? `${sessionSummaryRoute(workoutId, sessionId, date)}&back=${back}` : undefined);
+                    done ? `${sessionSummaryRoute(workoutId, sessionId, date)}&done=1`
+                        : back ? `${sessionSummaryRoute(workoutId, sessionId, date)}&back=${back}` : undefined);
             };
             // Editing a finished workout: after a reload, Back goes to its
             // summary (or the History tab it was opened from), Next to its summary.

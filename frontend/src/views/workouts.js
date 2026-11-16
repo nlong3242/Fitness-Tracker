@@ -140,7 +140,7 @@ export function renderCreateWorkoutPage(initialState, options) {
     const draft = initialState || { name: "", pendingExercises: [] };
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <div class="page-actions page-top">
+        <div class="page-actions page-top task-flow">
             <button class="btn-secondary" id="back-btn">Back</button>
         </div>
         <h2 class="page-title">Create Workout</h2>

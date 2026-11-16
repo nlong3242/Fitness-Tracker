@@ -25,7 +25,7 @@ export async function renderMultiSelectExercisePicker(opts, kept) {
     const container = document.getElementById("app-content");
     container.innerHTML = `
         <h2>${escapeHtml(opts.title)}</h2>
-        <div class="page-actions">
+        <div class="page-actions task-flow">
             <button id="picker-create-btn">Create Exercise</button>
             <button class="btn-secondary" id="picker-cancel-btn">Cancel</button>
             <button type="button" class="btn-secondary eye-btn" id="picker-eye-btn" aria-label="Hide built-in exercises"></button>

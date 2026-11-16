@@ -180,25 +180,37 @@ body.nav-pixel .nav-tab.active {
     box-shadow: inset 0 0 0 2px var(--frame), 0 2px 0 var(--shadow-hard);
 }
 
-/* Tab bar hidden (setNavVisible(false): the live workout and pages it
-   opens). Bars that sit on it via --nav-height drop to the bottom edge
-   and take over the home-indicator inset themselves. (After the looks:
-   it wins over their --nav-height.) */
-body.nav-hidden {
+/* Tab bar hidden in task flows, where leaving half-way loses work or
+   skips a step: the live workout and the pages it opens (setNavVisible),
+   and any page whose content carries .task-flow (the exercise picker,
+   creating or editing an exercise, creating a workout, the summary right
+   after Finish). The latter needs no code to show the bar again: the
+   next page replaces the content. Bars that sit on it via --nav-height
+   drop to the bottom edge and take over the home-indicator inset
+   themselves. (After the looks: this wins over their --nav-height.) */
+body:has(#app-content .task-flow) #bottom-nav {
+    display: none;
+}
+
+body.nav-hidden,
+body:has(#app-content .task-flow) {
     --nav-height: 0px;
 }
 
 /* Only part of the home-indicator inset: the bar's buttons sit clear of
    the indicator line without a tall empty band under them. */
-body.nav-hidden #exercise-nav-row {
+body.nav-hidden #exercise-nav-row,
+body:has(#app-content .task-flow) #exercise-nav-row {
     padding-top: 4px;
     padding-bottom: max(4px, calc(env(safe-area-inset-bottom) - 18px));
 }
 
-body.nav-hidden .picker-action-footer {
+body.nav-hidden .picker-action-footer,
+body:has(#app-content .task-flow) .picker-action-footer {
     padding-bottom: calc(24px + env(safe-area-inset-bottom));
 }
 
-body.nav-hidden #app-content:has(.picker-action-footer) {
+body.nav-hidden #app-content:has(.picker-action-footer),
+#app-content:has(.task-flow):has(.picker-action-footer) {
     padding-bottom: calc(104px + env(safe-area-inset-bottom));
 }

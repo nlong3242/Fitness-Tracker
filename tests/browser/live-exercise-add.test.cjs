@@ -28,7 +28,7 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     check("menu has Add exercise, Reset, then Discard", JSON.stringify(await menuLabels()) === JSON.stringify(["Add exercise", "Reset workout", "Discard workout"]),
         (await menuLabels()).join(", "));
     await t.shot("live-add-01-menu");
-    await page.click(".action-menu-backdrop");
+    await page.mouse.click(4, 4); // outside the menu: the backdrop
     await wait(200);
 
     // 2. Cancel goes back to the same exercise, nothing added

@@ -134,7 +134,7 @@ function renderExerciseForm(cfg) {
 
     const container = document.getElementById("app-content");
     container.innerHTML = `
-        <div class="page-actions page-top exp-actions">
+        <div class="page-actions page-top exp-actions task-flow">
             <button class="btn-secondary" id="exe-cancel-btn">Cancel</button>
             <button id="exe-save-btn" disabled>${escapeHtml(cfg.saveLabel)}</button>
         </div>

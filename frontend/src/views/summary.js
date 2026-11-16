@@ -19,7 +19,8 @@ import { alignPageStrips } from "../utils/pageStrip.js";
 import { editPastSession } from "./editSession.js";
 
 /* route: where the summary was opened from, as a hash route (router.js);
-   defaults to the workout's past sessions. */
+   defaults to the workout's past sessions. One with done=1 is the summary
+   right after Finish (justFinished below), e.g. reloaded. */
 export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBack, route) {
     clearNavGuard();
     const workout = findWorkout(workoutId);
@@ -45,6 +46,7 @@ export async function viewSessionSummary(workoutId, sessionId, sessionDate, onBa
     const back = onBack || function() { viewWorkout(workoutId); };
     await renderWorkoutSummary(workout, sessionId, sessionDate, {
         onBack: back,
+        justFinished: /[?&]done=1(&|$)/.test(route || ""),
         // Back from editing it: this summary again, opened the same way.
         reopen: function() { return viewSessionSummary(workoutId, sessionId, sessionDate, onBack, route); }
     });
@@ -98,7 +100,9 @@ export function sessionSummaryRoute(workoutId, sessionId, sessionDate) {
 }
 
 /* options: { onBack, target?, mode?, onFinish?, backLabel?, headingPrefix?,
-              onExerciseClick?, reopen? }
+              onExerciseClick?, reopen?, justFinished? }
+   - justFinished: the summary right after Finish. Still part of the
+     workout, so no tab bar (bottom-nav.css .task-flow)
    - target: element to write into (defaults to #app-content)
    - onExerciseClick(exercise): the live review's box tap (back to that
      exercise). Without it, a finished summary's box opens it for editing
@@ -176,7 +180,7 @@ export async function renderWorkoutSummary(workout, sessionId, sessionDate, opti
     // workout's preview keeps its small "‹ Back" link.
     const topBackHtml = mode === "preview"
         ? (onBack ? `<button class="summary-back-link" id="summary-top-back-btn"><span class="summary-back-glyph">&#8249;</span> Back</button>` : "")
-        : `<div class="page-actions page-top"><button class="btn-secondary" id="summary-back-btn">${backLabel}</button></div>`;
+        : `<div class="page-actions page-top${opts.justFinished ? " task-flow" : ""}"><button class="btn-secondary" id="summary-back-btn">${backLabel}</button></div>`;
 
     target.innerHTML = `
         ${topBackHtml}

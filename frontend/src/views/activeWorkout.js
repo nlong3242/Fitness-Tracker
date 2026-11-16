@@ -33,7 +33,7 @@ import {
 } from "../drafts.js";
 import { renderMultiSelectExercisePicker } from "./exercisePicker.js";
 import { renderWorkouts } from "./workouts.js";
-import { renderWorkoutSummary, sessionSummaryRoute } from "./summary.js";
+import { renderWorkoutSummary, sessionSummaryRoute, viewSessionSummary } from "./summary.js";
 import { setRoute } from "../router.js";
 import { resetExercise } from "../components/resetExercise.js";
 import { resetWorkout } from "../components/resetWorkout.js";
@@ -632,8 +632,14 @@ export async function startWorkout(workoutId, options) {
         stopRest();
         setNavVisible(true);
         await syncCalendarOnFinish(workout.id, sessionId, sessionDate, scheduledWorkoutId);
-        setRoute(sessionSummaryRoute(workout.id, sessionId, sessionDate));
-        await renderWorkoutSummary(workout, sessionId, sessionDate, { onBack: onComplete });
+        // done=1: a reload comes back to this same just-finished summary.
+        const route = `${sessionSummaryRoute(workout.id, sessionId, sessionDate)}&done=1`;
+        setRoute(route);
+        await renderWorkoutSummary(workout, sessionId, sessionDate, {
+            onBack: onComplete,
+            justFinished: true,
+            reopen: function() { return viewSessionSummary(workout.id, sessionId, sessionDate, onComplete, route); }
+        });
     }
 }
 

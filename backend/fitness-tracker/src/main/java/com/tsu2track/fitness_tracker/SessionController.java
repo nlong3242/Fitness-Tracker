@@ -106,16 +106,21 @@ public class SessionController {
     }
 
     // startedAt (optional): when Start was tapped, for the workout stopwatch.
+    // scheduledWorkoutId (optional): the calendar plan it was started from.
     public static class CreateSessionBody {
         private Instant startedAt;
+        private Long scheduledWorkoutId;
         public Instant getStartedAt() { return startedAt; }
         public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
+        public Long getScheduledWorkoutId() { return scheduledWorkoutId; }
+        public void setScheduledWorkoutId(Long scheduledWorkoutId) { this.scheduledWorkoutId = scheduledWorkoutId; }
     }
 
     @PostMapping("/workouts/{workoutId}/sessions")
     public Session createSession(@PathVariable Long workoutId,
                                  @RequestBody(required = false) CreateSessionBody body) {
-        return sessionService.createSession(workoutId, body != null ? body.getStartedAt() : null);
+        return body == null ? sessionService.createSession(workoutId, null)
+            : sessionService.createSession(workoutId, body.getStartedAt(), body.getScheduledWorkoutId());
     }
 
     /* finishedAt (optional): when the workout ended, if not now (auto-end).

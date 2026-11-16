@@ -15,14 +15,15 @@ function localToday() {
 
 /* startedAt: keep this time (an emptied session going back to "started");
    otherwise reopening the same started workout today keeps its time, and
-   anything else starts the clock now. */
-export function markWorkoutStarted(workoutId, startedAt) {
-    if (!startedAt) {
-        const started = readStarted();
-        startedAt = started && started.workoutId === workoutId && started.startedAt
-            ? started.startedAt : Date.now();
-    }
-    startedInMemory = { workoutId, startedOn: localToday(), startedAt };
+   anything else starts the clock now.
+   planId: the calendar plan it was started from. Left out (undefined),
+   reopening the same started workout keeps the plan it had. */
+export function markWorkoutStarted(workoutId, startedAt, planId) {
+    const started = readStarted();
+    const same = started && started.workoutId === workoutId;
+    if (!startedAt) startedAt = same && started.startedAt ? started.startedAt : Date.now();
+    if (planId === undefined) planId = same && started.planId != null ? started.planId : null;
+    startedInMemory = { workoutId, startedOn: localToday(), startedAt, planId };
     try {
         localStorage.setItem(STARTED_KEY, JSON.stringify(startedInMemory));
     } catch (e) { /* storage unavailable: the bar just won't survive a reload */ }
@@ -66,6 +67,18 @@ export function getWorkoutStartedAt(workoutId) {
 
 let startedInMemory = null;
 
+/* The calendar plan the in-progress workout (workoutId) was started from,
+   or null: the session's once it exists (kept on the server, so this holds
+   after a reload or on another device), before that the started
+   workout's on this device. */
+export function workoutPlanId(workoutId) {
+    if (state.currentSessionId !== null) {
+        return state.currentWorkoutId === workoutId ? state.currentPlanId : null;
+    }
+    const started = readStarted();
+    return started && started.workoutId === workoutId && started.planId != null ? started.planId : null;
+}
+
 // A set was logged, edited or deleted (the server records the same).
 export function touchActivity() {
     if (state.currentSessionId !== null) state.currentLastActivityAt = Date.now();
@@ -80,14 +93,17 @@ export async function ensureCurrentSession(workout) {
     if (state.currentSessionId !== null) return state.currentSessionId;
     if (!pendingSession) {
         const started = readStarted();
-        const startedAt = started && started.workoutId === workout.id ? started.startedAt : null;
-        pendingSession = createSession(workout.id, startedAt)
+        const mine = started && started.workoutId === workout.id;
+        const startedAt = mine ? started.startedAt : null;
+        const planId = mine && started.planId != null ? started.planId : null;
+        pendingSession = createSession(workout.id, startedAt, planId)
             .then(function(session) {
                 state.currentSessionId = session.id;
                 state.currentSessionDate = session.date;
                 state.currentWorkoutId = workout.id;
                 state.currentLastActivityAt = Date.now();
                 state.currentStartedAt = session.startedAt ? Date.parse(session.startedAt) : startedAt;
+                state.currentPlanId = session.scheduledWorkoutId ?? planId;
                 clearStartedWorkout(); // a real session supersedes it
                 return session.id;
             })
@@ -100,11 +116,13 @@ export async function maybeCleanupOrphanSession(workout) {
     const hasAnySets = workout.exercises.some(ex => ex.sets && ex.sets.length > 0);
     if (!hasAnySets && state.currentSessionId !== null) {
         const startedAt = state.currentStartedAt;
+        const planId = state.currentPlanId;
         await deleteSession(state.currentSessionId);
         clearCurrentSession();
         // Still on the workout, just with nothing logged again; the
-        // stopwatch keeps counting from the original Start.
-        markWorkoutStarted(workout.id, startedAt);
+        // stopwatch keeps counting from the original Start, and it still
+        // belongs to the plan it was started from.
+        markWorkoutStarted(workout.id, startedAt, planId);
     }
 }
 

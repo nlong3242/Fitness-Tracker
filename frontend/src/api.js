@@ -228,9 +228,12 @@ export function fetchSessionsPage(workoutId, page, size) {
 
 // startedAt: ms timestamp when Start was tapped (the stopwatch counts from
 // it); the server uses now if it is missing or not believable.
-export function createSession(workoutId, startedAt) {
-    const body = startedAt ? { startedAt: new Date(startedAt).toISOString() } : undefined;
-    return requestJson("POST", `/workouts/${workoutId}/sessions`, body);
+// planId: the calendar plan it was started from, kept on the session.
+export function createSession(workoutId, startedAt, planId) {
+    const body = {};
+    if (startedAt) body.startedAt = new Date(startedAt).toISOString();
+    if (planId != null) body.scheduledWorkoutId = planId;
+    return requestJson("POST", `/workouts/${workoutId}/sessions`, Object.keys(body).length ? body : undefined);
 }
 
 export function deleteSession(sessionId) {

@@ -197,9 +197,15 @@ public class SessionService {
     // isn't believed: the stopwatch starts now instead.
     static final long MAX_START_AGE_HOURS = 24;
 
-    /* startedAt: when Start was tapped on the phone, which is before this
-       session exists (it's made on the first logged set). */
     public Session createSession(Long workoutId, Instant startedAt) {
+        return createSession(workoutId, startedAt, null);
+    }
+
+    /* startedAt: when Start was tapped on the phone, which is before this
+       session exists (it's made on the first logged set).
+       scheduledWorkoutId: the calendar plan it was started from. Kept only
+       if it's this user's plan for this workout; otherwise ignored. */
+    public Session createSession(Long workoutId, Instant startedAt, Long scheduledWorkoutId) {
         Optional<Workout> workout = workoutRepository.findByIdAndUserId(workoutId, CurrentUser.id());
         if (!workout.isPresent()) {
             return null;
@@ -212,6 +218,11 @@ public class SessionService {
         session.setLastActivityAt(now);
         session.setStartedAt(believable ? startedAt : now);
         session.setWorkout(workout.get());
+        if (scheduledWorkoutId != null) {
+            scheduledWorkoutRepository.findByIdAndUserId(scheduledWorkoutId, CurrentUser.id())
+                .filter(plan -> workoutId.equals(plan.getWorkoutId()))
+                .ifPresent(plan -> session.setScheduledWorkoutId(plan.getId()));
+        }
         return sessionRepository.save(session);
     }
 

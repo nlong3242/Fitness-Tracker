@@ -26,7 +26,7 @@ import { attachLongPressDrag } from "../utils/dragDrop.js";
 import { clearNavGuard, setNavVisible, highlightTab, setActiveTab } from "../components/bottomNav.js";
 import {
     abandonSession, markWorkoutStarted, clearStartedWorkout, getStartedWorkoutId,
-    touchActivity, maybeCleanupOrphanSession
+    touchActivity, maybeCleanupOrphanSession, workoutPlanId
 } from "../session.js";
 import {
     loadDrafts, clearDrafts, sideKey, dropExerciseDrafts, loadLiveExercises, saveLiveExercises
@@ -97,7 +97,9 @@ async function prepareStart(workoutId, options) {
             }
         }
 
-        let scheduledWorkoutId = schedule ? schedule.id : null;
+        // Started from a plan: that one. Otherwise (Resume, a reload, the
+        // workout list) the plan this workout in progress came from, if any.
+        let scheduledWorkoutId = schedule ? schedule.id : workoutPlanId(workout.id);
         let exercises;
         try {
             if (schedule && scheduledWorkoutId === null) {
@@ -115,7 +117,7 @@ async function prepareStart(workoutId, options) {
         // Typed-but-unsaved values belong to the workout in progress; opening
         // any other one (or this one afresh, e.g. the next day) drops them.
         if (resumeSessionId === null && getStartedWorkoutId() !== workout.id) clearDrafts();
-        if (resumeSessionId === null) markWorkoutStarted(workout.id);
+        if (resumeSessionId === null) markWorkoutStarted(workout.id, undefined, scheduledWorkoutId);
         else clearStartedWorkout();
 
         // Exercises added, replaced or removed earlier in this workout.

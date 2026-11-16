@@ -57,7 +57,7 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 
 ## Tech stack
 
-- **Backend**: Java 25, Spring Boot 4 (Web MVC, Data JPA, Security, Validation), H2 file database, Flyway migrations (`V1`–`V19`), Maven wrapper
+- **Backend**: Java 25, Spring Boot 4 (Web MVC, Data JPA, Security, Validation), H2 file database, Flyway migrations (`V1`–`V20`), Maven wrapper
 - **Frontend**: plain HTML, CSS and JavaScript modules, no framework or build step, with a hash router
 - **iOS**: [Capacitor](https://capacitorjs.com/) wrapping `frontend/` (`mobile/`), with unsigned builds on Codemagic (`codemagic.yaml`)
 - **Tests**: JUnit + MockMvc for the backend, Puppeteer browser tests (`tests/browser`), and GitHub Actions CI
@@ -109,13 +109,13 @@ Open the printed `http://<tailscale-ip>:5500` in Safari on the phone and add it 
 
 ## Tests
 
-- **Backend** (369 tests, in-memory database, safe to run while the app is up):
+- **Backend** (375 tests, in-memory database, safe to run while the app is up):
   ```
   cd backend/fitness-tracker
   ./mvnw test
   ```
   They also run on GitHub Actions for every push and pull request.
-- **Browser** (30 scripts covering Home, the tab bar and Back links, set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
+- **Browser** (32 scripts covering Home, the tab bar and Back links, starting from the calendar, set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
   ```
   cd tests/browser
   npm install

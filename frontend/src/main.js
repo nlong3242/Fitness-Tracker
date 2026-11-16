@@ -23,6 +23,7 @@ async function restoreInProgressSession() {
             state.currentWorkoutId = session.workoutId;
             state.currentLastActivityAt = session.lastActivityAt ? Date.parse(session.lastActivityAt) : null;
             state.currentStartedAt = session.startedAt ? Date.parse(session.startedAt) : null;
+            state.currentPlanId = session.scheduledWorkoutId ?? null;
         }
     } catch (e) { /* keep going without it */ }
 }

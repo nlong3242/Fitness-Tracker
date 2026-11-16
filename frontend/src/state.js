@@ -11,6 +11,9 @@ export const state = {
     // ms timestamp when that session's Start was tapped (server startedAt);
     // the live stopwatch counts from it. Null for sessions from before V19.
     currentStartedAt: null,
+    // The calendar plan that session was started from (server
+    // scheduledWorkoutId), so Finish ticks it off even after a resume.
+    currentPlanId: null,
     // { name, birthDate, heightCm, weeklyGoal, restSeconds, showWorkoutTimer } from GET
     // /profile; null until the account has one (main.js then shows the
     // set-up page).
@@ -29,4 +32,5 @@ export function clearCurrentSession() {
     state.currentWorkoutId = null;
     state.currentLastActivityAt = null;
     state.currentStartedAt = null;
+    state.currentPlanId = null;
 }

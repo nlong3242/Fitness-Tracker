@@ -36,6 +36,10 @@ public class Session extends Owned {
     private Instant startedAt;
     private Instant finishedAt;
 
+    // The calendar plan it was started from (V20), so Finish ticks off that
+    // plan even after a resume elsewhere. Null: started on its own.
+    private Long scheduledWorkoutId;
+
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name="workout_id")
@@ -94,6 +98,9 @@ public class Session extends Owned {
     public void setLastActivityAt(Instant lastActivityAt) {
         this.lastActivityAt = lastActivityAt;
     }
+
+    public Long getScheduledWorkoutId() { return scheduledWorkoutId; }
+    public void setScheduledWorkoutId(Long scheduledWorkoutId) { this.scheduledWorkoutId = scheduledWorkoutId; }
 
     public Instant getStartedAt() { return startedAt; }
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }

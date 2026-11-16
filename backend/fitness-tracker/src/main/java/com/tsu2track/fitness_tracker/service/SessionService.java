@@ -122,6 +122,27 @@ public class SessionService {
         return streak;
     }
 
+    /* Home's week strip, one per day Monday to Sunday. done: a finished
+       session that day. planned: a plan still to do that day (saved or
+       from a repeat rule; done and skipped ones don't count). Both can be
+       true; the page shows done first. */
+    public record WeekDay(LocalDate date, boolean done, boolean planned) {}
+
+    public List<WeekDay> weekDays(LocalDate weekStart) {
+        LocalDate weekEnd = weekStart.plusDays(6);
+        Set<LocalDate> done = new HashSet<>(
+            sessionRepository.findFinishedSessionDatesBetween(CurrentUser.id(), weekStart, weekEnd));
+        Set<LocalDate> planned = new HashSet<>();
+        for (ScheduledWorkout plan : calendarPlans.between(weekStart, weekEnd)) {
+            if (plan.getStatus() == ScheduleStatus.PLANNED) planned.add(plan.getDate());
+        }
+        List<WeekDay> days = new ArrayList<>();
+        for (LocalDate day = weekStart; !day.isAfter(weekEnd); day = day.plusDays(1)) {
+            days.add(new WeekDay(day, done.contains(day), planned.contains(day)));
+        }
+        return days;
+    }
+
     // The earliest workout still planned for today or later, repeat rules
     // included (unsaved: no id).
     public Optional<ScheduledWorkout> findNextPlanned(LocalDate today) {

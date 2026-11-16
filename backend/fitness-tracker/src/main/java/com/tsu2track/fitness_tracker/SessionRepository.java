@@ -27,6 +27,14 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
         """)
     List<LocalDate> findFinishedSessionDatesUpTo(@Param("userId") Long userId, @Param("until") LocalDate until);
 
+    // Days in [from, to] with a finished session (Home's week strip).
+    @Query("""
+        SELECT DISTINCT s.date FROM Session s
+        WHERE s.userId = :userId AND s.finished = true AND s.date BETWEEN :from AND :to
+        """)
+    List<LocalDate> findFinishedSessionDatesBetween(@Param("userId") Long userId,
+                                                    @Param("from") LocalDate from, @Param("to") LocalDate to);
+
     // Whether the exercise is in a workout the account is still doing: in
     // that workout, or with a set logged in it (since removed from it).
     // A null userId asks about every account (built-ins are shared).

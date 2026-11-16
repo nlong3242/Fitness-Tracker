@@ -14,6 +14,7 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, Long> 
     Optional<ExerciseSet> findByIdAndSession_UserId(Long id, Long userId);
     List<ExerciseSet> findByExercise_IdAndSession_Id(Long exerciseId, Long sessionId);
     List<ExerciseSet> findBySession_Id(Long sessionId);
+    long countBySession_Id(Long sessionId);
     boolean existsBySession_Id(Long sessionId);
 
     // Reset workout's question: the sets in the workout's finished sessions.

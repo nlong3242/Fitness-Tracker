@@ -1,5 +1,6 @@
 package com.tsu2track.fitness_tracker;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -7,7 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,7 +96,50 @@ class HomeOverviewWebTest {
     void aNewAccountsWeekIsSevenEmptyDays() throws Exception {
         overview()
             .andExpect(jsonPath("$.weekDays", hasSize(7)))
-            .andExpect(jsonPath("$.weekDays[?(@.done == true || @.planned == true)]", hasSize(0)));
+            .andExpect(jsonPath("$.weekDays[?(@.done == true || @.planned == true)]", hasSize(0)))
+            .andExpect(jsonPath("$.lastSession").isEmpty())
+            .andExpect(jsonPath("$.lastSessionSets").value(0));
+    }
+
+    // --- lastSessionSets and the length: "14 sets · 52 min" ---
+
+    @Test
+    void lastSessionSetsCountsEachSideOnItsOwnAndComesWithItsLength() throws Exception {
+        long bench = exercise("Bench", false);
+        long row = exercise("One-Arm Row", true);
+        long session = start(Instant.now().minus(52, ChronoUnit.MINUTES));
+        for (int i = 0; i < 3; i++) set(session, bench, "{\"weight\": 80, \"reps\": 5}");
+        for (int i = 0; i < 2; i++) {
+            set(session, row, "{\"weight\": 20, \"reps\": 8, \"side\": \"LEFT\"}");
+            set(session, row, "{\"weight\": 20, \"reps\": 8, \"side\": \"RIGHT\"}");
+        }
+        finish(session);
+
+        String json = overview()
+            .andExpect(jsonPath("$.lastSession.id").value(session))
+            .andExpect(jsonPath("$.lastSessionSets").value(7))
+            .andReturn().getResponse().getContentAsString();
+        long seconds = ((Number) JsonPath.read(json, "$.lastSession.durationSeconds")).longValue();
+        assertThat(seconds).isBetween(52L * 60, 52L * 60 + 30);
+    }
+
+    @Test
+    void lastSessionSetsAreTheNewestFinishedOnes() throws Exception {
+        long bench = exercise("Bench", false);
+        long earlier = start(null);
+        set(earlier, bench, "{\"weight\": 80, \"reps\": 5}");
+        set(earlier, bench, "{\"weight\": 80, \"reps\": 5}");
+        finish(earlier);
+        long latest = start(null);
+        set(latest, bench, "{\"weight\": 85, \"reps\": 5}");
+        finish(latest);
+        long open = start(null);                    // in progress: not a last session
+        set(open, bench, "{\"weight\": 90, \"reps\": 5}");
+        set(open, bench, "{\"weight\": 90, \"reps\": 5}");
+
+        overview()
+            .andExpect(jsonPath("$.lastSession.id").value(latest))
+            .andExpect(jsonPath("$.lastSessionSets").value(1));
     }
 
     // --- helpers ---
@@ -125,6 +171,34 @@ class HomeOverviewWebTest {
                 .content("{\"date\": \"" + date + "\", \"workoutId\": " + workout.getId()
                     + (status != null ? ", \"status\": \"" + status + "\"" : "") + "}"))
             .andExpect(status().isOk());
+    }
+
+    private long exercise(String name, boolean oneSided) throws Exception {
+        return id(mvc.perform(post("/workouts/" + workout.getId() + "/exercises").header("Authorization", bearer)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"name\": \"" + name + "\", \"category\": \"CHEST\", \"unilateral\": " + oneSided + "}")));
+    }
+
+    private long start(Instant startedAt) throws Exception {
+        return id(mvc.perform(post("/workouts/" + workout.getId() + "/sessions").header("Authorization", bearer)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(startedAt != null ? "{\"startedAt\": \"" + startedAt + "\"}" : "{}")));
+    }
+
+    private void set(long session, long exercise, String body) throws Exception {
+        mvc.perform(post("/sessions/" + session + "/sets?exerciseId=" + exercise).header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk());
+    }
+
+    private void finish(long session) throws Exception {
+        mvc.perform(post("/sessions/" + session + "/finish").header("Authorization", bearer))
+            .andExpect(status().isOk());
+    }
+
+    private static long id(ResultActions result) throws Exception {
+        String json = result.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return ((Number) JsonPath.read(json, "$.id")).longValue();
     }
 
     private void repeat(int weekdays) throws Exception {

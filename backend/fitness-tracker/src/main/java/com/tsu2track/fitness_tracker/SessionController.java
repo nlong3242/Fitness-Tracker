@@ -66,23 +66,27 @@ public class SessionController {
     /* Home page stats. lastSession / nextPlanned are null when there's none;
        plannedThatDay counts nextPlanned's day's plans still to do, itself
        included (0 with no nextPlanned). weekDays: the week strip, Monday
-       (weekStart) to Sunday. */
+       (weekStart) to Sunday. lastSessionSets: sets logged in lastSession (0
+       with none); its length is lastSession.durationSeconds. */
     public record HomeOverview(long sessionsThisWeek, Session lastSession,
                                int weekStreak, ScheduledWorkout nextPlanned,
-                               long plannedThatDay, List<SessionService.WeekDay> weekDays) {}
+                               long plannedThatDay, List<SessionService.WeekDay> weekDays,
+                               long lastSessionSets) {}
 
     // today defaults to the server's date for pages cached before it was sent.
     @GetMapping("/sessions/overview")
     public HomeOverview getOverview(@RequestParam LocalDate weekStart,
                                     @RequestParam(required = false) LocalDate today) {
         ScheduledWorkout next = sessionService.findNextPlanned(today != null ? today : LocalDate.now()).orElse(null);
+        Session last = sessionService.findLastFinishedSession().orElse(null);
         return new HomeOverview(
             sessionService.countFinishedInWeek(weekStart),
-            sessionService.findLastFinishedSession().orElse(null),
+            last,
             sessionService.countWeekStreak(weekStart),
             next,
             next != null ? sessionService.countPlannedOn(next.getDate()) : 0,
-            sessionService.weekDays(weekStart));
+            sessionService.weekDays(weekStart),
+            last != null ? sessionService.countSets(last) : 0);
     }
 
     // startedAt (optional): when Start was tapped, for the workout stopwatch.

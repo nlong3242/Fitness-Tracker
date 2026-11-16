@@ -77,7 +77,8 @@ class DataIsolationTest {
         call(b, get("/sessions/overview" + WEEK))
             .andExpect(jsonPath("$.lastSession").isEmpty())
             .andExpect(jsonPath("$.nextPlanned").isEmpty())
-            .andExpect(jsonPath("$.weekDays[0].planned").value(false));
+            .andExpect(jsonPath("$.weekDays[0].planned").value(false))
+            .andExpect(jsonPath("$.lastSessionSets").value(0));
         call(b, get("/scheduled-workouts?from=" + DAY + "&to=" + DAY)).andExpect(jsonPath("$", hasSize(0)));
         call(b, get("/scheduled-workouts/by-date/" + DAY)).andExpect(jsonPath("$", hasSize(0)));
         call(b, get("/bodyweight")).andExpect(jsonPath("$", hasSize(0)));

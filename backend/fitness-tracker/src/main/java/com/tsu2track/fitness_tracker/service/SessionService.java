@@ -100,6 +100,12 @@ public class SessionService {
         return sessionRepository.findFirstByUserIdAndFinishedTrueOrderByDateDescIdDesc(CurrentUser.id());
     }
 
+    // Sets logged in a session, each side of a one-sided exercise counted
+    // on its own (the summary's Sets total counts the same way).
+    public long countSets(Session session) {
+        return exerciseSetRepository.countBySession_Id(session.getId());
+    }
+
     /* Weeks in a row (Monday start) that met that week's goal (finished
        sessions; WeeklyGoals, one with no goal), counting back from
        weekStart. The current week doesn't break the streak before it's met:

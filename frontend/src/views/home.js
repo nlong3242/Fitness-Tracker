@@ -1,11 +1,13 @@
 import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
-import { fetchOverview, fetchWeek, fetchBodyWeightSummary, logBodyWeight } from "../api.js";
+import { fetchOverview, fetchWeek, fetchBodyWeightSummary, logBodyWeight, fetchSessionSets } from "../api.js";
 import { state, findWorkout } from "../state.js";
 import { startWorkout } from "./activeWorkout.js";
 import { liveWorkout } from "../components/liveWorkout.js";
 import { renderBodyWeightPage } from "./bodyweight.js";
 import { renderSettingsPage } from "./settings.js";
 import { navigateToCalendarDay } from "./calendar.js";
+import { viewSessionSummary, sessionSummaryRoute } from "./summary.js";
+import { getWorkoutStartedAt } from "../session.js";
 import { pixelArt } from "../utils/pixelArt.js";
 import { setRoute } from "../router.js";
 
@@ -85,6 +87,17 @@ const FLAME = pixelArt([
     ".oooooo.",
 ], { o: "#3B2723", f: "#D29C8B", y: "#F8E0D7" }, "home-flame");
 
+// The card's heading icon.
+const DUMBBELL = pixelArt([
+    ".oo........oo.",
+    "offo......offo",
+    "offooooooooffo",
+    "offffffffffffo",
+    "offooooooooffo",
+    "offo......offo",
+    ".oo........oo.",
+], { o: "#3B2723", f: "#E8B4A4" }, "home-card-icon");
+
 // The tick on a done day's badge.
 const CHECK = `<svg class="home-check" viewBox="0 0 10 8" aria-hidden="true"><path d="M1 4l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>`;
 
@@ -122,7 +135,8 @@ export function renderHomePage() {
             <div class="home-week-foot" id="home-week-foot"></div>
         </section>
 
-        <button class="home-cta" id="home-start-btn">Start a Workout</button>
+        <!-- The selected day: what to start, resume or look back at. -->
+        <section class="home-card" id="home-day-card" aria-live="polite"></section>
 
         <!-- Bodyweight is filled by loadBodyWeight(); Steps is still sample data. -->
         <div class="home-tile-row">
@@ -150,11 +164,6 @@ export function renderHomePage() {
         </div>
 
         <div class="home-stat-row">
-            <div class="home-stat" id="home-next-card">
-                <div class="home-stat-label">Next up</div>
-                <div class="home-stat-value" id="home-next-name">–</div>
-                <div class="home-stat-sub" id="home-next-when"></div>
-            </div>
             <div class="home-stat">
                 <div class="home-stat-label">Last session</div>
                 <div class="home-stat-value" id="home-last-name">–</div>
@@ -167,8 +176,8 @@ export function renderHomePage() {
     showGreeting();
     resetWeek();
     wireWeek();
+    wireDayCard();
     renderWeek();
-    wireStartButton();
     wireWeightLogging();
     loadStats();
     loadBodyWeight();
@@ -197,12 +206,14 @@ let selected = null;        // "YYYY-MM-DD"
 let thisWeekDays = null;    // this week's days from the overview, reused by Today
 let weekStreak = null;      // from the overview; null until it's in
 let weekRequest = 0;        // the latest week fetch; older answers are ignored
+let overview = null;        // GET /sessions/overview, for today's plan and Next up
 
 function resetWeek() {
     week = { start: thisMonday(), days: null };
     selected = localIso(new Date());
     thisWeekDays = null;
     weekStreak = null;
+    overview = null;
 }
 
 function thisMonday() {
@@ -269,13 +280,15 @@ function renderWeek() {
         const date = addDays(week.start, i);
         const info = week.days ? week.days[i] : null;
         const done = !!(info && info.done);
-        const planned = !done && !!(info && info.planned);
+        const planned = !done && date >= today && !!(info && info.planned);
+        const skipped = !done && !planned && !!info && skippedPlans(info, date, today).length > 0;
         const classes = ["home-day"];
         if (done) classes.push("done");
         if (planned) classes.push("planned");
+        if (skipped) classes.push("skipped");
         if (date === today) classes.push("today");
         if (date === selected) classes.push("selected");
-        const label = longDate(date) + (date === today ? ", today" : "") + (done ? ", done" : planned ? ", planned" : "");
+        const label = longDate(date) + (date === today ? ", today" : "") + (done ? ", done" : planned ? ", planned" : skipped ? ", skipped" : "");
         return `<button type="button" class="${classes.join(" ")}" data-date="${date}" aria-label="${label}" aria-pressed="${date === selected}">
                 <span class="home-day-letter">${letter}</span>
                 <span class="home-day-box">${Number(date.slice(8))}${done ? `<span class="home-day-badge">${CHECK}</span>` : ""}</span>
@@ -285,6 +298,7 @@ function renderWeek() {
     document.getElementById("home-sel-date").textContent = dayHeading(selected);
     document.getElementById("home-today-btn").classList.toggle("here", selected === today);
     renderWeekFoot();
+    renderDayCard();
 }
 
 /* Under the strip: "1 / 3 sessions done this week · 4-week streak" (with
@@ -454,78 +468,248 @@ async function loadBodyWeight() {
    the user has already navigated away (the cards are no longer in the DOM). */
 async function loadStats() {
     const today = localIso(new Date());
-    let overview;
+    let data;
     try {
-        overview = await fetchOverview(localIso(mondayOf(new Date())), today);
+        data = await fetchOverview(localIso(mondayOf(new Date())), today);
     } catch (e) {
         return;
     }
     if (!document.getElementById("home-days")) return;
 
+    overview = data;
     weekStreak = overview.weekStreak;
     thisWeekDays = overview.weekDays || null;
     if (week.start === thisMonday() && !week.days) week.days = thisWeekDays;
     renderWeek();
-
-    if (overview.nextPlanned !== undefined) showNextUp(overview.nextPlanned, overview.plannedThatDay || 0, today);
 
     const last = overview.lastSession;
     document.getElementById("home-last-name").textContent = last ? workoutName(last.workoutId) : "–";
     document.getElementById("home-last-when").textContent = last ? relativeDay(last.date, today) : "None yet";
 }
 
-/* The big button: "Resume <workout>" while one is open (in progress or
-   started), otherwise "Start a Workout" → the workout list. showNextUp()
-   may turn the latter into today's planned workout. */
-function wireStartButton() {
-    const btn = document.getElementById("home-start-btn");
-    const live = liveWorkout();
-    if (!live) {
-        btn.onclick = function() { setActiveTab("workouts"); };
-        return;
+/* --- The selected day's card ---
+   One card, the same height whatever it shows, for the day picked in the
+   strip. Today: Resume a workout that's open (its details: sets logged,
+   when it started); else Start today's plan (the earliest added, linked so
+   finishing marks it done; "+N more" opens the day in the calendar; once
+   something's finished today its line becomes "✓ Pull Day done earlier"),
+   no Start when the workout has no exercises; else what's done today; else
+   "Nothing planned today" with Next up and Start a Workout. Another day:
+   what was done (one: View Summary; more: a line each), or what's planned
+   (View in Calendar), or skipped, or nothing. Skipped follows the
+   calendar: a plan marked skipped, or a past day's plan never done. */
+function renderDayCard() {
+    const el = document.getElementById("home-day-card");
+    if (!el) return;
+    const today = localIso(new Date());
+    const isToday = selected === today;
+    const info = week.days ? week.days[daysBetween(week.start, selected)] : null;
+    const sessions = info ? info.sessions : [];
+    // A past day's plans still to do count as skipped (calendar.js effectiveStatus).
+    const plans = info && selected >= today ? info.plans : [];
+    const skipped = info ? skippedPlans(info, selected, today) : [];
+    const live = isToday ? liveWorkout() : null;
+    let c;
+
+    if (live) {
+        c = { badge: "In progress", badgeClass: "logged", name: live.name, sub: "In progress",
+            foot: `<button type="button" class="home-card-btn live" data-action="resume">Resume ${esc(live.name)}</button>` };
+    } else if (!info) {
+        // Still loading (or the request failed): nothing to say yet, but
+        // today can always start something.
+        c = { name: "–", sub: "", foot: isToday ? startAnyButton() : "" };
+    } else if (isToday && plans.length) {
+        c = todayPlanCard(plans, sessions, today);
+    } else if (sessions.length === 1) {
+        const one = sessions[0];
+        c = { badge: "Done", badgeClass: "logged", name: one.workoutName, sub: sessionStats(one),
+            foot: `<button type="button" class="home-card-btn secondary" data-action="summary" ${sessionData(one)}>View Summary</button>` };
+    } else if (sessions.length > 1) {
+        c = { badge: "Done", badgeClass: "logged", lines: sessions.map(function(one) {
+            return `<button type="button" class="home-card-line" data-action="summary" ${sessionData(one)}>
+                    <span class="home-card-line-name">${esc(one.workoutName)}</span>
+                    <span class="home-card-stats">${sessionStats(one)}</span><span class="home-chevron">&#8250;</span>
+                </button>`;
+        }).join("") };
+    } else if (skipped.length) {
+        // Today can still train: Start a Workout rather than the calendar.
+        c = { badge: "Skipped", badgeClass: "skipped", name: skipped[0].workoutName,
+            sub: (isToday ? "Skipped for today" : "Not done") + moreLink(skipped.length - 1),
+            foot: isToday ? startAnyButton()
+                : `<button type="button" class="home-card-btn secondary" data-action="calendar">View in Calendar</button>` };
+    } else if (isToday) {
+        const next = overview && overview.nextPlanned;
+        const upcoming = next && next.date > today;
+        c = { name: "Nothing planned today",
+            sub: upcoming ? `Next up: <b>${esc(workoutName(next.workoutId))}</b> · ${dayHeading(next.date)}`
+                : "Pick a workout, or plan one in the calendar",
+            foot: startAnyButton() };
+    } else if (plans.length) {
+        const plan = plans[0];
+        c = { badge: "Planned", badgeClass: "planned", name: plan.workoutName,
+            sub: exerciseCount(plan.workoutId) + moreLink(plans.length - 1),
+            foot: `<button type="button" class="home-card-btn secondary" data-action="calendar">View in Calendar</button>` };
+    } else {
+        c = { muted: true, name: selected < today ? "Nothing logged" : "Nothing planned",
+            sub: selected < today ? "No workout done this day" : "No workout planned this day" };
     }
-    btn.textContent = `Resume ${live.name}`;
-    btn.classList.add("live");
-    btn.onclick = function() {
-        startWorkout(live.id, { button: btn, onComplete: function() { setActiveTab("home"); } });
+
+    el.className = "home-card" + (c.muted ? " muted" : "");
+    el.innerHTML = `
+        <div class="home-tile-head">
+            <span class="home-card-head">${DUMBBELL}<span class="home-tile-title">${cardTitle(selected, today)}</span></span>
+            ${c.badge ? `<span class="home-tile-badge ${c.badgeClass}">${c.badge}</span>` : ""}
+        </div>
+        ${c.lines ? `<div class="home-card-lines">${c.lines}</div>` : `
+            <div class="home-card-name">${esc(c.name)}</div>
+            <div class="home-card-sub" id="home-card-sub">${c.sub}</div>`}
+        ${c.foot || ""}`;
+    if (live) showLiveDetails(live);
+}
+
+// A day's skipped plans: marked skipped, plus, on a past day, the ones
+// never done.
+function skippedPlans(info, date, today) {
+    return (date < today ? info.plans : []).concat(info.skipped || []);
+}
+
+// Today's plan: Start it, unless the workout has no exercises yet.
+function todayPlanCard(plans, sessions, today) {
+    // The overview's next plan is today's earliest added, with what Start
+    // needs to link to it (a repeat rule's day has no id yet).
+    const next = overview && overview.nextPlanned && overview.nextPlanned.date === today ? overview.nextPlanned : null;
+    const workoutId = next ? next.workoutId : plans[0].workoutId;
+    const name = next ? workoutName(workoutId) : plans[0].workoutName;
+    const workout = findWorkout(workoutId);
+    const more = moreLink(plans.length - 1);
+    let sub;
+    if (sessions.length) {
+        const last = sessions[sessions.length - 1];
+        sub = `<button type="button" class="home-card-done" data-action="summary" ${sessionData(last)}>${CHECK}<span>${esc(last.workoutName)} done earlier · ${setCount(last.sets)}</span> <span class="home-chevron">&#8250;</span></button>` + more;
+    } else {
+        const lastDone = next && overview.nextLastDone;
+        sub = exerciseCount(workoutId) + (lastDone ? ` · last done ${dayHeading(lastDone)}` : "") + more;
+    }
+    const canStart = workout && workout.exerciseCount > 0;
+    return { badge: "Planned", badgeClass: "planned", name, sub,
+        foot: canStart
+            ? `<button type="button" class="home-card-btn" data-action="start" data-workout="${workoutId}">Start ${esc(name)}</button>`
+            : `<button type="button" class="home-card-btn secondary" data-action="calendar">View in Calendar</button>` };
+}
+
+function startAnyButton() {
+    return `<button type="button" class="home-card-btn" data-action="workouts">Start a Workout</button>`;
+}
+
+// The card's buttons, wired once: the card is redrawn on every change.
+function wireDayCard() {
+    const el = document.getElementById("home-day-card");
+    el.onclick = function(e) {
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        if (action === "workouts") setActiveTab("workouts");
+        if (action === "calendar") navigateToCalendarDay(selected);
+        if (action === "resume") {
+            const live = liveWorkout();
+            if (live) startWorkout(live.id, { button: btn, onComplete: function() { setActiveTab("home"); } });
+        }
+        if (action === "start") {
+            const today = localIso(new Date());
+            const next = overview && overview.nextPlanned;
+            const schedule = next && next.date === today && String(next.workoutId) === btn.dataset.workout ? next : null;
+            startWorkout(Number(btn.dataset.workout), {
+                button: btn,
+                schedule,
+                onComplete: function() { setActiveTab("home"); }
+            });
+        }
+        if (action === "summary") {
+            const workoutId = Number(btn.dataset.workout);
+            const sessionId = Number(btn.dataset.session);
+            const date = btn.dataset.date;
+            viewSessionSummary(workoutId, sessionId, date, function() { setActiveTab("home"); },
+                `${sessionSummaryRoute(workoutId, sessionId, date)}&back=home`);
+        }
     };
 }
 
-/* Next up card, plus the big button: with a plan for today it starts that
-   workout (linked to the plan, so finishing marks it done on the calendar)
-   instead of opening the workout list. Several plans on one day: the
-   earliest-added comes first, with "+N more"; tapping the card opens that
-   day in the calendar to pick another. */
-function showNextUp(next, plannedThatDay, today) {
-    const card = document.getElementById("home-next-card");
-    const when = document.getElementById("home-next-when");
-    if (!next) {
-        document.getElementById("home-next-name").textContent = "–";
-        when.textContent = "Nothing planned";
+/* An open workout's line: "6 sets logged · started 18 min ago" ("Nothing
+   logged yet" before the first set). The sets come from the server, so
+   the line fills in a moment after the card. */
+async function showLiveDetails(live) {
+    const startedAt = getWorkoutStartedAt(live.id);
+    const started = startedAt ? ` · started ${agoText(startedAt)}` : "";
+    const sub = document.getElementById("home-card-sub");
+    if (sub) sub.textContent = "Nothing logged yet" + started;
+    if (state.currentSessionId === null) return;
+    const sessionId = state.currentSessionId;
+    let sets;
+    try {
+        sets = await fetchSessionSets(sessionId);
+    } catch (e) {
         return;
     }
-    document.getElementById("home-next-name").textContent = workoutName(next.workoutId);
-    const more = plannedThatDay - 1;
-    when.textContent = relativeDay(next.date, today) + (more > 0 ? ` · +${more} more` : "");
-    card.classList.add("tappable");
-    card.setAttribute("role", "button");
-    card.tabIndex = 0;
-    card.onclick = function() { navigateToCalendarDay(next.date); };
-    card.onkeydown = function(e) { if (e.key === "Enter") card.onclick(); };
+    const now = document.getElementById("home-card-sub");
+    if (!now || state.currentSessionId !== sessionId || selected !== localIso(new Date())) return;
+    now.textContent = (sets.length ? `${setCount(sets.length)} logged` : "Nothing logged yet") + started;
+}
 
-    // An open workout keeps the button on Resume. Same rule as the
-    // calendar's Start: the workout must have exercises.
-    const workout = findWorkout(next.workoutId);
-    if (liveWorkout() || next.date !== today || !workout || !(workout.exerciseCount > 0)) return;
-    const startBtn = document.getElementById("home-start-btn");
-    startBtn.textContent = `Start ${workout.name}`;
-    startBtn.onclick = function() {
-        startWorkout(workout.id, {
-            button: startBtn,
-            schedule: next,
-            onComplete: function() { setActiveTab("home"); }
-        });
-    };
+// "just now", "18 min ago", "1 h 5 min ago".
+function agoText(ms) {
+    const min = Math.max(0, Math.floor((Date.now() - ms) / 60000));
+    if (min < 1) return "just now";
+    return `${duration(min * 60)} ago`;
+}
+
+// "Today" / "Yesterday" / "Tomorrow", else the weekday ("Thursday"); the
+// full date is by the greeting.
+function cardTitle(yyyyMmDd, todayIso) {
+    const days = daysBetween(todayIso, yyyyMmDd);
+    if (days === 0) return "Today";
+    if (days === -1) return "Yesterday";
+    if (days === 1) return "Tomorrow";
+    const [y, m, d] = yyyyMmDd.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "long" });
+}
+
+// "14 sets · 52 min"; the length only when the session has one.
+function sessionStats(one) {
+    return setCount(one.sets) + (one.durationSeconds ? ` · ${duration(one.durationSeconds)}` : "");
+}
+
+function setCount(n) {
+    return `${n} ${n === 1 ? "set" : "sets"}`;
+}
+
+// "52 min", "1 h 12 min", "2 h".
+function duration(seconds) {
+    const min = Math.max(1, Math.round(seconds / 60));
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    return min % 60 ? `${h} h ${min % 60} min` : `${h} h`;
+}
+
+// "5 exercises"; "No exercises yet" for an empty workout.
+function exerciseCount(workoutId) {
+    const workout = findWorkout(workoutId);
+    const n = workout ? workout.exerciseCount : null;
+    if (n === null || n === undefined) return "";
+    return n === 0 ? "No exercises yet" : `${n} ${n === 1 ? "exercise" : "exercises"}`;
+}
+
+// " · +1 more ›", opening the day in the calendar to pick another.
+function moreLink(more) {
+    return more > 0 ? ` · <button type="button" class="home-card-more" data-action="calendar">+${more} more &#8250;</button>` : "";
+}
+
+function sessionData(one) {
+    return `data-workout="${one.workoutId}" data-session="${one.sessionId}" data-date="${selected}"`;
+}
+
+// Names are the user's own text.
+function esc(text) {
+    return String(text).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 }
 
 function workoutName(workoutId) {

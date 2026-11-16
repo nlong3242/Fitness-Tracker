@@ -207,6 +207,13 @@
     color: var(--text-primary);
 }
 
+/* Skipped (like the calendar's grey): dashed, muted. */
+.home-day.skipped .home-day-box {
+    border-style: dashed;
+    border-color: var(--text-muted);
+    background-color: var(--surface-sunk);
+}
+
 /* Done: green, keeping its number, with a small square tick badge. */
 .home-day.done .home-day-box {
     border-color: #5E8A50;
@@ -307,23 +314,214 @@
     }
 }
 
-.home-cta {
-    width: 100%;
-    padding: 16px;
-    font-size: 1.1em;
-    margin-bottom: 20px;
-    /* "Start <workout>" when one is planned today; long names cut off. */
+/* --- The selected day's card: one height whatever it shows, the button
+   at the bottom --- */
+.home-card {
+    min-height: 168px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 14px;
+    padding: 12px;
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 4px;
+    box-shadow: var(--panel-shadow);
+    color: var(--text-primary);
+}
+
+.home-card-head {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.home-card-icon {
+    height: 14px;
+    width: auto;
+}
+
+.home-card-name {
+    font-size: 1.7em;
+    line-height: 1;
+    margin-top: 8px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Resume: the live light sits before the name. */
-.home-cta.live::before {
+.home-card.muted .home-card-name {
+    color: var(--text-muted);
+}
+
+.home-card-sub {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin: 4px 0 10px;
+    white-space: nowrap;
+}
+
+.home-card-sub b {
+    font-weight: 400;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-card-btn {
+    width: 100%;
+    margin-top: auto;
+    padding: 12px;
+    font-size: 1.1em;
+    /* "Start <workout>"; long names cut off. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-card-btn.secondary {
+    background-color: var(--surface);
+}
+
+/* Resume: green, the live light before the name. */
+.home-card-btn.live {
+    background-color: var(--action);
+}
+
+.home-card-btn.live::before {
     content: "";
     display: inline-block;
     margin-right: 12px;
     vertical-align: 1px;
+}
+
+/* Inline buttons inside the small line: "+1 more ›" and "✓ … done
+   earlier ›" — text, not boxes. */
+.home-card-more,
+.home-card-done {
+    padding: 0;
+    margin: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    font: inherit;
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.home-card-more {
+    margin-left: 4px;
+    color: var(--accent-pink-deep);
+}
+
+.home-card-done {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    color: var(--action-text);
+}
+
+.home-card-done span:first-of-type {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-card-done .home-check {
+    flex: 0 0 auto;
+    width: 11px;
+    height: 9px;
+}
+
+.home-card-more:active,
+.home-card-done:active,
+.home-card-line:active {
+    transform: none;
+    box-shadow: none;
+    opacity: 0.7;
+}
+
+/* Two or more done: a tappable line each. */
+.home-card-lines {
+    margin-top: 8px;
+}
+
+.home-card-line {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 2px;
+    background: none;
+    border: none;
+    border-bottom: 2px dashed var(--frame-soft);
+    border-radius: 0;
+    box-shadow: none;
+    font-weight: 400;
+    text-align: left;
+    color: var(--text-primary);
+}
+
+.home-card-line:last-child {
+    border-bottom: none;
+}
+
+.home-card-line-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 1.25em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-card-stats {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.home-chevron {
+    font-size: 1.3em;
+    line-height: 1;
+    color: var(--text-muted);
+}
+
+.home-card-done .home-chevron {
+    font-size: 1.1em;
+    color: inherit;
+}
+
+@media (hover: hover) {
+    .home-card-more:hover,
+    .home-card-done:hover,
+    .home-card-line:hover {
+        background: none;
+        text-decoration: underline;
+    }
+
+    .home-card-btn.secondary:hover {
+        background-color: var(--surface-hover);
+    }
+
+    .home-card-btn.live:hover {
+        background-color: var(--action-hover);
+    }
+}
+
+.home-tile-badge.skipped {
+    background-color: var(--text-muted);
+    color: #ffffff;
+    border-color: var(--frame);
+}
+
+.home-tile-badge.planned {
+    background-color: var(--accent-pink-light);
+    color: var(--text-primary);
+    border-color: var(--accent-pink-deep);
 }
 
 /* Bodyweight + Steps tiles — two square panels side by side at every

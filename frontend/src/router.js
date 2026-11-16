@@ -26,7 +26,7 @@ import { renderExerciseEditPage } from "./views/exerciseEdit.js";
      #/workouts                              #/workouts/12
      #/workouts/12/sessions                  #/workouts/12/sessions/345?date=2026-10-24
      #/workouts/12/sessions/345/edit?date=2026-10-24&exercise=7  (editing a finished workout)
-       either session route + &back=exercises/7/history: opened from that History tab
+       either session route + &back=exercises/7/history: opened from that History tab (&back=home: from Home)
      #/workouts/12/exercises/7               #/workouts/12/exercises/7/history (/edit)
      #/calendar/2026-10                      #/calendar/2026-10-25
      #/calendar/2026-10-25/sessions/345?workout=12
@@ -87,7 +87,7 @@ export async function restoreRoute() {
 
 const MONTH = /^\d{4}-\d{2}$/;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const BACK_TO_HISTORY = /^(exercises|workouts\/\d+\/exercises)\/\d+\/history$/;
+const BACK_TO_HISTORY = /^(home|(exercises|workouts\/\d+\/exercises)\/\d+\/history)$/;
 
 function id(s) {
     return /^\d+$/.test(s || "") ? Number(s) : null;
@@ -135,9 +135,9 @@ async function openWorkouts(parts, params) {
         await setActiveTab("workouts");
         return true;
     }
-    // Opened from an exercise's History tab: "back" is that tab's route.
+    // Opened from an exercise's History tab or Home: "back" is that page's route.
     const back = BACK_TO_HISTORY.test(params.get("back") || "") ? params.get("back") : null;
-    highlightTab(back && back.startsWith("exercises") ? "exercises" : "workouts");
+    highlightTab(back === "home" ? "home" : back && back.startsWith("exercises") ? "exercises" : "workouts");
     if (parts[2] === "sessions") {
         const sessionId = id(parts[3]);
         const date = params.get("date");

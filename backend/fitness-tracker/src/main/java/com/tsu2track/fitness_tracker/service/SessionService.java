@@ -142,11 +142,13 @@ public class SessionService {
        sessions: that day's finished workouts, in the order they were made,
        with their set count (each side on its own, like the summary) and
        length (null without a stopwatch time). plans: that day's plans still
-       to do, saved ones first; scheduleId is null for a repeat rule's day. */
+       to do, saved ones first; scheduleId is null for a repeat rule's day.
+       skipped: the plans marked skipped that day (like the calendar, the page
+       also counts a past day's plans still to do as skipped). */
     public record DaySession(Long sessionId, Long workoutId, String workoutName, long sets, Long durationSeconds) {}
     public record DayPlan(Long scheduleId, Long workoutId, String workoutName) {}
     public record WeekDay(LocalDate date, boolean done, boolean planned,
-                          List<DaySession> sessions, List<DayPlan> plans) {}
+                          List<DaySession> sessions, List<DayPlan> plans, List<DayPlan> skipped) {}
 
     public List<WeekDay> weekDays(LocalDate weekStart) {
         LocalDate weekEnd = weekStart.plusDays(6);
@@ -158,16 +160,20 @@ public class SessionService {
                 countSets(session), session.getDurationSeconds()));
         }
         Map<LocalDate, List<DayPlan>> plans = new HashMap<>();
+        Map<LocalDate, List<DayPlan>> skipped = new HashMap<>();
         for (ScheduledWorkout plan : calendarPlans.between(weekStart, weekEnd)) {
-            if (plan.getStatus() != ScheduleStatus.PLANNED) continue;
-            plans.computeIfAbsent(plan.getDate(), d -> new ArrayList<>())
+            Map<LocalDate, List<DayPlan>> into = plan.getStatus() == ScheduleStatus.PLANNED ? plans
+                : plan.getStatus() == ScheduleStatus.SKIPPED ? skipped : null;
+            if (into == null) continue;
+            into.computeIfAbsent(plan.getDate(), d -> new ArrayList<>())
                 .add(new DayPlan(plan.getId(), plan.getWorkoutId(), plan.getWorkout().getName()));
         }
         List<WeekDay> days = new ArrayList<>();
         for (LocalDate day = weekStart; !day.isAfter(weekEnd); day = day.plusDays(1)) {
             List<DaySession> done = sessions.getOrDefault(day, List.of());
             List<DayPlan> planned = plans.getOrDefault(day, List.of());
-            days.add(new WeekDay(day, !done.isEmpty(), !planned.isEmpty(), done, planned));
+            days.add(new WeekDay(day, !done.isEmpty(), !planned.isEmpty(), done, planned,
+                skipped.getOrDefault(day, List.of())));
         }
         return days;
     }

@@ -46,7 +46,7 @@ export async function endIdleWorkout() {
 
     // Don't leave the user on a live workout that no longer exists.
     if (document.getElementById("exercise-cards") !== null) await setActiveTab("home");
-    else if (document.getElementById("home-week-count") !== null) renderHomePage(); // stats changed
+    else if (document.getElementById("home-days") !== null) renderHomePage(); // stats changed
     else updateLiveIndicator();
 
     const workout = findWorkout(workoutId);

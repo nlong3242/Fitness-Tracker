@@ -264,7 +264,8 @@ export function fetchOverview(weekStart, today) {
 // One week's days for Home's week strip, Monday (weekStart, local
 // YYYY-MM-DD) to Sunday: [{ date, done, planned, sessions: [{ sessionId,
 //   workoutId, workoutName, sets, durationSeconds }], plans: [{ scheduleId,
-//   workoutId, workoutName }] }]. The overview carries this week's too.
+//   workoutId, workoutName }], skipped: [same, marked skipped] }]. The
+//   overview carries this week's too.
 export function fetchWeek(weekStart) {
     return requestJson("GET", `/sessions/week?weekStart=${weekStart}`);
 }

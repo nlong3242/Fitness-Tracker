@@ -83,10 +83,10 @@ li button {
 }
 
 /* Live light: a round green light that keeps glowing while a workout is
-   open (bottom-nav .nav-live-dot, and ::before on the home Resume button).
+   open (bottom-nav .nav-live-dot, and ::before on the Home card's Resume button).
    Under reduced motion it stays lit without pulsing. */
 .nav-live-dot,
-.home-cta.live::before {
+.home-card-btn.live::before {
     width: 9px;
     height: 9px;
     border-radius: 50%;
@@ -108,7 +108,7 @@ li button {
 
 @media (prefers-reduced-motion: reduce) {
     .nav-live-dot,
-    .home-cta.live::before {
+    .home-card-btn.live::before {
         animation: none;
     }
 }

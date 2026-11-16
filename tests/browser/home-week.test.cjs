@@ -65,7 +65,9 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
     check("today is marked and selected", /\btoday\b/.test(todayDay.cls) && /\bselected\b/.test(todayDay.cls), todayDay.cls);
     check("only one day is selected", s.days.filter(d => /\bselected\b/.test(d.cls)).length === 1);
     check("Today is faded on today", s.todayHere);
-    check("the plan this week shows dashed", /\bplanned\b/.test(s.days.find(d => d.date === plannedDay).cls));
+    // (Run on a Sunday the plan falls on Saturday, already past: skipped.)
+    check("the plan this week shows dashed",
+        new RegExp(plannedDay < today ? "\\bskipped\\b" : "\\bplanned\\b").test(s.days.find(d => d.date === plannedDay).cls));
     check("the date by the greeting is today's",
         s.selDate === new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).replace(",", ""), s.selDate);
     check("today is done: green with a ✓, number kept", /\bdone\b/.test(todayDay.cls) && todayDay.badge

@@ -110,7 +110,7 @@ class HomeOverviewWebTest {
         sets(core, bench, 1);
         session(MON, false);                        // unfinished: not listed
         plan(MON.plusDays(3), null);                // Thu: a saved plan
-        plan(MON.plusDays(4), "SKIPPED");           // Fri: skipped, not listed
+        plan(MON.plusDays(4), "SKIPPED");           // Fri: skipped, listed apart
         repeat(SATURDAYS);                          // Sat: a repeat rule's day
 
         for (ResultActions week : List.of(overview(), mvc.perform(get("/sessions/week")
@@ -131,7 +131,11 @@ class HomeOverviewWebTest {
                 jsonPath(root + "[3].plans", hasSize(1)).match(result);
                 jsonPath(root + "[3].plans[0].workoutName").value("Push Day").match(result);
                 jsonPath(root + "[3].plans[0].scheduleId").isNumber().match(result);
+                jsonPath(root + "[3].skipped", hasSize(0)).match(result);
                 jsonPath(root + "[4].plans", hasSize(0)).match(result);
+                jsonPath(root + "[4].skipped", hasSize(1)).match(result);
+                jsonPath(root + "[4].skipped[0].workoutName").value("Push Day").match(result);
+                jsonPath(root + "[4].skipped[0].scheduleId").isNumber().match(result);
                 jsonPath(root + "[5].plans[0].workoutId").value(workout.getId()).match(result);
                 jsonPath(root + "[5].plans[0].scheduleId").isEmpty().match(result);
                 jsonPath(root + "[6].sessions", hasSize(0)).match(result);

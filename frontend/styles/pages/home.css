@@ -721,64 +721,111 @@
     pointer-events: none;
 }
 
-/* Four small stat cards in a 2×2 grid at every width, kept short so the
-   home page fits on one phone screen without scrolling. */
-.home-stat-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.home-stat {
-    min-width: 0;   /* lets long workout names ellipsize instead of widening the column */
+/* --- Latest PR and Last session: one tappable row each --- */
+.home-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
     background-color: var(--surface);
     border: 2px solid var(--frame);
     border-radius: 4px;
     box-shadow: var(--panel-shadow);
-    padding: 10px 12px;
-}
-
-/* Label on top and nearly body size, so a glance says what the number is. */
-.home-stat-label {
-    color: var(--text-muted);
-    font-size: 1.05em;
-    line-height: 1.1;
-    margin-bottom: 4px;
-}
-
-.home-stat-value {
-    font-size: 1.45em;
-    font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-weight: 400;
+    text-align: left;
 }
 
-.home-stat-sub {
+/* The pixel icon on its own, in a fixed column so both rows' text lines up. */
+.home-row-badge {
+    flex: 0 0 auto;
+    width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-row-icon {
+    height: 24px;
+    width: auto;
+}
+
+.home-row-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.home-row-label {
+    font-size: 0.75em;
     color: var(--text-muted);
-    font-size: 0.85em;
-    line-height: 1.1;
-    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+/* The value: the name gives way with "…", the numbers (or date) never do. */
+.home-row-value {
+    display: flex;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.home-stat-sub:empty {
+.home-row-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.home-row-nums {
+    flex: 0 0 auto;
+    white-space: pre;
+}
+
+.home-row-stats {
+    flex: 0 0 auto;
+    font-size: 0.85em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Nothing yet: muted words, no ›, not a button to press. */
+.home-row.none .home-row-value {
+    color: var(--text-muted);
+}
+
+.home-row.none .home-chevron {
     display: none;
 }
 
-/* Next up opens that day in the calendar; the Bodyweight tile opens its
-   history page (but not when the press is on its own button or input). */
-.home-stat.tappable,
+.home-row:disabled {
+    background-color: var(--surface);
+    color: var(--text-primary);
+    opacity: 1;
+    cursor: default;
+}
+
+@media (hover: hover) {
+    .home-row:hover:not(:disabled) {
+        background-color: var(--surface-hover);
+    }
+
+    .home-row:disabled:hover {
+        background-color: var(--surface);
+    }
+}
+
+/* The Bodyweight tile opens its history page (but not when the press is
+   on its own button or input). */
 .home-tile.tappable {
     cursor: pointer;
 }
 
-.home-stat.tappable:active,
 .home-tile.tappable:active:not(:has(button:active, input:not([hidden]))) {
     transform: translateY(2px);
     box-shadow:

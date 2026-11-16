@@ -1,5 +1,5 @@
-import { setActiveTab, clearNavGuard } from "../components/bottomNav.js";
-import { fetchOverview, fetchWeek, fetchBodyWeightSummary, logBodyWeight, fetchSessionSets } from "../api.js";
+import { setActiveTab, clearNavGuard, highlightTab } from "../components/bottomNav.js";
+import { fetchOverview, fetchWeek, fetchBodyWeightSummary, logBodyWeight, fetchSessionSets, fetchExercise } from "../api.js";
 import { state, findWorkout } from "../state.js";
 import { startWorkout } from "./activeWorkout.js";
 import { liveWorkout } from "../components/liveWorkout.js";
@@ -8,6 +8,8 @@ import { renderSettingsPage } from "./settings.js";
 import { navigateToCalendarDay } from "./calendar.js";
 import { viewSessionSummary, sessionSummaryRoute } from "./summary.js";
 import { getWorkoutStartedAt } from "../session.js";
+import { renderExercisePage } from "./exercisePage.js";
+import { formatDuration } from "../utils/format.js";
 import { pixelArt } from "../utils/pixelArt.js";
 import { setRoute } from "../router.js";
 
@@ -98,6 +100,42 @@ const DUMBBELL = pixelArt([
     ".oo........oo.",
 ], { o: "#3B2723", f: "#E8B4A4" }, "home-card-icon");
 
+// Latest PR: rose cup with handles, a highlight, stem and base.
+const TROPHY = pixelArt([
+    "..oooooooooo..",
+    "ooooffffffoooo",
+    "o..offffffo..o",
+    "o..offwfffo..o",
+    ".o.offwfffo.o.",
+    "..ooffffffoo..",
+    "....offffo....",
+    ".....offo.....",
+    ".....offo.....",
+    "...oooooooo...",
+    "...offffffo...",
+    "...oooooooo...",
+], { o: "#3B2723", f: "#E8B4A4", w: "#FFFDF8" }, "home-row-icon");
+
+// Last session: a calendar page, rose header with two rings, sage tick.
+const CAL_DONE = pixelArt(grid(14, 12, set => {
+    for (let x = 0; x < 14; x++) { set(x, 1, "o"); set(x, 4, "o"); set(x, 11, "o"); }
+    for (let y = 1; y < 12; y++) { set(0, y, "o"); set(13, y, "o"); }
+    for (let y = 2; y <= 3; y++) for (let x = 1; x <= 12; x++) set(x, y, "r");
+    for (let y = 5; y <= 10; y++) for (let x = 1; x <= 12; x++) set(x, y, "c");
+    for (const x of [3, 10]) { set(x, 0, "o"); set(x, 2, "o"); }
+    for (const [x, y] of [[3, 7], [4, 8], [5, 9], [6, 8], [7, 7], [8, 6], [9, 5]]) {
+        set(x, y, "g");
+        if (y + 1 <= 10) set(x, y + 1, "g");
+    }
+}), { o: "#3B2723", r: "#E8B4A4", c: "#FFFDF8", g: "#3F6E38" }, "home-row-icon");
+
+// A w × h pixel grid painted by set(x, y, colourKey), as pixelArt rows.
+function grid(w, h, paint) {
+    const g = Array.from({ length: h }, () => Array(w).fill("."));
+    paint((x, y, c) => { g[y][x] = c; });
+    return g.map(row => row.join(""));
+}
+
 // The tick on a done day's badge.
 const CHECK = `<svg class="home-check" viewBox="0 0 10 8" aria-hidden="true"><path d="M1 4l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>`;
 
@@ -163,13 +201,25 @@ export function renderHomePage() {
             </div>
         </div>
 
-        <div class="home-stat-row">
-            <div class="home-stat">
-                <div class="home-stat-label">Last session</div>
-                <div class="home-stat-value" id="home-last-name">–</div>
-                <div class="home-stat-sub" id="home-last-when"></div>
-            </div>
-        </div>
+        <!-- Latest PR → that exercise's History tab; Last session → its
+             summary. Filled by loadStats(); no › until there's something. -->
+        <button type="button" class="home-row none" id="home-pr-row" disabled>
+            <span class="home-row-badge">${TROPHY}</span>
+            <span class="home-row-text">
+                <span class="home-row-label" id="home-pr-label">Latest PR</span>
+                <span class="home-row-value" id="home-pr-value">–</span>
+            </span>
+            <span class="home-chevron" aria-hidden="true">&#8250;</span>
+        </button>
+        <button type="button" class="home-row none" id="home-last-row" disabled>
+            <span class="home-row-badge">${CAL_DONE}</span>
+            <span class="home-row-text">
+                <span class="home-row-label">Last session</span>
+                <span class="home-row-value" id="home-last-value">–</span>
+            </span>
+            <span class="home-row-stats" id="home-last-stats"></span>
+            <span class="home-chevron" aria-hidden="true">&#8250;</span>
+        </button>
     `;
 
     document.getElementById("home-settings-btn").onclick = function() { renderSettingsPage(); };
@@ -481,9 +531,94 @@ async function loadStats() {
     if (week.start === thisMonday() && !week.days) week.days = thisWeekDays;
     renderWeek();
 
-    const last = overview.lastSession;
-    document.getElementById("home-last-name").textContent = last ? workoutName(last.workoutId) : "–";
-    document.getElementById("home-last-when").textContent = last ? relativeDay(last.date, today) : "None yet";
+    showLatestPr(overview.latestPr || null);
+    showLastSession(overview.lastSession, overview.lastSessionSets || 0);
+}
+
+/* --- Latest PR and Last session rows ---
+   Latest PR: the newest ★ on any exercise's History tab, its date by the
+   label so the value gets the whole line: "Bench Press · 85 kg × 5", or
+   for a one-sided exercise each side that set it, "L 20 kg × 8 · R 18 kg
+   × 8". Only the name gives way (…); the numbers always show. */
+function showLatestPr(pr) {
+    const row = document.getElementById("home-pr-row");
+    if (!row) return;
+    if (!pr) {
+        setRow(row, false);
+        document.getElementById("home-pr-label").textContent = "Latest PR";
+        document.getElementById("home-pr-value").textContent = "None yet: log a workout to set one";
+        return;
+    }
+    const sides = pr.sides.map(function(side) {
+        const one = prText(side, pr.logType);
+        return pr.sides.length > 1 || side.side ? `${side.side === "LEFT" ? "L" : "R"} ${one}` : one;
+    }).join(" · ");
+    document.getElementById("home-pr-label").textContent = `Latest PR · ${dayHeading(pr.date)}`;
+    document.getElementById("home-pr-value").innerHTML =
+        `<span class="home-row-name">${esc(pr.exerciseName)}</span><span class="home-row-nums"> · ${sides}</span>`;
+    row.setAttribute("aria-label", `Latest PR, ${dayHeading(pr.date)}: ${pr.exerciseName}, ${sides}. Open its history`);
+    setRow(row, true, function() { openPrHistory(pr.exerciseId); });
+}
+
+// The best set, as the History tab shows it: "85 kg × 5" (0 kg: "12
+// reps"), "15 reps", "1:30", "5.2 km" (no distance: the time).
+function prText(set, logType) {
+    switch (logType) {
+        case "REPS": return `${set.reps} reps`;
+        case "TIME": return formatDuration(set.durationSeconds);
+        case "DISTANCE_TIME": return set.distanceKm != null ? `${decimal(set.distanceKm)} km` : formatDuration(set.durationSeconds);
+        default: return set.weight > 0 ? `${decimal(set.weight)} kg × ${set.reps}` : `${set.reps} reps`;
+    }
+}
+
+function decimal(n) {
+    return String(Math.round(n * 100) / 100);
+}
+
+async function openPrHistory(exerciseId) {
+    let exercise;
+    try {
+        exercise = await fetchExercise(exerciseId);
+    } catch (e) {
+        return;   // offline or gone: stay on Home
+    }
+    highlightTab("exercises");
+    renderExercisePage(exercise, {
+        routeFor: id => `#/exercises/${id}`,
+        tab: "history",
+        onBack: function() { setActiveTab("home"); }
+    });
+}
+
+/* Last session: "Pull Day · Sat 15 Nov", then "14 sets · 52 min" (no
+   length without a stopwatch time) → its summary, Back to Home. */
+function showLastSession(last, sets) {
+    const row = document.getElementById("home-last-row");
+    if (!row) return;
+    const value = document.getElementById("home-last-value");
+    const stats = document.getElementById("home-last-stats");
+    if (!last) {
+        setRow(row, false);
+        value.textContent = "No workouts yet";
+        stats.textContent = "";
+        return;
+    }
+    const name = workoutName(last.workoutId);
+    value.innerHTML = `<span class="home-row-name">${esc(name)}</span><span class="home-row-nums"> · ${dayHeading(last.date)}</span>`;
+    stats.textContent = setCount(sets) + (last.durationSeconds ? ` · ${duration(last.durationSeconds)}` : "");
+    row.setAttribute("aria-label", `Last session: ${name}, ${dayHeading(last.date)}, ${stats.textContent}. Open its summary`);
+    setRow(row, true, function() {
+        viewSessionSummary(last.workoutId, last.id, last.date, function() { setActiveTab("home"); },
+            `${sessionSummaryRoute(last.workoutId, last.id, last.date)}&back=home`);
+    });
+}
+
+// A row with something to open is a live button with a ›; without, muted.
+function setRow(row, opens, onOpen) {
+    row.classList.toggle("none", !opens);
+    row.disabled = !opens;
+    row.onclick = opens ? onOpen : null;
+    if (!opens) row.removeAttribute("aria-label");
 }
 
 /* --- The selected day's card ---
@@ -714,18 +849,6 @@ function esc(text) {
 function workoutName(workoutId) {
     const workout = findWorkout(workoutId);
     return workout ? workout.name : "Workout";
-}
-
-// "Today" / "Tomorrow" / "Yesterday", else "Thu 29 Oct" ahead or "25 Oct" back.
-function relativeDay(yyyyMmDd, todayIso) {
-    const days = daysBetween(todayIso, yyyyMmDd);
-    if (days === 0) return "Today";
-    if (days === 1) return "Tomorrow";
-    if (days === -1) return "Yesterday";
-    if (days < 0) return shortDate(yyyyMmDd);
-    const [y, m, d] = yyyyMmDd.split("-").map(Number);
-    const weekday = new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short" });
-    return `${weekday} ${shortDate(yyyyMmDd)}`;
 }
 
 // Steps tile: today's progress bar, today's count, and a 7-day bar chart

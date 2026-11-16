@@ -21,18 +21,7 @@ run({ prefix: "homecard", workoutName: "Card Day", exercises: 1 }, "#/home", asy
     const plan = (date, workoutId) => t.api("POST", "/scheduled-workouts", { date, workoutId });
 
     // Reload Home so the app also has the workouts made through the API.
-    async function openHome() {
-        const overview = page.waitForResponse(r => r.url().includes("/sessions/overview"));
-        await page.goto(page.url().split("#")[0] + "#/home", { waitUntil: "domcontentloaded" });
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await overview;
-        // (the reload may still be swapping the page in: no element yet)
-        await page.waitForFunction(() => {
-            const foot = document.getElementById("home-week-foot");
-            return foot && foot.textContent.trim() !== "";
-        });
-        await wait(250);
-    }
+    const openHome = () => t.openHome();
     const card = () => page.evaluate(() => {
         const el = document.getElementById("home-day-card");
         const q = s => { const n = el.querySelector(s); return n ? n.textContent.replace(/\s+/g, " ").trim() : null; };

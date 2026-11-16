@@ -3,6 +3,11 @@ import { renderWorkouts } from "../views/workouts.js";
 import { renderCalendarPage } from "../views/calendar.js";
 import { renderExerciseLibrary } from "../views/library.js";
 
+/* The tab bar's look, one word: "glass" (a floating frosted pill, icons
+   only) or "pixel" (a floating pixel-framed bar with labels). Both are in
+   bottom-nav.css; the space pages keep clear follows (variables.css). */
+const NAV_STYLE = "glass";
+
 const TABS = [
     {
         name: "home",
@@ -19,14 +24,14 @@ const TABS = [
         name: "workouts",
         label: "Workouts",
         render: renderWorkouts,
+        // A workout is a plan: a clipboard with a list.
         icon: `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 6v12"/>
-                <path d="M18 6v12"/>
-                <path d="M3 9v6"/>
-                <path d="M21 9v6"/>
-                <path d="M6 12h12"/>
+                <rect x="5" y="4" width="14" height="17" rx="1"/>
+                <path d="M9 2h6v4H9z"/>
+                <path d="M8.5 11h7"/>
+                <path d="M8.5 15h7"/>
             </svg>`
     },
     {
@@ -46,12 +51,15 @@ const TABS = [
         name: "exercises",
         label: "Exercises",
         render: function() { renderExerciseLibrary(); },
+        // An exercise is one movement: a chunky dumbbell.
         icon: `
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="4" y="5" width="16" height="3" rx="0.5"/>
-                <rect x="4" y="11" width="16" height="3" rx="0.5"/>
-                <rect x="4" y="17" width="16" height="3" rx="0.5"/>
+                <path d="M9 12h6"/>
+                <rect x="5" y="7" width="4" height="10" rx="1"/>
+                <rect x="15" y="7" width="4" height="10" rx="1"/>
+                <path d="M3 10v4"/>
+                <path d="M21 10v4"/>
             </svg>`
     }
 ];
@@ -89,12 +97,14 @@ export function setNavVisible(visible) {
 
 export function renderBottomNav() {
     const nav = document.getElementById("bottom-nav");
-    nav.innerHTML = TABS.map(t => `
-        <button class="nav-tab" data-tab="${t.name}">
+    document.body.classList.add(`nav-${NAV_STYLE}`);
+    // The label stays for screen readers when the look shows icons only.
+    nav.innerHTML = `<div class="nav-bar">${TABS.map(t => `
+        <button class="nav-tab" data-tab="${t.name}" aria-label="${t.label}">
             <span class="nav-icon">${t.icon}${t.name === "home" ? '<span class="nav-live-dot" aria-hidden="true"></span>' : ""}</span>
             <span class="nav-label">${t.label}</span>
         </button>
-    `).join("");
+    `).join("")}</div>`;
     for (const tab of TABS) {
         nav.querySelector(`[data-tab="${tab.name}"]`).onclick = function() {
             setActiveTab(tab.name);

@@ -12,13 +12,7 @@ run({ prefix: "homerows", workoutName: "Row Day", exercises: 1 }, "#/home", asyn
     const [bench] = await t.api("GET", `/workouts/${workout.id}/exercises`);
     const heading = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }).replace(",", "");
 
-    async function openHome() {
-        const overview = page.waitForResponse(r => r.url().includes("/sessions/overview"));
-        await page.goto(page.url().split("#")[0] + "#/home", { waitUntil: "domcontentloaded" });
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await overview;
-        await wait(300);
-    }
+    const openHome = () => t.openHome();
     const rows = () => page.evaluate(() => {
         const one = id => {
             const row = document.getElementById(id);

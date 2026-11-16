@@ -14,13 +14,7 @@ run({ prefix: "hometiles", workoutName: "Tile Day", exercises: 1 }, "#/home", as
     const { page, check } = t;
     const today = new Date().toLocaleDateString("en-CA");
 
-    async function openHome() {
-        const summary = page.waitForResponse(r => r.url().includes("/bodyweight/summary"));
-        await page.goto(page.url().split("#")[0] + "#/home", { waitUntil: "domcontentloaded" });
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await summary;
-        await wait(300);
-    }
+    const openHome = () => t.openHome();
     const tiles = () => page.evaluate(() => {
         const box = el => { const r = el.getBoundingClientRect(); return { h: Math.round(r.height), w: Math.round(r.width), top: Math.round(r.top) }; };
         const shown = id => { const el = document.getElementById(id); return !!el && !el.hidden; };

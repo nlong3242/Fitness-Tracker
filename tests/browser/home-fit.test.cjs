@@ -25,13 +25,7 @@ run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async
         setTimeout(() => req.continue(url !== req.url() ? { url } : undefined).catch(() => {}), overviewDelay);
         return true;
     });
-    async function openHome(waitForData = true) {
-        await page.goto(page.url().split("#")[0] + "#/home", { waitUntil: "domcontentloaded" });
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await page.waitForSelector("#home-day-card");
-        if (waitForData) await page.waitForFunction(() => document.getElementById("home-week-foot").textContent.trim() !== "");
-        await wait(300);
-    }
+    const openHome = (data = true) => t.openHome({ data });
     const layout = () => page.evaluate(() => {
         const box = s => { const r = document.querySelector(s).getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; };
         return {
@@ -52,14 +46,14 @@ run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async
     await t.shot("home-fit-01-filled");
 
     // 2. A slow overview: nothing moves when it lands
-    overviewDelay = 1500;
+    overviewDelay = 4000;
     await openHome(false);
     const early = await layout();
     const card = await page.$eval("#home-day-card .home-card-name", n => n.textContent);
     check("while loading: placeholders", card === "–", card);
     check("while loading: Start waits", await page.$eval("#home-day-card .home-card-btn", b => b.disabled));
     await t.shot("home-fit-02-loading");
-    await page.waitForFunction(() => document.getElementById("home-week-foot").textContent.trim() !== "", { timeout: 5000 });
+    await page.waitForFunction(() => document.getElementById("home-week-foot").textContent.trim() !== "", { timeout: 15000 });
     await wait(200);
     const late = await layout();
     const moved = Object.keys(early).filter(k => early[k][0] !== late[k][0] || early[k][1] !== late[k][1]);

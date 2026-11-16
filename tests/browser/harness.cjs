@@ -163,6 +163,28 @@ function run(seed, hash, body) {
                     }
                 }
             },
+            /* Home, freshly loaded (so the app also has workouts made through
+               the API). Waits for the reloaded page's own data: the week line
+               and the Bodyweight tile filled. Waiting on the requests instead
+               can catch the answer meant for the page before the reload.
+               data: false returns as soon as Home is drawn. */
+            async openHome({ data = true } = {}) {
+                await page.goto(page.url().split("#")[0] + "#/home", { waitUntil: "domcontentloaded" });
+                await page.reload({ waitUntil: "domcontentloaded" });
+                await page.waitForSelector("#home-day-card");
+                if (data) {
+                    await page.waitForFunction(() => {
+                        const foot = document.getElementById("home-week-foot");
+                        const badge = document.getElementById("home-weight-badge");
+                        const note = document.getElementById("home-weight-note");
+                        return foot && foot.textContent.trim() !== "" && badge && (!badge.hidden || !note.hidden);
+                    }, { timeout: 15000 });
+                }
+                // Sizes are only right once the pixel font is in (a busy
+                // machine can measure with the fallback font first).
+                await page.evaluate(() => document.fonts.ready);
+                await wait(250);
+            },
             // Starts (or resumes) the seeded workout from the Workouts tab.
             async startWorkout() {
                 const name = workout.name;

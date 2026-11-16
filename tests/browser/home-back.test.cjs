@@ -17,13 +17,7 @@ run({ prefix: "homeback", workoutName: "Back Day", exercises: 1 }, "#/home", asy
     await t.api("POST", `/sessions/${s.id}/sets?exerciseId=${bench.id}`, { weight: 60, reps: 5 });
     await t.api("POST", `/sessions/${s.id}/finish`, {});
 
-    async function openHome() {
-        const overview = page.waitForResponse(r => r.url().includes("/sessions/overview"));
-        await page.goto(page.url().split("#")[0] + "#/home", { waitUntil: "domcontentloaded" });
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await overview;
-        await wait(300);
-    }
+    const openHome = () => t.openHome();
     // The selected day and the week shown, once Home has its data.
     async function shown() {
         await page.waitForSelector(".home-day.selected");

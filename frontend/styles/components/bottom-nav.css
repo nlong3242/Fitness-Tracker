@@ -1,25 +1,189 @@
 /* Bottom nav — components/bottomNav.js.
-   Fixed bottom bar with 3 tabs (Home, Workouts, Exercises).
-   Rendered once at bootstrap; only the .active class on each tab cell
-   changes thereafter. Centered to a 500px max-width to match #app-content. */
+   A bar of 4 tabs (Home, Workouts, Calendar, Exercises) floating above the
+   screen's bottom edge, centred on the 500px column like #app-content.
+   Rendered once at bootstrap; only the .active class on each tab changes
+   thereafter. Its look is one class on <body> (bottomNav.js NAV_STYLE):
+   body.nav-glass, a frosted pill with icons only, or body.nav-pixel, a
+   pixel-framed bar with labels. Each look sets --nav-bar, its height,
+   which the space pages keep clear (--nav-height, variables.css) is
+   built from. */
 
 #bottom-nav {
     position: fixed;
-    bottom: 0;
     left: 0;
     right: 0;
-    max-width: 500px;
+    bottom: var(--nav-gap);
+    width: calc(100% - 2 * var(--nav-side, 24px));
+    max-width: calc(500px - 2 * var(--nav-side, 24px));
     margin: 0 auto;
-    display: flex;
-    background-color: var(--surface);
-    border-top: 3px solid var(--frame);
-    box-shadow: 0 -3px 0 var(--shadow-hard);
     z-index: 100;
+}
+
+.nav-bar {
+    display: flex;
+    box-sizing: border-box;
+    height: var(--nav-bar);
+}
+
+.nav-tab {
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-muted);
+    font-size: 0.78em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    position: relative;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+@media (hover: hover) {
+    .nav-tab:hover {
+        color: var(--text-primary);
+        background: none;
+        transform: none;
+    }
+}
+
+.nav-tab:active {
+    transform: none;
+}
+
+.nav-icon {
+    position: relative;
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+}
+
+.nav-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Glowing green pixel on the Home icon while a workout is open
+   (components/liveWorkout.js), like a "recording" light. */
+.nav-live-dot {
+    display: none;
+    position: absolute;
+    top: -4px;
+    right: -9px;
+}
+
+.nav-tab.live .nav-live-dot {
+    display: block;
+}
+
+.nav-label {
+    height: 14px;
+    line-height: 14px;
+}
+
+/* --- Glass: a frosted, see-through pill with icons only; the lit tab is a
+   softer rose pill inside it. 6 + 44 + 6 + 2 = 58px. --- */
+body.nav-glass {
+    --nav-side: 24px;
+    --nav-bar: 58px;
+    --nav-height: calc(var(--nav-bar) + var(--nav-gap) + 8px);
+}
+
+body.nav-glass .nav-bar {
+    padding: 6px;
+    background-color: rgba(251, 245, 234, 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
+    backdrop-filter: blur(16px) saturate(1.6);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 32px;
+    box-shadow: 0 10px 30px rgba(59, 39, 35, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+body.nav-glass .nav-tab {
+    padding: 0 4px;
+    border-radius: 26px;
+}
+
+body.nav-glass .nav-icon {
+    width: 24px;
+    height: 24px;
+}
+
+body.nav-glass .nav-icon svg {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Hidden on screen, still read out (each tab also has its aria-label). */
+body.nav-glass .nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+body.nav-glass .nav-tab.active {
+    color: var(--text-primary);
+    background-color: rgba(239, 196, 182, 0.55);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+@media (hover: hover) {
+    body.nav-glass .nav-tab.active:hover {
+        background-color: rgba(239, 196, 182, 0.55);
+    }
+}
+
+/* --- Pixel: our outline and hard shadow, labels shown, the lit tab a
+   pressed key. 5 + 52 + 5 + 4 = 66px. --- */
+body.nav-pixel {
+    --nav-side: 12px;
+    --nav-bar: 66px;
+    --nav-height: calc(var(--nav-bar) + var(--nav-gap) + 8px);
+}
+
+body.nav-pixel .nav-bar {
+    padding: 5px;
+    gap: 4px;
+    background-color: var(--surface);
+    border: 2px solid var(--frame);
+    border-radius: 6px;
+    box-shadow:
+        inset 0 0 0 2px var(--surface),
+        inset 0 0 0 4px var(--frame-soft),
+        0 4px 0 var(--shadow-hard);
+}
+
+body.nav-pixel .nav-tab {
+    padding: 7px 4px 6px;
+    border-radius: 3px;
+}
+
+/* Square caps and mitred joins read more "pixel" than round ones. */
+body.nav-pixel .nav-icon svg {
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+}
+
+body.nav-pixel .nav-tab.active {
+    color: var(--text-primary);
+    background-color: var(--accent-pink);
+    box-shadow: inset 0 0 0 2px var(--frame), 0 2px 0 var(--shadow-hard);
 }
 
 /* Tab bar hidden (setNavVisible(false): the live workout and pages it
    opens). Bars that sit on it via --nav-height drop to the bottom edge
-   and take over the home-indicator inset themselves. */
+   and take over the home-indicator inset themselves. (After the looks:
+   it wins over their --nav-height.) */
 body.nav-hidden {
     --nav-height: 0px;
 }
@@ -38,89 +202,3 @@ body.nav-hidden .picker-action-footer {
 body.nav-hidden #app-content:has(.picker-action-footer) {
     padding-bottom: calc(104px + env(safe-area-inset-bottom));
 }
-
-.nav-tab {
-    flex: 1;
-    background: none;
-    border: none;
-    box-shadow: none;
-    /* The home-indicator inset is padding on each tab, not on the bar, so
-       the active tab's fill runs down to the screen edge. Sizes add up to
-       --nav-height (variables.css). */
-    padding: 7px 4px var(--nav-bottom-pad) 4px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    color: var(--text-muted);
-    font-size: 0.78em;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    border-radius: 0;
-    position: relative;
-    transition: color 0.15s;
-}
-
-@media (hover: hover) {
-    .nav-tab:hover {
-        color: var(--text-primary);
-        background: none;
-        transform: none;
-    }
-}
-
-.nav-icon {
-    position: relative;
-    display: inline-flex;
-    width: 22px;
-    height: 22px;
-}
-
-/* Square caps and mitred joins read more "pixel" than the round ones the
-   SVGs ship with (CSS beats the presentation attributes). */
-.nav-icon svg {
-    width: 100%;
-    height: 100%;
-    stroke-linecap: square;
-    stroke-linejoin: miter;
-}
-
-/* Glowing green pixel on the Home icon while a workout is open
-   (components/liveWorkout.js), like a "recording" light. */
-.nav-live-dot {
-    display: none;
-    position: absolute;
-    top: -4px;
-    right: -11px;
-}
-
-.nav-tab.live .nav-live-dot {
-    display: block;
-}
-
-.nav-label {
-    height: 14px;
-    line-height: 14px;
-}
-
-/* Active tab: the whole cell fills rose, like a pressed pixel key. */
-.nav-tab.active {
-    color: var(--text-primary);
-    background-color: var(--accent-pink);
-    box-shadow: inset 2px 0 0 var(--frame), inset -2px 0 0 var(--frame);
-}
-
-.nav-tab:first-child.active {
-    box-shadow: inset -2px 0 0 var(--frame);
-}
-
-.nav-tab:last-child.active {
-    box-shadow: inset 2px 0 0 var(--frame);
-}
-
-.nav-tab:active {
-    transform: none;
-}
-

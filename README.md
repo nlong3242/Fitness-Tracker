@@ -1,6 +1,6 @@
 # Tsu2Track (Fitness-Tracker)
 
-[![Backend tests](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/backend-tests.yml/badge.svg?branch=master)](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/backend-tests.yml)
+[![Backend tests](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/backend-tests.yml/badge.svg?branch=master)](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/backend-tests.yml) [![Browser tests](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/browser-tests.yml/badge.svg?branch=master)](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/browser-tests.yml)
 
 A mobile-first workout tracker: plan workouts, log every set at the gym, and see how you're doing against last time. It runs as a web app (added to the iPhone Home Screen) on top of a Spring Boot backend, with an iOS app wrapper in progress.
 
@@ -12,7 +12,7 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 
 ## Testing
 
-380 backend tests and 33 browser test scripts. The backend tests run on GitHub Actions for every push and pull request.
+380 backend tests and 33 browser test scripts. Both run on GitHub Actions for every push and pull request.
 
 - **Service and repository tests** (`@DataJpaTest`) run the business logic and queries against an in-memory database, such as auth, bodyweight, exercise history and finishing a workout.
 - **MockMvc tests** call the REST endpoints the way the app does, checking status codes, JSON and validation. [`DataIsolationTest`](backend/fitness-tracker/src/test/java/com/tsu2track/fitness_tracker/DataIsolationTest.java) has account B try every endpoint with account A's ids, and expects "not found" each time.
@@ -133,7 +133,7 @@ Open the printed `http://<tailscale-ip>:5500` in Safari on the phone and add it 
   ./mvnw test
   ```
   They also run on GitHub Actions for every push and pull request.
-- **Browser** (33 scripts covering Home, the tab bar and Back links, starting from the calendar, set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge.
+- **Browser** (33 scripts covering Home, the tab bar and Back links, starting from the calendar, set logging, the timers, the live workout's buttons, changing exercises mid-workout, Reset, and editing a finished workout). They start their own backend on port 8091 with a throwaway database and the front end on 5591, so real data is never touched. They need Java and Chrome or Edge, and also run on GitHub Actions in headless Chrome.
   ```
   cd tests/browser
   npm install

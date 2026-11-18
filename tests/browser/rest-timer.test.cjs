@@ -106,14 +106,18 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     check("rest keeps running after closing", (await btnTime()) !== "");
 
     // 4. âˆ’ / + in 15 s steps
+    // Against the time just before, not 1:00: a slow machine (CI) can take
+    // a few seconds to get here.
+    let beforeStep = toSec(await btnTime());
     await step(15);
     await wait(300);
     left = toSec(await btnTime());
-    check("+ adds 15 s", left >= 73 && left <= 75, await btnTime());
+    check("+ adds 15 s", left >= beforeStep + 13 && left <= beforeStep + 15, await btnTime());
+    beforeStep = left;
     await step(-15);
     await wait(300);
     left = toSec(await btnTime());
-    check("âˆ’ takes 15 s off", left >= 58 && left <= 60, await btnTime());
+    check("âˆ’ takes 15 s off", left >= beforeStep - 17 && left <= beforeStep - 15, await btnTime());
     check("time reads like a clock", /^\d\d:\d\d$/.test(await btnTime()), await btnTime());
     const barLooks = await page.$eval("#rest-timer-btn", b => ({
         icon: getComputedStyle(b.querySelector(".rest-timer-icon")).display,

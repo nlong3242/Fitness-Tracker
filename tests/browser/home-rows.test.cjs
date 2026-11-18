@@ -70,6 +70,7 @@ run({ prefix: "homerows", workoutName: "Row Day", exercises: 1 }, "#/home", asyn
     await page.waitForFunction(() => location.hash.includes("/sessions/"));
     await wait(400);
     check("Last session opens its summary", page.url().includes(`/sessions/${first.id}?date=`) && page.url().endsWith("&back=home"), page.url());
+    await page.waitForSelector("#summary-back-btn", { visible: true });
     await page.click("#summary-back-btn");
     await page.waitForSelector("#home-pr-row");
     check("Back returns Home", page.url().endsWith("#/home"), page.url());

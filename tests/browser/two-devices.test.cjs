@@ -2,7 +2,7 @@
    opened on another device, after this page loaded, shows up at this
    page's first set as a question (session.js resolveOtherInProgress): go
    to it, discard it and log here, or cancel (the set isn't saved). */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "twodev", workoutName: "Here Day", exercises: 1 }, "#/home", async t => {
     const { page, check, workout } = t;
@@ -21,14 +21,17 @@ run({ prefix: "twodev", workoutName: "Here Day", exercises: 1 }, "#/home", async
     async function logFirstSetHere() {
         await t.startWorkout();
         await page.waitForSelector(".exercise-card.active > .add-set-btn");
-        await wait(500);
+        await t.settle(); // last time's sets are in
+        // Add Set, then the new row (not one that was already there).
+        const before = (await page.$$(".exercise-card.active .set-input-row")).length;
         await page.click(".exercise-card.active > .add-set-btn");
+        await page.waitForFunction(n => document.querySelectorAll(".exercise-card.active .set-input-row").length === n + 1, {}, before);
         const row = (await page.$$(".exercise-card.active .set-input-row")).pop();
         await (await row.$(".weight-input")).type("60");
         await (await row.$(".reps-input")).type("5");
         await page.evaluate(() => document.activeElement.blur());
-        await page.waitForSelector(".modal-overlay", { timeout: 15000 });
-        await wait(200);
+        await page.waitForSelector(".modal-overlay .modal-message", { timeout: 15000 });
+        await t.settle();
         return page.evaluate(() => ({
             message: document.querySelector(".modal-message").textContent,
             choices: [...document.querySelectorAll(".modal-overlay button")].map(b => b.textContent.trim())
@@ -45,14 +48,14 @@ run({ prefix: "twodev", workoutName: "Here Day", exercises: 1 }, "#/home", async
     check("…go to it, discard it, or cancel", q.choices.join("|") === "Go to Phone Day|Discard it & log here|Cancel", q.choices.join("|"));
     await t.shot("two-devices-question");
     await pick("Cancel");
-    await wait(600);
-    check("Cancel: the set says Not saved", await page.$eval(".exercise-card.active .set-input-row:last-child", r => /Not saved/.test(r.closest(".exercise-card").textContent)));
+    check("Cancel: the set says Not saved", await t.waitFor(() =>
+        /Not saved/.test(document.querySelector(".exercise-card.active").textContent)));
     check("…and the other workout is untouched", (await unfinished()).id === first.id);
 
     // 2. Go to it: that workout opens here, with its set
     await page.reload({ waitUntil: "domcontentloaded" });   // (this page now knows it's open, as after a reload)
-    await page.waitForSelector("#app-content");
-    await wait(800);
+    await t.appStarted();
+    await t.settle();
     await t.api("DELETE", `/sessions/${first.id}`);
     await t.openHome();
     const second = await openElsewhere();
@@ -62,9 +65,9 @@ run({ prefix: "twodev", workoutName: "Here Day", exercises: 1 }, "#/home", async
         const t = document.querySelector(".workout-title-row h2, .workout-title-row .workout-title");
         return t && /Phone Day/.test(t.textContent);
     }, { timeout: 15000 });
-    await wait(600);
+    const opened = await t.waitFor(() => document.querySelectorAll(".exercise-card.active .set-input-row.saved").length === 1);
     const sets = await page.$$eval(".exercise-card.active .set-input-row.saved", rs => rs.length);
-    check("Go to: Phone Day opens here with its logged set", sets === 1, `${sets} saved rows`);
+    check("Go to: Phone Day opens here with its logged set", opened, `${sets} saved rows`);
     check("…still the same workout in progress", (await unfinished()).id === second.id);
 
     // 3. Discard it & log here: the other goes, the set saves here

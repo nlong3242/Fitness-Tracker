@@ -3,7 +3,7 @@
    finished sessions go and the page is rebuilt, so the "last time" hints
    are fetched again. An exercise also done in another workout then hints
    from there; one only ever done here has none. Today's set stays. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "resetlive", workoutName: "Reset Live", exercises: 1 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -32,10 +32,16 @@ run({ prefix: "resetlive", workoutName: "Reset Live", exercises: 1 }, "#/workout
     const hints = () => page.$$eval(".exercise-card.active .set-input-row", rows => rows.map(r =>
         `${r.querySelector(".weight-input").placeholder}x${r.querySelector(".reps-input").placeholder}`));
     const message = () => page.$eval(".modal-message", e => e.textContent);
+    // Waits until the active card's first row hints `hint` ("80x5").
+    const firstHint = hint => t.waitFor(h => {
+        const row = document.querySelector(".exercise-card.active .set-input-row");
+        return !!row && `${row.querySelector(".weight-input").placeholder}x${row.querySelector(".reps-input").placeholder}` === h;
+    }, hint);
 
     // 1. Before: this workout's own last time
     await t.startWorkout();
-    await wait(500);
+    await firstHint("80x5");
+    await t.settle();
     check("before: the bench hints from this workout", JSON.stringify(await hints()) === JSON.stringify(["80x5"]),
         (await hints()).join(", "));
     check("before: no 'from another workout' note", (await note()) === null, await note());
@@ -47,7 +53,7 @@ run({ prefix: "resetlive", workoutName: "Reset Live", exercises: 1 }, "#/workout
     await (await row.$(".reps-input")).type("3");
     await page.evaluate(() => document.activeElement.blur());
     await posted;
-    await wait(300);
+    await t.settle();
 
     // 2. The workout's ⋮: Reset workout, red, between Add and Discard
     await page.click(".workout-title-row .more-btn");
@@ -72,16 +78,20 @@ run({ prefix: "resetlive", workoutName: "Reset Live", exercises: 1 }, "#/workout
     check("Reset sends the delete", (await reset).ok());
     await page.waitForFunction(() => !document.querySelector(".modal-confirm"));
     await page.waitForFunction(() => document.querySelector(".exercise-card.active .last-done-note"), { timeout: 15000 });
-    await wait(400);
+    check("after: and shows Other Day's numbers", await firstHint("50x5"), (await hints()).join(", "));
+    await t.settle();
     check("after: the bench says its hints are from Other Day", (await note()) === `Last time: from Other Day, ${day}`, await note());
-    check("after: and shows Other Day's numbers", (await hints())[0] === "50x5", (await hints()).join(", "));
     check("after: today's set is still on screen",
         (await page.$eval(".exercise-card.active .set-input-row .weight-input", i => i.value)) === "90");
     await t.shot("reset-workout-live-02-after");
 
     // 5. The dumbbell one was only done here: no hints left
     await page.click("#exercise-nav-next");
-    await wait(500);
+    await page.waitForFunction(n => {
+        const title = document.querySelector(".exercise-card.active .exercise-card-title");
+        return title && title.textContent === n;
+    }, {}, extra.name);
+    await t.settle();
     check("after: the other exercise has no note", (await note()) === null, await note());
     const extraHints = await hints();
     check("after: and none of last time's numbers", !extraHints.some(h => /22\.5|x7/.test(h)), extraHints.join(", "));

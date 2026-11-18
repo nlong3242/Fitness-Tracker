@@ -5,7 +5,7 @@
    exercise. Reset keeps the exercise here with empty rows. A workout left
    with no sets at all (Reset or ✕) is tidied away when the page is left,
    or at the next start if the app closed on it. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -35,7 +35,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     const cardMenu = () => openMenu(".exercise-card.active .exercise-card-head .more-btn");
     const closeMenu = async () => {
         await page.mouse.click(4, 4); // outside the menu: the backdrop
-        await wait(200);
+        await page.waitForFunction(() => !document.querySelector(".action-menu-item"));
     };
     const choose = async label => {
         for (const item of await page.$$(".action-menu-item")) {
@@ -53,26 +53,38 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
             const t = document.querySelector(".exercise-card.active .exercise-card-title");
             return t && t.textContent === n && document.querySelector("#edit-session-back-btn");
         }, { timeout: 15000 }, name);
-        await wait(400);
+        await t.settle(); // its data in, the page drawn with it
     };
     const pick = async name => {
         await page.waitForSelector("#picker-list .picker-checkbox");
         await page.type("#picker-search", name);
-        await wait(300);
+        // The list has narrowed to it, then picking it enables Add.
+        await page.waitForFunction(n => {
+            const rows = document.querySelectorAll("#picker-list .picker-select-row");
+            return rows.length > 0 && rows[0].textContent.includes(n);
+        }, {}, name);
         await page.click("#picker-list .picker-select-row");
-        await wait(400);
+        await page.waitForSelector("#picker-add-btn:not([disabled])");
         await page.click("#picker-add-btn");
     };
     const logSet = async (weight, reps) => {
         await page.click(".exercise-card.active > .add-set-btn");
         const row = (await page.$$(".exercise-card.active .set-input-row")).pop();
-        const posted = page.waitForResponse(r =>
-            r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()), { timeout: 15000 });
+        const posted = t.response("POST", /\/sets\?exerciseId=/);
         await (await row.$(".weight-input")).type(String(weight));
         await (await row.$(".reps-input")).type(String(reps));
         await page.evaluate(() => document.activeElement.blur());
         await posted;
-        await wait(300);
+        await page.waitForFunction(() => {
+            const rows = document.querySelectorAll(".exercise-card.active .set-input-row");
+            return rows.length > 0 && rows[rows.length - 1].classList.contains("saved");
+        });
+    };
+    // Waits for a Reset to finish and the page to be rebuilt on `name`.
+    const afterReset = async (reset, name) => {
+        await reset;
+        await t.settle();
+        await onExercise(name);
     };
 
     await page.goto(base + `#/workouts/${workout.id}/sessions/${s.id}/edit?date=${s.date}&exercise=${first.id}`,
@@ -130,7 +142,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
 
     // 4. Remove the second (a set logged): asks, the next one shows
     await page.click("#exercise-pills .exercise-pill:nth-child(2)");
-    await wait(300);
+    await onExercise(second.name);
     await cardMenu();
     await choose("Remove exercise");
     msg = await confirmText();
@@ -143,11 +155,11 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     check("its set is gone", (await setsOf(second.id)) === 0);
 
     // 5. Back: the summary shows the change
-    const put = page.waitForResponse(r => r.url().includes(`/sessions/${s.id}/exercises`) && r.request().method() === "GET");
+    const put = t.response("GET", new RegExp(`/sessions/${s.id}/exercises`));
     await page.click("#edit-session-back-btn");
     await put;
     await page.waitForSelector(".summary-exercise-card");
-    await wait(500);
+    await t.settle();
     const summaryNames = await page.$$eval(".summary-exercise-card .summary-exercise-name", els => els.map(e => e.textContent.trim()));
     check("Back: the summary shows the change", summaryNames.length === 2 && summaryNames[1].startsWith(dip.name), summaryNames.join(", "));
     await (await page.$$(".summary-exercise-card .summary-exercise-count"))[1].click();
@@ -163,9 +175,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     check("Reset says it stays in this workout", msg.includes("It stays in this workout, with no sets"), msg);
     let reset = resetDone();
     await page.click(".modal-confirm");
-    await reset;
-    await wait(600);
-    await onExercise(dip.name);
+    await afterReset(reset, dip.name);
     check("reset: still in the workout", JSON.stringify(await titles()) === JSON.stringify([first.name, dip.name]),
         (await titles()).join(", "));
     check("reset: its sets are gone", (await setsOf(dip.id)) === 0);
@@ -173,7 +183,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     await logSet(17.5, 6);
     await page.click("#edit-session-back-btn");
     await page.waitForSelector(".summary-exercise-card");
-    await wait(500);
+    await t.settle();
     check("logged again: Back to its summary, kept", page.url().includes(`/sessions/${s.id}?date=`), page.url());
 
     // 7. Reset it again and Remove it (no sets: the plain question); one left: no Remove
@@ -184,9 +194,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     await confirmText();
     reset = resetDone();
     await page.click(".modal-confirm");
-    await reset;
-    await wait(600);
-    await onExercise(dip.name);
+    await afterReset(reset, dip.name);
     await cardMenu();
     await choose("Remove exercise");
     msg = await confirmText();
@@ -203,9 +211,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     await confirmText();
     reset = resetDone();
     await page.click(".modal-confirm");
-    await reset;
-    await wait(600);
-    await onExercise(first.name);
+    await afterReset(reset, first.name);
     check("emptied but still here", (await t.api("GET", `/sessions/${s.id}/sets`)).length === 0
         && JSON.stringify(await snapshot()) === JSON.stringify([first.id]), JSON.stringify(await snapshot()));
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -214,7 +220,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     await page.click("#edit-session-back-btn");
     await page.waitForFunction(() => location.hash.endsWith("/sessions") && !document.querySelector("#edit-session-back-btn"),
         { timeout: 15000 });
-    await wait(400);
+    await t.settle();
     check("Back: its Past sessions", page.url().endsWith(`#/workouts/${workout.id}/sessions`), page.url());
     check("the tab bar is back", !(await page.evaluate(() => document.body.classList.contains("nav-hidden"))));
     let left = await t.api("GET", `/workouts/${workout.id}/sessions`);
@@ -234,7 +240,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
         const del = page.waitForResponse(r => r.request().method() === "DELETE" && /\/sets\/\d+$/.test(r.url()));
         await page.click(".exercise-card.active .set-input-row .set-input-cancel");
         await del;
-        await wait(300);
+        await t.settle();
         return one;
     };
 
@@ -255,6 +261,7 @@ run({ prefix: "edexer", workoutName: "Past Exercises", exercises: 2 }, "#/workou
     await tidied;
     left = await t.api("GET", `/workouts/${workout.id}/sessions`);
     check("next start: tidied away", left.content.length === 0, JSON.stringify(left.content.map(x => x.id)));
-    const note = await page.evaluate(() => localStorage.getItem("fitness.tidyAfterEdit"));
-    check("and no longer noted", note === "[]", note);
+    // The note is cleared once the tidy's answer is in (the step that failed on a slow machine).
+    const cleared = await t.waitFor(() => localStorage.getItem("fitness.tidyAfterEdit") === "[]");
+    check("and no longer noted", cleared, await page.evaluate(() => localStorage.getItem("fitness.tidyAfterEdit")));
 });

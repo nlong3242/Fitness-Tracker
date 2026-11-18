@@ -2,19 +2,24 @@
    "Name - Workout" line, counting from the moment Start was tapped, kept
    across reloads before and after the first set, sent to the server with
    the session, hidden (but still recorded) when turned off in Settings. */
-const { run, wait, toSec } = require("./harness.cjs");
+const { run, toSec } = require("./harness.cjs");
 
 run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async t => {
-    const { page, check, workout } = t;
+    const { page, check, workout, clock } = t;
     await t.startWorkout();
 
     const watch = () => page.$("#workout-stopwatch:not([hidden])");
     const watchSec = async () => toSec(await page.$eval("#workout-stopwatch", el => el.textContent) || "0:00");
+    // Waits until the stopwatch reads exactly `sec`; true if it did.
+    const watchReads = sec => t.waitFor(s => {
+        const el = document.getElementById("workout-stopwatch");
+        return !el.hidden && el.textContent.split(":").reduce((a, b) => a * 60 + Number(b), 0) === s;
+    }, sec);
     const started = () => page.evaluate(() => JSON.parse(localStorage.getItem("fitness.startedWorkout")));
     const reopen = async () => {
         await page.reload({ waitUntil: "domcontentloaded" });
+        await t.appStarted();
         await page.waitForSelector(".exercise-card.active");
-        await wait(700);
     };
     const MIN = 60;
 
@@ -29,8 +34,11 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
         return { sameLine: w.top < h.bottom && w.bottom > h.top, right: Math.round(more.left - w.right), left: Math.round(w.left - h.right) };
     });
     check("on the same line as the name, at the right (before the ⋮)", place.sameLine && place.left >= 0 && place.right >= 0 && place.right <= 24, JSON.stringify(place));
-    await wait(2200);
-    check("it counts", (await watchSec()) >= 2);
+    // From here the page's time only moves when the test says.
+    await clock.install();
+    const atInstall = await watchSec();
+    await clock.tick(2000);
+    check("it counts", await watchReads(atInstall + 2), `${atInstall}s → ${await watchSec()}s`);
     await t.shot("stopwatch-01-live");
 
     // 2. Before any set: the Start time is on the device, and survives a reload
@@ -42,15 +50,14 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
         localStorage.setItem("fitness.startedWorkout", JSON.stringify(s));
     });
     await reopen();
-    let sec = await watchSec();
-    check("after a reload it counts from the Start time", sec >= 12 * MIN + 5 && sec <= 12 * MIN + 9, sec);
+    const START = 12 * MIN + 5; // what the stopwatch reads from here on: the clock stands still
+    check("after a reload it counts from the Start time", await watchReads(START), await watchSec());
 
     // 3. Leaving and coming back doesn't restart it
     await page.click("#workout-home-btn");
-    await wait(500);
+    await page.waitForSelector("#home-greeting");
     await t.startWorkout();
-    sec = await watchSec();
-    check("reopening the workout keeps the time", sec >= 12 * MIN + 5, sec);
+    check("reopening the workout keeps the time", await watchReads(START), await watchSec());
 
     // 4. The first set sends the Start time with the new session
     const created = page.waitForResponse(r =>
@@ -69,40 +76,37 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
     const session = await res.json();
     check("the new session gets the Start time", sent.startedAt
         && Math.abs(Date.parse(session.startedAt) - Date.parse(sent.startedAt)) < 1000
-        && Date.now() - Date.parse(session.startedAt) >= 12 * MIN * 1000, `${sent.startedAt} → ${session.startedAt}`);
-    await wait(700);
-    sec = await watchSec();
-    check("logging a set doesn't restart it", sec >= 12 * MIN + 5, sec);
+        && Math.abs((await clock.now()) - Date.parse(session.startedAt) - START * 1000) < 1000, `${sent.startedAt} → ${session.startedAt}`);
+    check("logging a set doesn't restart it", await watchReads(START), await watchSec());
 
     // 5. With a session: the time comes from the server after a reload
     await page.evaluate(() => localStorage.removeItem("fitness.startedWorkout"));
     await reopen();
-    sec = await watchSec();
-    check("after a reload it still counts from Start (server's time)", sec >= 12 * MIN + 5 && sec <= 12 * MIN + 30, sec);
+    check("after a reload it still counts from Start (server's time)", await watchReads(START), await watchSec());
 
-    // 6. Turned off in Settings: hidden, name still there
+    // 6. Turned off in Settings: hidden, name still there (reopen waits for
+    //    the profile, so hidden then means the setting, not "not loaded yet")
     await t.api("PUT", "/profile/workout-timer", { show: false });
     await reopen();
-    check("turned off: hidden", (await watch()) === null);
+    check("turned off: hidden", await t.waitFor(() => document.getElementById("workout-stopwatch").hidden));
     check("the name is still there", (await page.$eval(".workout-title-row h2", h => h.textContent)).includes("Stopwatch Test - Workout"));
     await t.api("PUT", "/profile/workout-timer", { show: true });
     await reopen();
-    check("turned back on: shows", (await watch()) !== null);
+    check("turned back on: shows", await watchReads(START));
 
-    // 7. Finishing records how long it took
-    // Next past the last exercise opens the review.
-    while (!(await page.$("#summary-finish-btn"))) {
-        await page.click("#exercise-nav-next");
-        await wait(400);
-    }
-    // POST only: the browser's CORS check (OPTIONS) answers first.
-    const finished = page.waitForResponse(r =>
-        r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
+    // 7. Finishing records how long it took. The server ends it on its own
+    //    (real) clock, so it took 12:05 plus how far real time is ahead of
+    //    the page's stopped clock.
+    // Next past the last (only) exercise opens the review.
+    await page.click("#exercise-nav-next");
+    await page.waitForSelector("#summary-finish-btn", { visible: true });
+    const finished = t.response("POST", /\/sessions\/\d+\/finish$/);
     await page.click("#summary-finish-btn");
     await finished;
+    const ahead = Math.round((Date.now() - (await clock.now())) / 1000);
     const past = await t.api("GET", `/workouts/${workout.id}/sessions`);
     const took = past.content[0].durationSeconds;
-    check("the finished session took ~12 min", took >= 12 * MIN + 5 && took <= 12 * MIN + 60, took);
+    check("the finished session took ~12 min", Math.abs(took - (START + ahead)) <= 2, `${took}s, expected ${START + ahead}s`);
 
     // 8. The summary shows the workout's time right of the date, as the
     //    stopwatch read it (12:05 + the seconds the test took)

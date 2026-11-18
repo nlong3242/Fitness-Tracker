@@ -2,13 +2,21 @@
    and quick times, the page dimmed behind the panel, the small and big
    rings, âˆ’ / +, Stop, a reload mid-rest, the "Rest over" pop-up, and
    Discard. */
-const { run, wait, toSec } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", async t => {
-    const { page, check, api } = t;
+    const { page, check, api, clock } = t;
     await t.startWorkout();
+    // From here the page's time only moves when the test says (clock.tick),
+    // so every reading below is exact.
+    await clock.install();
 
     const btnTime = () => page.$eval("#rest-timer-btn .rest-ring-time", el => el.textContent);
+    // Waits until the bar reads `text` ("" = idle); true if it did.
+    const barReads = text => t.waitFor(x => document.querySelector("#rest-timer-btn .rest-ring-time").textContent === x, text);
+    const panelHidden = () => t.waitFor(() => document.getElementById("rest-timer-panel").hidden);
+    const popupUp = () => t.waitFor(() => !!document.getElementById("rest-timer-popup"));
+    const popupGone = () => t.waitFor(() => !document.getElementById("rest-timer-popup"));
     const ls = key => page.evaluate(k => localStorage.getItem(k), key);
     const panelShown = () => page.$eval("#rest-timer-panel", el => !el.hidden);
     const popup = () => page.$("#rest-timer-popup");
@@ -29,8 +37,10 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     /* Where the pop-up is, against the highest of the bottom elements: the
        given bar and the timer panel when it's open. Gap 8â€“16 px, 12â€“20 px
        from the right edge, and not on top of anything below. Waits out its
-       slide first. */
-    const popupPlace = async barId => { await wait(350); return page.evaluate(id => {
+       slide (and the panel's) first. */
+    const popupPlace = async barId => { await t.waitFor(() =>
+        ["rest-timer-popup", "rest-timer-panel"].every(id => !document.getElementById(id) || document.getElementById(id).getAnimations().length === 0));
+    return page.evaluate(id => {
         const p = document.getElementById("rest-timer-popup").getBoundingClientRect();
         let top = document.getElementById(id).getBoundingClientRect().top;
         const panel = document.getElementById("rest-timer-panel");
@@ -84,15 +94,12 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
     await page.mouse.click(homeTab.x, homeTab.y);
-    await wait(300);
-    check("tap on the dimmed ‹ Home closes the panel", !(await panelShown()));
+    check("tap on the dimmed ‹ Home closes the panel", await panelHidden());
     check("â€¦and stays on the workout", (await page.$("#rest-timer-btn")) !== null);
 
     // 3. A quick time starts rest at once, in the small ring only
     await clickChip(60);
-    await wait(300);
-    let left = toSec(await btnTime());
-    check("1:00 starts rest, shown on the bar", left >= 58 && left <= 60, await btnTime());
+    check("1:00 starts rest, shown on the bar", await barReads("01:00"), await btnTime());
     check("a quick time doesn't change the account's rest time", (await api("GET", "/profile")).restSeconds === 180);
     check("starting a rest closes the panel", !(await panelShown()));
     await t.shot("timer-03-started-closed");
@@ -106,18 +113,10 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     check("rest keeps running after closing", (await btnTime()) !== "");
 
     // 4. âˆ’ / + in 15 s steps
-    // Against the time just before, not 1:00: a slow machine (CI) can take
-    // a few seconds to get here.
-    let beforeStep = toSec(await btnTime());
     await step(15);
-    await wait(300);
-    left = toSec(await btnTime());
-    check("+ adds 15 s", left >= beforeStep + 13 && left <= beforeStep + 15, await btnTime());
-    beforeStep = left;
+    check("+ adds 15 s", await barReads("01:15"), await btnTime());
     await step(-15);
-    await wait(300);
-    left = toSec(await btnTime());
-    check("âˆ’ takes 15 s off", left >= beforeStep - 17 && left <= beforeStep - 15, await btnTime());
+    check("âˆ’ takes 15 s off", await barReads("01:00"), await btnTime());
     check("time reads like a clock", /^\d\d:\d\d$/.test(await btnTime()), await btnTime());
     const barLooks = await page.$eval("#rest-timer-btn", b => ({
         icon: getComputedStyle(b.querySelector(".rest-timer-icon")).display,
@@ -131,16 +130,22 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
         Number(a.getAttribute("stroke-dashoffset")) / Number(a.getAttribute("stroke-dasharray")));
     await restart(30);
     await openPanel();
-    await wait(300);
+    await barReads("00:30");
+    await page.waitForSelector(".rest-ring-big .rest-ring-arc");
     check("ring full at the start", (await ringGone(".rest-ring-big")) < 0.05);
-    await wait(10000);
+    await clock.tick(10000);
+    await barReads("00:20");
+    await t.waitFor(() => {
+        const a = document.querySelector(".rest-ring-big .rest-ring-arc");
+        return Number(a.getAttribute("stroke-dashoffset")) / Number(a.getAttribute("stroke-dasharray")) > 0.28;
+    });
     const gone = await ringGone(".rest-ring-big");
     check("big ring a third empty after 10 s of 30", gone > 0.28 && gone < 0.42, gone.toFixed(2));
     const goneSmall = await ringGone("#rest-timer-btn");
     check("small ring matches", Math.abs(goneSmall - gone) < 0.05, goneSmall.toFixed(2));
     await t.shot("timer-03b-ring-running");
     await restart(60);
-    await wait(300);
+    await barReads("01:00");
 
     // 6. Closing the panel, changing exercise
     await openPanel();
@@ -151,19 +156,16 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await page.click("#exercise-nav-next");
     check("changing exercise closes the panel", !(await panelShown()));
 
-    // 7. A reload mid-rest keeps counting
-    const before = toSec(await btnTime());
+    // 7. A reload mid-rest keeps counting: 1:00 left, reload, 5 s pass
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#rest-timer-btn");
-    await wait(400);
-    left = toSec((await btnTime()) || "0:00");
-    check("reload keeps the countdown", left > 0 && left <= before, `${before}s â†’ ${left}s`);
+    await clock.tick(5000);
+    check("reload keeps the countdown", await barReads("00:55"), await btnTime());
 
     // 8. Stop
     await page.click("#rest-timer-btn");
     await page.click(".rest-timer-stop");
-    await wait(300);
-    check("Stop clears the bar", (await btnTime()) === "");
+    check("Stop clears the bar", await barReads(""));
     check("Stop clears storage", (await ls("restTimerEndsAt")) === null);
     check("Stop shows no pop-up", (await popup()) === null);
     check("panel back to quick times", (await page.$(".rest-ring-big")) === null);
@@ -172,8 +174,7 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await clickChip(30);
     await step(-15);
     await step(-15);
-    await wait(400);
-    check("rest over shows the pop-up", (await popup()) !== null);
+    check("rest over shows the pop-up", await popupUp());
     check("rest ended with the panel open", await panelShown());
     let place = await popupPlace("exercise-nav-row");
     check("pop-up sits just above the open panel, on the right", place.above && place.onRight, JSON.stringify(place));
@@ -190,18 +191,17 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
         await page.$eval(".rest-timer-chip.mine", e => e.textContent.trim()) === "3:00");
     await t.shot("timer-05-popup");
     await page.click("#rest-timer-popup");
-    check("tapping the pop-up closes it", (await popup()) === null);
+    check("tapping the pop-up closes it", await popupGone());
 
     // 10. The pop-up leaves by itself after 10 s
     await clickChip(30);
     await step(-15);
     await step(-15);
-    await wait(400);
-    check("pop-up again", (await popup()) !== null);
-    await wait(9000);
+    check("pop-up again", await popupUp());
+    await clock.tick(9000);
     check("still there at 9 s", (await popup()) !== null);
-    await wait(1500);
-    check("gone after 10 s", (await popup()) === null);
+    await clock.tick(1500);
+    check("gone after 10 s", await popupGone());
 
     // 11. The pop-up shows on another page (Home)
     await clickChip(30);
@@ -209,8 +209,8 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await tapOutside(); // ‹ Home is covered while the panel is open
     await page.click('#workout-home-btn');
     await page.waitForSelector("#home-greeting");
-    await wait(16000);
-    check("pop-up shows on Home", (await popup()) !== null);
+    await clock.tick(16000);
+    check("pop-up shows on Home", await popupUp());
     place = await popupPlace("bottom-nav");
     check("on Home it sits just above the tab bar, on the right", place.above && place.onRight, JSON.stringify(place));
     await t.shot("timer-06-popup-home");
@@ -220,14 +220,14 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await page.evaluate(() => localStorage.setItem("restTimerEndsAt", String(Date.now() - 2000)));
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#bottom-nav");
-    await wait(600);
-    check("recently ended rest shows the pop-up on reopen", (await popup()) !== null);
+    check("recently ended rest shows the pop-up on reopen", await popupUp());
     await page.evaluate(() => localStorage.setItem("restTimerEndsAt", String(Date.now() - 10 * 60 * 1000)));
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#bottom-nav");
-    await wait(600);
+    // Clearing it is the app having looked; only then can "no pop-up" mean anything.
+    const cleared = await t.waitFor(() => localStorage.getItem("restTimerEndsAt") === null);
     check("long-ended rest shows nothing", (await popup()) === null);
-    check("long-ended rest is cleared", (await ls("restTimerEndsAt")) === null);
+    check("long-ended rest is cleared", cleared);
 
     // 13. Discard stops it
     await t.startWorkout();
@@ -236,8 +236,6 @@ run({ prefix: "timer", workoutName: "Timer Test", exercises: 2 }, "#/workouts", 
     await page.click(".action-menu-item.danger:last-child");
     await page.waitForSelector(".modal-confirm");
     await page.click(".modal-confirm");
-    await wait(500);
-    check("Discard clears the timer", (await ls("restTimerEndsAt")) === null);
-    await wait(400);
+    check("Discard clears the timer", await t.waitFor(() => localStorage.getItem("restTimerEndsAt") === null));
     check("no pop-up after Discard", (await popup()) === null);
 });

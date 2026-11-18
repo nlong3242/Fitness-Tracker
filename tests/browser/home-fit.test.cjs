@@ -3,7 +3,7 @@
    the tab bar. A slow overview doesn't move anything when it lands; a
    failed one leaves placeholders (Start a Workout still works). Back on
    screen after a minute away, Home fetches its data again in place. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async t => {
     const { page, check, workout } = t;
@@ -17,12 +17,17 @@ run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async
     await finish();
     await t.api("PUT", `/bodyweight/${today}`, { weightKg: 70 });
 
-    let overviewDelay = 0, overviewFail = false;
+    /* The overview can be held back until the test lets it go (rather than
+       for a set time: a slow machine can take longer than that just to open
+       Home), or made to fail. */
+    let holdOverview = false, overviewFail = false;
+    const held = [];
+    const releaseOverview = () => { holdOverview = false; held.splice(0).forEach(go => go()); };
     t.setOnRequest((req, url) => {
         if (req.method() !== "GET" || !url.includes("/sessions/overview")) return false;
         if (overviewFail) { req.abort(); return true; }
-        if (!overviewDelay) return false;
-        setTimeout(() => req.continue(url !== req.url() ? { url } : undefined).catch(() => {}), overviewDelay);
+        if (!holdOverview) return false;
+        held.push(() => req.continue(url !== req.url() ? { url } : undefined).catch(() => {}));
         return true;
     });
     const openHome = (data = true) => t.openHome({ data });
@@ -46,25 +51,25 @@ run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async
     await t.shot("home-fit-01-filled");
 
     // 2. A slow overview: nothing moves when it lands
-    overviewDelay = 4000;
+    holdOverview = true;
     await openHome(false);
     const early = await layout();
     const card = await page.$eval("#home-day-card .home-card-name", n => n.textContent);
     check("while loading: placeholders", card === "–", card);
     check("while loading: Start waits", await page.$eval("#home-day-card .home-card-btn", b => b.disabled));
     await t.shot("home-fit-02-loading");
+    releaseOverview();
     await page.waitForFunction(() => document.getElementById("home-week-foot").textContent.trim() !== "", { timeout: 15000 });
-    await wait(200);
+    await t.settle();
     const late = await layout();
     const moved = Object.keys(early).filter(k => early[k][0] !== late[k][0] || early[k][1] !== late[k][1]);
     check("nothing jumps when the data lands", moved.length === 0, moved.map(k => `${k} ${early[k]}→${late[k]}`).join(", ") || "all still");
     check("…and it's laid out as when loaded straight away", JSON.stringify(late) === JSON.stringify(settled));
-    overviewDelay = 0;
 
     // 3. A failed overview: placeholders stay, Start a Workout still works
     overviewFail = true;
     await openHome(false);
-    await wait(800);
+    await t.settle(); // the failure and everything else have come back
     const failed = await page.evaluate(() => ({
         name: document.querySelector("#home-day-card .home-card-name").textContent,
         btn: document.querySelector("#home-day-card .home-card-btn").textContent,
@@ -80,11 +85,14 @@ run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async
 
     // 4. Back on screen after a minute away: fresh data, same day selected
     await openHome();
-    await page.click("#home-week-prev");
-    await page.waitForFunction(() => document.getElementById("home-week-foot").textContent.trim() !== "");
+    const thisWeek = await page.$eval(".home-day", d => d.dataset.date);
+    await t.tap("#home-week-prev");
+    await page.waitForFunction(w => document.querySelector(".home-day").dataset.date !== w, {}, thisWeek);
+    await t.settle();
     const shownWeek = await page.$eval(".home-day", d => d.dataset.date);
-    await page.click("#home-week-next");
-    await wait(300);
+    await t.tap("#home-week-next");
+    await page.waitForFunction(w => document.querySelector(".home-day").dataset.date === w, {}, thisWeek);
+    await t.settle();
     const before = await page.$eval("#home-week-foot", f => f.textContent.replace(/\s+/g, " ").trim());
     await finish();
     const refreshed = page.waitForResponse(r => r.url().includes("/sessions/overview"));
@@ -98,7 +106,7 @@ run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async
         document.dispatchEvent(new Event("visibilitychange"));
     });
     await refreshed;
-    await wait(400);
+    await t.waitFor(() => /^2 \//.test(document.getElementById("home-week-foot").textContent.trim()));
     const after = await page.$eval("#home-week-foot", f => f.textContent.replace(/\s+/g, " ").trim());
     check("back after a minute: the new session counts", /^1 \//.test(before) && /^2 \//.test(after), `${before} → ${after}`);
     check("still on this week, today selected", (await page.$eval(".home-day", d => d.dataset.date)) !== shownWeek
@@ -110,7 +118,7 @@ run({ prefix: "homefit", workoutName: "Fit Day", exercises: 1 }, "#/home", async
     s = await scroll();
     check("375×667: Home scrolls", s.overflow > 0, `${s.overflow}px to scroll`);
     await page.evaluate(() => document.getElementById("app-scroll").scrollTo(0, 99999));
-    await wait(200);
+    await t.settle();
     const clear = await page.evaluate(() => Math.round(document.getElementById("bottom-nav").getBoundingClientRect().top
         - document.getElementById("home-last-row").getBoundingClientRect().bottom));
     check("scrolled down, the last row clears the tab bar", clear >= 0, `${clear}px`);

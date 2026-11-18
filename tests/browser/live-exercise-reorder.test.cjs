@@ -2,7 +2,7 @@
    today's list, so adding an exercise (which rebuilds the page) or a reload
    doesn't undo it, and on its own it counts as a change: Finish asks
    "today only or update the workout". Dragged away and back asks nothing. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "livereorder", workoutName: "Live Reorder", exercises: 3 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -21,20 +21,29 @@ run({ prefix: "livereorder", workoutName: "Live Reorder", exercises: 3 }, "#/wor
         const a = await box(from);
         const b = await box(to);
         await page.mouse.move(a.x, a.y);
+        /* The long-press arms the drag on the app's own timer (utils/
+           dragDrop.js, 180 ms), started by the press. This listener runs on
+           the same press just before the app's, and starts a longer timer,
+           which can't fire first however slow the machine. */
+        await page.evaluate(() => {
+            window.__pressArmed = new Promise(armed => window.addEventListener("pointerdown",
+                () => setTimeout(armed, 250), { capture: true, once: true }));
+        });
         await page.mouse.down();
-        await wait(350); // long-press arms the drag
+        await page.evaluate(() => window.__pressArmed);
         const steps = 12;
         for (let i = 1; i <= steps; i++) {
             await page.mouse.move(a.x + (b.x - a.x + (b.x > a.x ? 10 : -10)) * i / steps, a.y);
-            await wait(20);
         }
+        await page.waitForSelector("#exercise-pills .exercise-pill.dragging");
         await page.mouse.up();
-        await wait(600);
+        await page.waitForFunction(() => !document.querySelector("#exercise-pills .dragging, #exercise-pills .drag-placeholder"));
+        await t.settle();
     }
     async function toReview() {
         for (let i = 0; i < 6 && !(await page.$("#summary-finish-btn")); i++) {
             await page.click("#exercise-nav-next");
-            await wait(400);
+            await t.settle();
         }
     }
     const closed = () => page.waitForFunction(() => !document.querySelector(".exercise-card")
@@ -51,21 +60,26 @@ run({ prefix: "livereorder", workoutName: "Live Reorder", exercises: 3 }, "#/wor
     await page.click(".action-menu-item:not(.danger)");
     await page.waitForSelector("#picker-list .picker-checkbox");
     await page.type("#picker-search", "dumbbell");
-    await wait(300);
+    // The list has narrowed to dumbbell exercises.
+    await page.waitForFunction(() => {
+        const rows = [...document.querySelectorAll("#picker-list .picker-select-row")];
+        return rows.length > 0 && rows.every(r => /dumbbell/i.test(r.textContent));
+    });
     const pick = await page.$("#picker-list .picker-select-row");
     const D = await pick.$eval(".picker-select-name", e => e.textContent.replace(/Custom$/, "").trim());
     await pick.click();
-    await wait(400);
+    await page.waitForSelector("#picker-add-btn:not([disabled])");
     await page.click("#picker-add-btn");
     await page.waitForFunction(() => document.querySelectorAll("#exercise-pills .exercise-pill").length === 4, { timeout: 15000 });
     await page.waitForSelector(".exercise-card.active");
-    await wait(400);
+    await t.settle();
     check("adding keeps the dragged order", same(await titles(), [B, C, A, D]), (await titles()).join(", "));
 
     // 3. So does a reload
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector(".exercise-card.active");
-    await wait(500);
+    await t.settle();
     check("a reload keeps it", same(await titles(), [B, C, A, D]), (await titles()).join(", "));
 
     // 4. Finish → Update: the workout takes today's order (nothing logged)

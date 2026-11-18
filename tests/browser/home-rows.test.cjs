@@ -5,7 +5,7 @@
    "…" while the numbers stay whole; tapping opens that exercise's History
    tab, Back returns Home. Last session: "Name · date", "n sets", → its
    summary and back. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "homerows", workoutName: "Row Day", exercises: 1 }, "#/home", async t => {
     const { page, check, workout } = t;
@@ -55,23 +55,25 @@ run({ prefix: "homerows", workoutName: "Row Day", exercises: 1 }, "#/home", asyn
     await t.shot("home-rows-02-filled");
 
     // 3. PR → that exercise's History tab, Back → Home
-    await page.click("#home-pr-row");
+    await t.tap("#home-pr-row");
     await page.waitForFunction(() => location.hash.endsWith("/history"));
-    await wait(400);
     check("PR opens the exercise's History tab", page.url().endsWith(`#/exercises/${bench.id}/history`), page.url());
-    check("…with the Exercises tab lit", await page.$eval('#bottom-nav [data-tab="exercises"]', b => b.classList.contains("active")));
-    await page.click("#exp-back-btn");
+    check("…with the Exercises tab lit", await t.waitFor(() =>
+        document.querySelector('#bottom-nav [data-tab="exercises"]').classList.contains("active")));
+    await page.waitForSelector("#exp-back-btn", { visible: true });
+    await t.settle();
+    await t.tap("#exp-back-btn");
     await page.waitForSelector("#home-pr-row");
     check("Back returns Home", page.url().endsWith("#/home"), page.url());
 
     // 4. Last session → its summary, Back → Home
-    await wait(300);
-    await page.click("#home-last-row");
+    await t.settle(); // Home has its data again
+    await t.tap("#home-last-row");
     await page.waitForFunction(() => location.hash.includes("/sessions/"));
-    await wait(400);
     check("Last session opens its summary", page.url().includes(`/sessions/${first.id}?date=`) && page.url().endsWith("&back=home"), page.url());
     await page.waitForSelector("#summary-back-btn", { visible: true });
-    await page.click("#summary-back-btn");
+    await t.settle();
+    await t.tap("#summary-back-btn");
     await page.waitForSelector("#home-pr-row");
     check("Back returns Home", page.url().endsWith("#/home"), page.url());
 

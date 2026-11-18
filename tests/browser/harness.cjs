@@ -110,10 +110,66 @@ async function appStarted(page) {
         .some(e => e.name.includes("/sessions/unfinished") && e.responseEnd > 0), { timeout: 15000 });
 }
 
+/* The test's clock (t.clock), for what's about time itself: the rest
+   timer, the stopwatch. Runs in the page. Once installed, Date stands
+   still until the test moves it on with tick(ms), so a timer reads exactly
+   what the test expects on any machine, and "10 s later" takes no time.
+   Timeouts of 1 s or more (the rest pop-up leaving, say) wait for the
+   test's clock too; shorter ones are the app's own UI and stay real, as do
+   intervals (the timers redraw from Date every 250-500 ms, so a tick shows
+   within half a second). Kept in sessionStorage, so it survives a reload. */
+function fakeClock() {
+    const KEY = "__testClock";
+    let state;
+    try { state = JSON.parse(sessionStorage.getItem(KEY)); } catch (e) { return; }
+    if (!state || window.__testClock) return;
+
+    const RealDate = Date;
+    const realSetTimeout = window.setTimeout.bind(window);
+    const realClearTimeout = window.clearTimeout.bind(window);
+    const save = () => sessionStorage.setItem(KEY, JSON.stringify(state));
+    const now = () => state.now;
+
+    class TestDate extends RealDate {
+        constructor(...args) { if (args.length) super(...args); else super(now()); }
+        static now() { return now(); }
+    }
+    window.Date = TestDate;
+
+    // Long timeouts: due at a time on the test's clock, run by tick().
+    const due = new Map();
+    let nextId = 1e9;
+    window.setTimeout = (fn, ms = 0, ...args) => {
+        if (!(ms >= 1000) || typeof fn !== "function") return realSetTimeout(fn, ms, ...args);
+        const id = nextId++;
+        due.set(id, { at: now() + ms, run: () => fn(...args) });
+        return id;
+    };
+    window.clearTimeout = id => (due.delete(id) ? undefined : realClearTimeout(id));
+
+    window.__testClock = {
+        tick(ms) {
+            const target = state.now + ms;
+            for (;;) {
+                let first = null;
+                for (const [id, d] of due) if (d.at <= target && (!first || d.at < first[1].at)) first = [id, d];
+                if (!first) break;
+                due.delete(first[0]);
+                state.now = Math.max(state.now, first[1].at);
+                first[1].run();
+            }
+            state.now = target;
+            save();
+            return state.now;
+        }
+    };
+}
+
 function run(seed, hash, body) {
     let failures = 0;
     let checks = 0;
     let onRequest = null;
+    let settled = null;
     let browser;
     let page;
 
@@ -128,7 +184,32 @@ function run(seed, hash, body) {
         browser = await puppeteer.launch({ executablePath: findChrome(), headless: true });
         page = await browser.newPage();
         await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
+        // SLOW=4 makes the page's CPU 4× slower: a fast PC acting like CI.
+        if (Number(process.env.SLOW) > 1) await page.emulateCPUThrottling(Number(process.env.SLOW));
         await page.setRequestInterception(true);
+        /* Calls not answered yet, for t.settle(), counted in the page by
+           wrapping fetch (all the app's API calls go through it). Not from
+           Puppeteer's request events: the URL rewrite below leaves some
+           requests never reported finished. */
+        await page.evaluateOnNewDocument(() => {
+            const realFetch = window.fetch.bind(window);
+            window.__pendingFetches = 0;
+            window.fetch = (...args) => {
+                window.__pendingFetches++;
+                // Counted down once the body is read too, as the app reads it.
+                return realFetch(...args).then(res => {
+                    const body = res.clone().arrayBuffer().catch(() => {});
+                    body.finally(() => { window.__pendingFetches--; });
+                    return res;
+                }, err => { window.__pendingFetches--; throw err; });
+            };
+        });
+        // An answer can set off the next call (a rebuilt page fetching its
+        // data), so it's quiet only once nothing starts across two frames.
+        settled = () => page.waitForFunction(() => new Promise(resolve => {
+            if (window.__pendingFetches > 0) return resolve(false);
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve(window.__pendingFetches === 0)));
+        }), { timeout: 15000, polling: 20 });
         page.on("request", req => {
             let url = req.url();
             if (url.startsWith("http://127.0.0.1:8080")) url = url.replace("http://127.0.0.1:8080", API);
@@ -136,6 +217,7 @@ function run(seed, hash, body) {
             req.continue(url !== req.url() ? { url } : undefined);
         });
         page.on("pageerror", e => check(`no page error (${e.message})`, false));
+        await page.evaluateOnNewDocument(fakeClock); // does nothing until t.clock.install()
 
         // Log in by token, then load the page fresh so the app starts with it.
         await page.goto(APP, { waitUntil: "domcontentloaded" });
@@ -151,6 +233,46 @@ function run(seed, hash, body) {
             workout,
             api: (method, urlPath, reqBody) => request(method, urlPath, token, reqBody),
             setOnRequest: fn => { onRequest = fn; },
+            /* For checking that something did NOT happen: waits until no API
+               call is in flight and the page has drawn twice since, so
+               whatever the answers set off has run. */
+            settle: () => settled(),
+            /* Clicks `selector` once it's visible. Pages that draw twice
+               (from the cache, then with the server's answer) can swap the
+               element out between finding and clicking it; then it's found
+               again and clicked, as a person's tap would land on the new one. */
+            async tap(selector) {
+                for (let tries = 1; ; tries++) {
+                    try {
+                        const el = await page.waitForSelector(selector, { visible: true });
+                        return await el.click();
+                    } catch (e) {
+                        if (tries >= 5 || !/detached|not clickable|not an Element/i.test(e.message)) throw e;
+                    }
+                }
+            },
+            // After a reload: the app has its profile and has opened the page.
+            appStarted: () => appStarted(page),
+            /* Waits until fn(arg) is true in the page. Gives true, or false
+               after `timeout` ms, so a check can report it rather than the
+               whole test stopping. */
+            waitFor: (fn, arg, { timeout = 10000 } = {}) =>
+                page.waitForFunction(fn, { timeout, polling: 50 }, arg).then(() => true, () => false),
+            /* The response to the next `method` request whose URL matches
+               `pattern`. Start it before the click that sends the request.
+               Only that method: a CORS check (OPTIONS) can come first. */
+            response: (method, pattern, { timeout = 15000 } = {}) =>
+                page.waitForResponse(r => r.request().method() === method && pattern.test(r.url()), { timeout }),
+            clock: {
+                // Stops the page's clock at the current time (see fakeClock).
+                async install() {
+                    await page.evaluate(() => sessionStorage.setItem("__testClock", JSON.stringify({ now: Date.now() })));
+                    await page.evaluate(fakeClock);
+                },
+                // Moves it on by ms, running any long timeouts due by then.
+                tick: ms => page.evaluate(ms => window.__testClock.tick(ms), ms),
+                now: () => page.evaluate(() => Date.now())
+            },
             // Windows can briefly lock a just-written image (a preview pane,
             // a virus scan), so a failed save is tried again before giving up.
             async shot(name) {
@@ -183,7 +305,10 @@ function run(seed, hash, body) {
                 // Sizes are only right once the pixel font is in (a busy
                 // machine can measure with the fallback font first).
                 await page.evaluate(() => document.fonts.ready);
-                await wait(250);
+                // data: false is for looking at Home while it loads, so
+                // don't wait for what's still coming; just for it to draw.
+                if (data) await settled();
+                else await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
             },
             // Starts (or resumes) the seeded workout from the Workouts tab.
             async startWorkout() {
@@ -206,7 +331,7 @@ function run(seed, hash, body) {
                 const fresh = untilRequestDone(page, r => r.method() === "GET" && /\/workouts$/.test(r.url()));
                 await tab.click();
                 await fresh;
-                await wait(150);
+                await settled(); // drawn with the server's list
                 await page.waitForSelector(selector);
                 await page.evaluate(s => document.querySelector(s).click(), selector);
                 // The bar (with ⏱) comes first; the exercise cards once

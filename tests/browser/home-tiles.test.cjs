@@ -3,7 +3,7 @@
    days ago, an old weigh-in's note, a week's change), titles in full.
    Inline logging still works: Log Weight, type, Return saves; empty cancels;
    the rest of the tile opens the history page. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 function addDays(iso, n) {
     const [y, m, d] = iso.split("-").map(Number);
@@ -50,19 +50,26 @@ run({ prefix: "hometiles", workoutName: "Tile Day", exercises: 1 }, "#/home", as
     await t.shot("home-tiles-01-no-log");
 
     // 2. Typing a weight: same height; empty cancels
-    await page.click("#home-log-weight-btn");
-    await wait(150);
+    // Home ignores a tap within 400 ms of editing ending; on the test's
+    // clock that's a tick rather than a real wait.
+    await t.clock.install();
+    const typing = () => t.waitFor(() => {
+        const i = document.getElementById("home-weight-input");
+        return !i.hidden && document.activeElement === i;
+    });
+    await t.tap("#home-log-weight-btn");
+    check("typing: the input replaces the number", await typing());
     s = await tiles();
     heights.push(s.weight.h);
-    check("typing: the input replaces the number", await page.$eval("#home-weight-input", i => !i.hidden && document.activeElement === i));
     await t.shot("home-tiles-02-typing");
     await page.keyboard.press("Enter");
-    await wait(500);   // a tap within 400ms of editing ending is ignored
-    check("empty Return cancels", (await tiles()).value === "–");
+    check("empty Return cancels", await t.waitFor(() =>
+        document.getElementById("home-weight-input").hidden && document.getElementById("home-weight-value").textContent === "–"));
+    await t.clock.tick(500);
 
     // 3. Log 72.5: Today
-    await page.click("#home-log-weight-btn");
-    await wait(150);
+    await t.tap("#home-log-weight-btn");
+    await typing();
     await page.keyboard.type("72.5");
     const saved = page.waitForResponse(r => r.url().includes(`/bodyweight/${today}`) && r.request().method() === "PUT");
     await page.keyboard.press("Enter");
@@ -99,7 +106,6 @@ run({ prefix: "hometiles", workoutName: "Tile Day", exercises: 1 }, "#/home", as
     check("168px in every state", heights.every(h => h === 168), heights.join(","));
 
     // 6. The rest of the tile opens the history page
-    await page.click("#home-weight-tile .home-tile-title");
-    await wait(500);
-    check("tapping the tile opens Bodyweight", page.url().includes("#/bodyweight"), page.url());
+    await t.tap("#home-weight-tile .home-tile-title");
+    check("tapping the tile opens Bodyweight", await t.waitFor(() => location.hash.startsWith("#/bodyweight")), page.url());
 });

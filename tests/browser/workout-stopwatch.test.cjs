@@ -6,6 +6,9 @@ const { run, toSec } = require("./harness.cjs");
 
 run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async t => {
     const { page, check, workout, clock } = t;
+    // The page's time only moves when the test says, from before Start: the
+    // stopwatch then reads exactly 0:00 at Start, however slow the machine.
+    await clock.install();
     await t.startWorkout();
 
     const watch = () => page.$("#workout-stopwatch:not([hidden])");
@@ -25,7 +28,7 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
 
     // 1. Shows from Start, on the title line, at the right
     check("stopwatch shows", (await watch()) !== null);
-    check("starts at 0:00-0:03", (await watchSec()) <= 3, await watchSec());
+    check("starts at 0:00", await watchReads(0), await watchSec());
     const place = await page.evaluate(() => {
         const h = document.querySelector(".workout-title-row h2").getBoundingClientRect();
         const w = document.getElementById("workout-stopwatch").getBoundingClientRect();
@@ -34,14 +37,8 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
         return { sameLine: w.top < h.bottom && w.bottom > h.top, right: Math.round(more.left - w.right), left: Math.round(w.left - h.right) };
     });
     check("on the same line as the name, at the right (before the ⋮)", place.sameLine && place.left >= 0 && place.right >= 0 && place.right <= 24, JSON.stringify(place));
-    // From here the page's time only moves when the test says.
-    await clock.install();
-    // Where the stopwatch stands, from the stopped clock and the Start time
-    // (not its text, which only redraws every 500 ms and can be behind).
-    const atInstall = await page.evaluate(() =>
-        Math.floor((Date.now() - JSON.parse(localStorage.getItem("fitness.startedWorkout")).startedAt) / 1000));
     await clock.tick(2000);
-    check("it counts", await watchReads(atInstall + 2), `${atInstall}s → ${await watchSec()}s`);
+    check("it counts", await watchReads(2), `0s → ${await watchSec()}s`);
     await t.shot("stopwatch-01-live");
 
     // 2. Before any set: the Start time is on the device, and survives a reload

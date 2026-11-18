@@ -1,7 +1,7 @@
 /* Auto-end after exercises were changed during the workout (autoEnd.js):
    nobody's there to ask, so it records exactly today's list, for today
    only; the workout itself stays as it was. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "liveauto", workoutName: "Live Auto", exercises: 3 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -9,17 +9,8 @@ run({ prefix: "liveauto", workoutName: "Live Auto", exercises: 3 }, "#/workouts"
     await t.startWorkout();
 
     // Log a set on the first, then remove the second.
-    await page.click(".exercise-card.active > .add-set-btn");
-    const row = (await page.$$(".exercise-card.active .set-input-row")).pop();
-    const posted = page.waitForResponse(r =>
-        r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()), { timeout: 15000 });
-    await (await row.$(".weight-input")).type("40");
-    await (await row.$(".reps-input")).type("8");
-    await page.evaluate(() => document.activeElement.blur());
-    await posted;
-    await wait(300);
-    await page.click("#exercise-pills .exercise-pill:nth-child(2)");
-    await wait(300);
+    await t.logSet(40, 8);
+    await t.goToPill(2);
     await page.click(".exercise-card.active .exercise-card-head .more-btn");
     await page.waitForSelector(".action-menu-item.danger");
     await page.click(".action-menu-item.danger");

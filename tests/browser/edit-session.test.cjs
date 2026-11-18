@@ -6,7 +6,7 @@
    same time left alone, even when every past set is deleted (an emptied
    one is kept while its page is open; tidied on leaving, in
    edit-session-exercises). */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -32,8 +32,9 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     const open = async hash => {
         await page.goto(base + hash, { waitUntil: "domcontentloaded" });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await t.appStarted();
         await page.waitForSelector(".exercise-card.active");
-        await wait(500);
+        await t.settle();
     };
     const readRows = () => page.$$eval(".exercise-card.active .set-input-row", rs => rs.map(r => ({
         w: r.querySelector(".weight-input").value,
@@ -73,12 +74,12 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     await typeInto(1, ".weight-input", "82.5");
     await leave();
     check("a change saves", (await put).ok());
-    await wait(300);
+    await t.settle();
     check("into the past workout", (await pastSets()).includes("bench 82.5x5"), (await pastSets()).join(", "));
 
     // 3. Add Set saves into it too, and starts no rest
     await page.click(".exercise-card.active .add-set-btn");
-    await wait(200);
+    await t.settle();
     const posted = page.waitForResponse(x => x.request().method() === "POST" && /\/sets\?exerciseId=/.test(x.url()));
     await typeInto(2, ".weight-input", "75");
     await typeInto(2, ".reps-input", "8");
@@ -86,14 +87,15 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     const post = await posted;
     check("a new set saves", post.ok());
     check("to the past workout's session", post.url().includes(`/sessions/${past.id}/sets`), post.url());
-    await wait(300);
+    await t.settle();
     check("server has it", (await pastSets()).includes("bench 75x8"), (await pastSets()).join(", "));
     check("no rest started", (await page.evaluate(() => localStorage.getItem("restTimerEndsAt"))) === null);
 
     // 4. A reload stays on it
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector(".exercise-card.active .set-input-row");
-    await wait(500);
+    await t.settle();
     r = await readRows();
     check("after a reload: still editing, three sets", r.length === 3 && r.every(x => x.saved), JSON.stringify(r.map(x => `${x.w}x${x.r}`)));
 
@@ -102,15 +104,15 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
         const del = page.waitForResponse(x => x.request().method() === "DELETE" && /\/sets\/\d+$/.test(x.url()));
         await page.click(".exercise-card.active .set-input-row .set-input-cancel");
         await del;
-        await wait(200);
+        await t.settle();
     }
     await page.click("#exercise-nav-next");
-    await wait(300);
+    await t.settle();
     check("Next goes to the second exercise", (await page.$eval("#exercise-nav-counter", e => e.textContent)) === "2 / 2");
     const del = page.waitForResponse(x => x.request().method() === "DELETE" && /\/sets\/\d+$/.test(x.url()));
     await page.click(".exercise-card.active .set-input-row .set-input-cancel");
     await del;
-    await wait(400);
+    await t.settle();
     check("the past workout has no sets", (await pastSets()).length === 0, (await pastSets()).join(", "));
     const sessions = (await t.api("GET", `/workouts/${workout.id}/sessions?size=10`)).content.map(s => s.id);
     check("but it's still there", sessions.includes(past.id), JSON.stringify(sessions));
@@ -126,12 +128,12 @@ run({ prefix: "editses", workoutName: "Edit Past", exercises: 1 }, "#/workouts",
     await (await backRow.$(".reps-input")).type("8");
     await page.evaluate(() => document.activeElement.blur());
     await postedBack;
-    await wait(300);
+    await t.settle();
 
     // 6. Next on the last exercise: its summary
     await page.click("#exercise-nav-next");
     await page.waitForSelector("#summary-back-btn");
-    await wait(300);
+    await t.settle();
     check("Next on the last goes to the summary",
         page.url().endsWith(`#/workouts/${workout.id}/sessions/${past.id}?date=${past.date}`), page.url());
     check("the tab bar is back", await navShown());

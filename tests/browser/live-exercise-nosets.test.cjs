@@ -3,7 +3,7 @@
    the workout's list (PUT /workouts/{id}/exercise-list); "Today only"
    changes nothing; with no changes nothing is asked. No session is ever
    saved. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "livenone", workoutName: "Live None", exercises: 3 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -14,12 +14,7 @@ run({ prefix: "livenone", workoutName: "Live None", exercises: 3 }, "#/workouts"
     let listPuts = 0;
     page.on("request", r => { if (r.method() === "PUT" && /\/exercise-list$/.test(r.url())) listPuts++; });
 
-    async function toReview() {
-        for (let i = 0; i < 6 && !(await page.$("#summary-finish-btn")); i++) {
-            await page.click("#exercise-nav-next");
-            await wait(400);
-        }
-    }
+    const toReview = () => t.toReview();
     async function removeShowing() {
         await page.click(".exercise-card.active .exercise-card-head .more-btn");
         await page.waitForSelector(".action-menu-item.danger");
@@ -33,8 +28,7 @@ run({ prefix: "livenone", workoutName: "Live None", exercises: 3 }, "#/workouts"
 
     // 1. Remove one, nothing logged, Finish: asked; Cancel stays
     await t.startWorkout();
-    await page.click("#exercise-pills .exercise-pill:nth-child(2)");
-    await wait(300);
+    await t.goToPill(2);
     await removeShowing();
     await page.waitForFunction(() => document.querySelectorAll("#exercise-pills .exercise-pill").length === 2, { timeout: 15000 });
     await page.waitForSelector(".exercise-card.active");
@@ -44,7 +38,8 @@ run({ prefix: "livenone", workoutName: "Live None", exercises: 3 }, "#/workouts"
     check("nothing logged: Finish still asks", (await page.$eval(".modal-message", e => e.textContent)).includes("changed the exercises"));
     await t.shot("live-nosets-01-question");
     await page.click(".modal-choices .modal-cancel");
-    await wait(400);
+    await page.waitForFunction(() => !document.querySelector(".modal-choices"));
+    await t.settle();
     check("Cancel stays on the review", (await page.$("#summary-finish-btn")) !== null);
 
     // 2. Update: the workout loses the removed one; no session is saved

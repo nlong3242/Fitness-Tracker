@@ -4,7 +4,7 @@
    done today (alone, beside a plan, two), and other days (planned: View in
    Calendar; empty: muted). Always the same height. Sessions always take
    today's date, so done days are today. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 function addDays(iso, n) {
     const [y, m, d] = iso.split("-").map(Number);
@@ -35,14 +35,23 @@ run({ prefix: "homecard", workoutName: "Card Day", exercises: 1 }, "#/home", asy
     async function selectDay(date) {
         for (let i = 0; i < 2 && !(await page.$(`.home-day[data-date="${date}"]`)); i++) {
             // (this week comes back from memory, other weeks are fetched)
-            await page.click(date > today ? "#home-week-next" : "#home-week-prev");
+            await t.tap(date > today ? "#home-week-next" : "#home-week-prev");
             await page.waitForSelector(`.home-day[data-date="${date}"]`).catch(() => {});
             await page.waitForFunction(() => document.getElementById("home-week-foot").textContent.trim() !== "");
-            await wait(150);
+            await t.settle();
         }
-        await page.click(`.home-day[data-date="${date}"]`);
-        await wait(100);
+        await t.tap(`.home-day[data-date="${date}"]`);
+        await page.waitForSelector(`.home-day.selected[data-date="${date}"]`);
+        await t.settle();
     }
+    // Opens the live workout from Home's card, its page fully drawn.
+    async function intoWorkout() {
+        await t.tap("#home-day-card .home-card-btn");
+        await page.waitForSelector("#workout-home-btn", { visible: true });
+        await page.waitForSelector(".exercise-card.active");
+        await t.settle();
+    }
+    const routeIs = test => t.waitFor(s => location.hash.includes(s), test);
     const heights = [];
 
     // 1. Nothing planned today, nothing ahead
@@ -59,9 +68,9 @@ run({ prefix: "homecard", workoutName: "Card Day", exercises: 1 }, "#/home", asy
     await openHome();
     c = await card();
     check("Next up names the plan and its day", /^Next up: Card Day · \w{3} \d+ \w{3}/.test(c.sub), c.sub);
-    await page.click("#home-day-card .home-card-btn");
-    await wait(400);
-    check("Start a Workout opens the workout list", await page.$eval('#bottom-nav [data-tab="workouts"]', b => b.classList.contains("active")));
+    await t.tap("#home-day-card .home-card-btn");
+    check("Start a Workout opens the workout list", await t.waitFor(() =>
+        document.querySelector('#bottom-nav [data-tab="workouts"]').classList.contains("active")));
 
     // 3. An empty workout planned today: no Start
     const emptyPlan = await plan(today, empty.id);
@@ -82,32 +91,30 @@ run({ prefix: "homecard", workoutName: "Card Day", exercises: 1 }, "#/home", asy
     check("planned today: Start <name>", c.name === "Card Day" && c.btn === "Start Card Day" && c.badge === "Planned", JSON.stringify(c));
     check("planned today: exercises and +1 more", c.sub === "1 exercise · +1 more ›", c.sub);
     await t.shot("home-card-02-planned");
-    await page.click("#home-day-card .home-card-more");
-    await wait(500);
-    check("+1 more opens today in the calendar", page.url().includes(`#/calendar/${today}`), page.url());
+    await t.tap("#home-day-card .home-card-more");
+    check("+1 more opens today in the calendar", await routeIs(`#/calendar/${today}`), page.url());
 
     // 5. Start it: Resume with its details
     await openHome();
-    await page.click("#home-day-card .home-card-btn");
-    await page.waitForSelector("#workout-home-btn", { visible: true });
-    await wait(600);   // let the page finish drawing before leaving it
-    await page.click("#workout-home-btn");
+    await intoWorkout();
+    await t.tap("#workout-home-btn");
     await page.waitForSelector("#home-day-card .home-card-btn.live");
-    await wait(300);
+    await t.settle();
     c = await card();
     heights.push(c.height);
     check("open workout: Resume, green, In progress", c.btn === "Resume Card Day" && c.btnLive && c.badge === "In progress", JSON.stringify(c));
     check("open workout: its details", /^Nothing logged yet · started just now$/.test(c.sub), c.sub);
     await t.shot("home-card-03-live");
-    await page.click("#home-day-card .home-card-btn");
-    await page.waitForSelector("#workout-home-btn", { visible: true });
-    await wait(600);
+    await intoWorkout();
     check("Resume goes back into the workout", true);
     await page.click(".workout-title-row .more-btn");
     await page.click(".action-menu-item.danger:last-child");
     await page.waitForSelector(".modal-confirm");
+    // (nothing was logged, so there's no session on the server to delete;
+    // Discard just closes the workout)
     await page.click(".modal-confirm");
-    await wait(800);
+    await page.waitForFunction(() => !document.querySelector(".modal-confirm") && !document.querySelector(".exercise-card"));
+    await t.settle();
 
     // 6. Done today beside the plans still to do
     const finishOne = async () => {
@@ -123,10 +130,8 @@ run({ prefix: "homecard", workoutName: "Card Day", exercises: 1 }, "#/home", asy
     check("done + a plan: the plan leads", c.btn === "Start Card Day", JSON.stringify(c));
     check("done + a plan: the ✓ line in place of the details", /^Card Day done earlier · 1 set › · \+1 more ›$/.test(c.sub), c.sub);
     await t.shot("home-card-04-done-and-plan");
-    await page.click("#home-day-card .home-card-done");
-    await page.waitForFunction(() => location.hash.includes("/sessions/"));
-    await wait(400);
-    check("the ✓ line opens that summary, back to Home", page.url().includes(`/sessions/${first.id}?date=${today}&back=home`), page.url());
+    await t.tap("#home-day-card .home-card-done");
+    check("the ✓ line opens that summary, back to Home", await routeIs(`/sessions/${first.id}?date=${today}&back=home`), page.url());
 
     // 7. Plans gone: done today. (Finished through the API in an instant,
     //    so there's no length to show; "· n min" is unit-tested server-side.)
@@ -139,14 +144,13 @@ run({ prefix: "homecard", workoutName: "Card Day", exercises: 1 }, "#/home", asy
     check("done today: name, sets, Done", c.name === "Card Day" && /^1 set( · \d+ min)?$/.test(c.sub) && c.badge === "Done", JSON.stringify(c));
     check("done today: View Summary, no Start", c.btn === "View Summary");
     await t.shot("home-card-05-done");
-    await page.click("#home-day-card .home-card-btn");
-    await page.waitForFunction(() => location.hash.includes("/sessions/"));
-    await wait(400);
-    check("View Summary opens it", page.url().includes(`/sessions/${first.id}`), page.url());
+    await t.tap("#home-day-card .home-card-btn");
+    check("View Summary opens it", await routeIs(`/sessions/${first.id}`), page.url());
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector("#summary-back-btn", { visible: true });
-    await wait(300);
-    await page.click("#summary-back-btn");
+    await t.settle();
+    await t.tap("#summary-back-btn");
     await page.waitForSelector("#home-day-card", { timeout: 5000 }).catch(() => {});
     check("after a reload, Back still goes to Home", !!(await page.$("#home-day-card")), page.url());
 

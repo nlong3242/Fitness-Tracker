@@ -2,7 +2,7 @@
    exercise, which says how many sets go, always asks, and then deletes the
    exercise's finished history in every workout. Another exercise's history,
    a workout in progress and the exercise itself stay. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -23,8 +23,9 @@ run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts"
     const open = async id => {
         await page.goto(page.url().split("#")[0] + `#/exercises/${id}/history`, { waitUntil: "domcontentloaded" });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await t.appStarted();
         await page.waitForSelector(".exh-sessions, .exh-empty:not(:empty)");
-        await wait(500);
+        await t.settle();
     };
     const menu = async () => {
         await page.click(".page-top .more-btn");
@@ -49,7 +50,7 @@ run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts"
     check("the button says Reset", (await page.$eval(".modal-confirm", b => b.textContent)) === "Reset");
     await t.shot("reset-exercise-02-confirm");
     await page.click(".modal-cancel");
-    await wait(300);
+    await t.settle();
     check("Cancel keeps the history", (await t.api("GET", `/exercises/${bench.id}/history/count`)).sets === 3);
 
     // 3. Reset: history empty, page shows it
@@ -60,7 +61,7 @@ run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts"
     await page.click(".modal-confirm");
     check("Reset sends the delete", (await reset).ok());
     await page.waitForSelector(".exh-empty");
-    await wait(300);
+    await t.settle();
     check("the History tab shows no history", /No finished sessions yet/.test(await page.$eval(".exh-empty", e => e.textContent)));
     check("the server has none left", (await t.api("GET", `/exercises/${bench.id}/history/count`)).sets === 0);
     await t.shot("reset-exercise-03-after");
@@ -79,12 +80,12 @@ run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts"
     await page.waitForSelector(".modal-confirm");
     check("nothing left: says so", (await message()) === `${bench.name} has no history to reset.`, await message());
     await page.click(".modal-confirm");
-    await wait(300);
+    await t.settle();
 
     // 6. In a live workout: the card's ⋮ has it too; today's sets stay
     await done([[bench, 80]]);
     await t.startWorkout();
-    await wait(500);
+    await t.settle();
     const hint = () => page.$eval(".exercise-card.active .set-input-row .weight-input", i => i.placeholder).catch(() => null);
     check("live: last time's 80 shows as a hint", (await hint()) === "80", await hint());
     const posted = page.waitForResponse(r => r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()));
@@ -93,7 +94,7 @@ run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts"
     await (await row.$(".reps-input")).type("3");
     await page.evaluate(() => document.activeElement.blur());
     await posted;
-    await wait(300);
+    await t.settle();
     await page.click(".exercise-card.active .exercise-card-head .more-btn");
     await page.waitForSelector(".action-menu-item");
     const liveItems = await page.$$eval(".action-menu-item", els => els.map(e => e.textContent));
@@ -109,7 +110,7 @@ run({ prefix: "resetex", workoutName: "Reset Test", exercises: 2 }, "#/workouts"
     await page.click(".modal-confirm");
     await page.waitForFunction(() => !document.querySelector(".modal-confirm"));
     await page.waitForSelector(".exercise-card.active");
-    await wait(800);
+    await t.settle();
     check("live: finished history gone", (await t.api("GET", `/exercises/${bench.id}/history/count`)).sets === 0);
     const live = await t.api("GET", "/sessions/unfinished");
     const todays = await t.api("GET", `/sessions/${live.id}/sets`);

@@ -2,7 +2,7 @@
    workout's ⋮ on the title line has Add exercise, which opens the picker
    without today's exercises. The new ones go at the end, today only, and
    survive a reload; Finish records them while the workout stays as it was. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 const { pickerStrip } = require("./pickerStrip.cjs");
 
 run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", async t => {
@@ -21,6 +21,12 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     }
     const pickerNames = () => page.$$eval(".picker-select-name", els =>
         els.map(e => e.textContent.replace(/Custom$/, "").trim()));
+    // The live page drawn again, showing `name`.
+    const showing = name => page.waitForFunction(n => {
+        const title = document.querySelector(".exercise-card.active .exercise-card-title");
+        return title && title.textContent === n;
+    }, { timeout: 15000 }, name).then(() => t.settle());
+    const finishPost = () => t.response("POST", /\/sessions\/\d+\/finish$/);
 
     // 1. The workout's ⋮: Add exercise, Reset, then Discard
     await page.click(".workout-title-row .more-btn");
@@ -28,70 +34,59 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     check("menu has Add exercise, Reset, then Discard", JSON.stringify(await menuLabels()) === JSON.stringify(["Add exercise", "Reset workout", "Discard workout"]),
         (await menuLabels()).join(", "));
     await t.shot("live-add-01-menu");
-    await page.mouse.click(4, 4); // outside the menu: the backdrop
-    await wait(200);
+    await t.closeMenu();
 
     // 2. Cancel goes back to the same exercise, nothing added
-    await page.click("#exercise-pills .exercise-pill:nth-child(2)");
-    await wait(300);
+    await t.goToPill(2);
     await openAdd();
     check("the picker leaves out today's exercises", !(await pickerNames()).some(n => original.includes(n)));
     await page.click("#picker-cancel-btn");
-    await page.waitForSelector(".exercise-card.active");
-    await wait(400);
+    await showing(original[1]);
     check("Cancel adds nothing", (await titles()).length === 2);
     check("Cancel returns to the same exercise", (await activeTitle()) === original[1], await activeTitle());
 
     // 3. Add two: they go at the end, the first of them showing
     await openAdd();
-    await page.type("#picker-search", "dumbbell");
-    await wait(300);
+    await t.searchPicker("dumbbell");
     const rows = await page.$$("#picker-list .picker-select-row");
     const added = [];
     for (const row of rows.slice(0, 2)) {
         added.push(await row.$eval(".picker-select-name", e => e.textContent.replace(/Custom$/, "").trim()));
         await row.click();
     }
-    await wait(400);
-    check("the button says Add 2 exercises", (await page.$eval("#picker-add-btn", b => b.textContent)) === "Add 2 exercises");
+    check("the button says Add 2 exercises",
+        await t.waitFor(() => document.getElementById("picker-add-btn").textContent === "Add 2 exercises"),
+        await page.$eval("#picker-add-btn", b => b.textContent));
+    // The Add bar slides up; measure it once it has stopped.
+    await t.waitFor(() => document.getAnimations().every(a => a.playState !== "running" || a.effect.getTiming().iterations === Infinity));
     const strip = await pickerStrip(page);
     check("Add floats on a page-like strip from its top edge to the tab bar, grid lined up, nothing showing through",
         strip.shown && strip.pageLike && strip.fromBarTop && strip.toNav && strip.gridOk && strip.covered, JSON.stringify(strip));
     await page.evaluate(() => document.getElementById("app-scroll").scrollBy(0, 300));
-    await wait(200);
+    await t.settle();
     await t.shot("live-add-02-picker");
     await page.click("#picker-add-btn");
     await page.waitForFunction(() => document.querySelectorAll("#exercise-pills .exercise-pill").length === 4, { timeout: 15000 });
-    await page.waitForSelector(".exercise-card.active");
-    await wait(400);
+    await showing(added[0]);
     check("added at the end", JSON.stringify(await titles()) === JSON.stringify([...original, ...added]), (await titles()).join(", "));
     check("the first added one is showing", (await activeTitle()) === added[0], await activeTitle());
     await t.shot("live-add-03-added");
 
     // 4. Survives a reload
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector(".exercise-card.active");
-    await wait(500);
+    await t.settle();
     check("still there after a reload", JSON.stringify(await titles()) === JSON.stringify([...original, ...added]), (await titles()).join(", "));
 
-    // 5. An added exercise logs sets like any other
-    await page.click(".exercise-card.active > .add-set-btn");
-    const row = (await page.$$(".exercise-card.active .set-input-row")).pop();
-    const posted = page.waitForResponse(r =>
-        r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()), { timeout: 15000 });
-    await (await row.$(".weight-input")).type("12");
-    await (await row.$(".reps-input")).type("10");
-    await page.evaluate(() => document.activeElement.blur());
-    check("a set on an added exercise saves", (await posted).ok());
-    await wait(300);
+    // 5. An added exercise logs sets like any other (logSet waits for the save)
+    await t.logSet(12, 10);
+    check("a set on an added exercise saves",
+        (await page.$$(".exercise-card.active .set-input-row.saved")).length === 1);
 
     // 6. Finish → "Update Live Add": history and the workout both get all four
-    for (let i = 0; i < 6 && !(await page.$("#summary-finish-btn")); i++) {
-        await page.click("#exercise-nav-next");
-        await wait(400);
-    }
-    const finished = page.waitForResponse(r =>
-        r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
+    await t.toReview();
+    const finished = finishPost();
     await page.click("#summary-finish-btn");
     await page.waitForSelector(".modal-choice");
     await page.click(".modal-choice:nth-child(2)"); // Update Live Add
@@ -101,7 +96,7 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
     await page.waitForFunction(() => /\/sessions\/\d+/.test(location.hash)
         && !document.getElementById("summary-finish-btn")
         && document.getElementById("summary-back-btn"), { timeout: 15000 });
-    await wait(300);
+    await t.settle();
     const past = await t.api("GET", `/workouts/${workout.id}/sessions`);
     const last = (past.content || past)[0];
     const recorded = (await t.api("GET", `/sessions/${last.id}/exercises`)).map(e => e.name);
@@ -111,23 +106,11 @@ run({ prefix: "liveadd", workoutName: "Live Add", exercises: 2 }, "#/workouts", 
 
     // 7. Next time it starts with all four, and Finish asks nothing (no changes)
     await t.startWorkout();
-    await wait(400);
+    await t.settle();
     check("the next workout has all four", JSON.stringify(await titles()) === JSON.stringify([...original, ...added]), (await titles()).join(", "));
-    await page.click(".exercise-card.active > .add-set-btn");
-    const row2 = (await page.$$(".exercise-card.active .set-input-row")).pop();
-    const posted2 = page.waitForResponse(r =>
-        r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()), { timeout: 15000 });
-    await (await row2.$(".weight-input")).type("30");
-    await (await row2.$(".reps-input")).type("5");
-    await page.evaluate(() => document.activeElement.blur());
-    await posted2;
-    await wait(300);
-    for (let i = 0; i < 6 && !(await page.$("#summary-finish-btn")); i++) {
-        await page.click("#exercise-nav-next");
-        await wait(400);
-    }
-    const finished2 = page.waitForResponse(r =>
-        r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
+    await t.logSet(30, 5);
+    await t.toReview();
+    const finished2 = finishPost();
     await page.click("#summary-finish-btn");
     const body2 = JSON.parse((await finished2).request().postData());
     check("no changes: no question, finished as before", (await page.$(".modal-choice")) === null && !("exerciseIds" in body2),

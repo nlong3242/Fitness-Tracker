@@ -2,7 +2,7 @@
    every workout is saved on the day it's done, so starting Friday's plan on
    Tuesday logged it on Tuesday and ticked Friday off. Start is greyed out
    there with one note above the plans; today's plan still starts. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "calfuture", workoutName: "Later Day", exercises: 1 }, "#/home", async t => {
     const { page, check, workout } = t;
@@ -14,8 +14,9 @@ run({ prefix: "calfuture", workoutName: "Later Day", exercises: 1 }, "#/home", a
     async function openDay(day) {
         await page.goto(base + `#/calendar/${day}`, { waitUntil: "domcontentloaded" });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await t.appStarted();
         await page.waitForSelector('.schedule-row [data-action="start"]');
-        await wait(300);
+        await t.settle();
         return page.evaluate(() => ({
             start: !document.querySelector('.schedule-row [data-action="start"]').disabled,
             skip: !document.querySelector('.schedule-row [data-action="skip"]').disabled,
@@ -31,7 +32,7 @@ run({ prefix: "calfuture", workoutName: "Later Day", exercises: 1 }, "#/home", a
     check("…Skip and Reschedule still there", d.skip && d.reschedule, JSON.stringify(d));
     await t.shot("calendar-future-start");
     await page.$eval('.schedule-row [data-action="start"]', b => b.click());   // even forced
-    await wait(800);
+    await t.settle(); // anything it set off has run
     check("tapping it starts nothing", !(await page.$(".exercise-card.active")) && (await t.api("GET", "/sessions/unfinished")) == null);
     const still = await t.api("GET", `/scheduled-workouts/by-date/${tomorrow}`);
     check("…and the plan stays planned", still.length === 1 && still[0].id === plan.id && still[0].status === "PLANNED", JSON.stringify(still));
@@ -51,32 +52,39 @@ run({ prefix: "calfuture", workoutName: "Later Day", exercises: 1 }, "#/home", a
         for (const r of rows) if ((await r.$eval(".schedule-row-name", n => n.textContent)).startsWith(rowName)) target = r;
         await (await target.$('[data-action="start"]')).click();
         await page.waitForSelector(".exercise-card.active > .add-set-btn", { timeout: 15000 });
-        await wait(600);
-        await page.click("#workout-home-btn");
+        await t.settle();
+        await t.tap("#workout-home-btn");
         await page.waitForSelector("#home-day-card .home-card-btn.live");
-        await wait(400);
-        await page.click("#home-day-card .home-card-btn.live");
+        await t.settle();
+        await t.tap("#home-day-card .home-card-btn.live");
         await page.waitForSelector(".exercise-card.active > .add-set-btn");
-        await wait(600);
+        await t.settle();
+        // Add Set, then the new row (not one that was already there).
+        const before = (await page.$$(".exercise-card.active .set-input-row")).length;
         await page.click(".exercise-card.active > .add-set-btn");
+        await page.waitForFunction(n => document.querySelectorAll(".exercise-card.active .set-input-row").length === n + 1, {}, before);
         const set = (await page.$$(".exercise-card.active .set-input-row")).pop();
-        const posted = page.waitForResponse(r => r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()));
+        const posted = t.response("POST", /\/sets\?exerciseId=/);
         await (await set.$(".weight-input")).type("50");
         await (await set.$(".reps-input")).type("5");
         await page.evaluate(() => document.activeElement.blur());
         await posted;
-        await wait(300);
+        await t.settle();
         for (let i = 0; i < 4 && !(await page.$("#summary-finish-btn")); i++) {
             await page.click("#exercise-nav-next");
-            await wait(400);
+            await t.settle();
         }
-        const finished = page.waitForResponse(r => r.request().method() === "POST" && /\/finish$/.test(r.url()));
+        const finished = t.response("POST", /\/finish$/);
         await page.click("#summary-finish-btn");
-        const choice = await page.waitForSelector(".modal-choice", { timeout: 1500 }).catch(() => null);
+        // Finish may ask "today only or update the workout" first; wait for
+        // whichever comes: the question, or the finished summary.
+        await page.waitForFunction(() => document.querySelector(".modal-choice")
+            || /\/sessions\/\d+/.test(location.hash) && document.getElementById("summary-back-btn"), { timeout: 15000 });
+        const choice = await page.$(".modal-choice");
         if (choice) await choice.click();
         await finished;
         await page.waitForSelector("#summary-back-btn", { visible: true });
-        await wait(1200);
+        await t.settle(); // the plan's tick-off has gone through too
     }
     await startLeaveResumeFinish("Later Day");
     let rows = (await t.api("GET", `/scheduled-workouts/by-date/${today}`)).filter(r => r.workoutId === workout.id);

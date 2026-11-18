@@ -4,7 +4,7 @@
    selected one. Tapping a day selects it; the arrows and a swipe step a
    week keeping the weekday; Today comes back. The line under the strip
    counts the shown week's sessions against this week's goal. */
-const { run, wait, monday } = require("./harness.cjs");
+const { run, monday } = require("./harness.cjs");
 
 function addDays(iso, n) {
     const [y, m, d] = iso.split("-").map(Number);
@@ -41,7 +41,7 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
     await page.click('#bottom-nav [data-tab="home"]');
     await overview;
     await page.waitForFunction(() => document.getElementById("home-week-foot").textContent.trim() !== "");
-    await wait(200);
+    await t.settle();
 
     const strip = () => page.evaluate(() => ({
         days: [...document.querySelectorAll(".home-day")].map(d => ({
@@ -108,7 +108,7 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
     let fetched = weekResponse(lastMon);
     await page.click("#home-week-prev");
     await fetched;
-    await wait(150);
+    await t.settle();
     s = await strip();
     check("‹ shows last week", s.days[0].date === lastMon, s.days[0].date);
     check("the weekday is kept", /\bselected\b/.test(s.days[weekday].cls), s.days.map(d => d.cls).join(" | "));
@@ -130,7 +130,7 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
         }, box.x, box.y, dx);
     };
     await swipe(-120);
-    await wait(150);
+    await t.settle();
     s = await strip();
     check("swipe left: this week again (no fetch needed)", s.days[0].date === thisMon, s.days[0].date);
     const nextMon = addDays(thisMon, 7);
@@ -139,7 +139,7 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
     await fetched;
     // (drawn just after the answer arrives; a busy machine can take longer)
     await page.waitForSelector(`.home-day[data-date="${addDays(nextMon, 2)}"].planned`, { timeout: 5000 }).catch(() => {});
-    await wait(150);
+    await t.settle();
     s = await strip();
     check("swipe left again: next week", s.days[0].date === nextMon, s.days[0].date);
     check("next week's plan shows dashed", /\bplanned\b/.test(s.days[2].cls), s.days[2].cls);
@@ -151,13 +151,13 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
             el.dispatchEvent(new TouchEvent("touchstart", { touches: [t1], changedTouches: [t1], bubbles: true }));
             el.dispatchEvent(new TouchEvent("touchend", { touches: [], changedTouches: [t2], bubbles: true }));
         });
-        await wait(100);
+        await t.settle();
         return (await strip()).days[0].date === nextMon;
     })());
 
     // 5. Today: back to this week, today selected
     await page.click("#home-today-btn");
-    await wait(150);
+    await t.settle();
     s = await strip();
     check("Today returns to this week with today selected",
         s.days[0].date === thisMon && /\bselected\b/.test(s.days.find(d => d.date === today).cls) && s.todayHere);
@@ -165,9 +165,9 @@ run({ prefix: "homeweek", workoutName: "Week Day", exercises: 1 }, "#/workouts",
 
     // 6. Leaving and coming back opens on today again
     await page.click("#home-week-prev");
-    await wait(300);
+    await t.settle();
     await page.click('#bottom-nav [data-tab="workouts"]');
-    await wait(300);
+    await t.settle();
     await page.click('#bottom-nav [data-tab="home"]');
     await page.waitForSelector(".home-day");
     s = await strip();

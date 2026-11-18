@@ -17,15 +17,11 @@ run({ prefix: "livereorder", workoutName: "Live Reorder", exercises: 3 }, "#/wor
         // The drag listens on the pill itself, so the pills must be drawn for
         // good first: one redrawn mid-press (the workout's data still
         // arriving) takes the press with it.
-        await t.settle();
         const box = n => page.$eval(`#exercise-pills .exercise-pill:nth-child(${n})`, el => {
             const r = el.getBoundingClientRect();
             return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
         });
-        const a = await box(from);
-        const b = await box(to);
-        await page.mouse.move(a.x, a.y);
-        await page.mouse.down();
+        let a, b;
         /* Hold, then start the drag the way a finger does: utils/dragDrop.js
            arms it 180 ms into the press, and then a move of more than 5 px
            over the pill starts it (the app listens on the pill itself; a
@@ -33,15 +29,29 @@ run({ prefix: "livereorder", workoutName: "Live Reorder", exercises: 3 }, "#/wor
            Until it's armed, moves of up to 8 px are let through as a shaky
            finger, so the test nudges 6-7 px from the press point until the
            drag starts, rather than guessing when the app's timer fires. */
-        const dir = b.x > a.x ? 1 : -1;
         const dragging = () => t.waitFor(() => !!document.querySelector("#exercise-pills .exercise-pill.dragging"),
             undefined, { timeout: 250 });
         let started = false;
-        for (let nudge = 0; nudge < 40 && !started; nudge++) {
-            await page.mouse.move(a.x + (6 + nudge % 2) * dir, a.y);
-            started = await dragging();
+        // Very rarely, on a heavily loaded machine, a press doesn't take at
+        // all (it never arms however long it's held); then let go and press
+        // again, as a person would.
+        for (let press = 1; press <= 3 && !started; press++) {
+            if (press > 1) {
+                console.log(`      (press ${press - 1} didn't take; pressing again)`);
+                await page.mouse.up();
+            }
+            await t.settle();
+            a = await box(from);
+            b = await box(to);
+            await page.mouse.move(a.x, a.y);
+            await page.mouse.down();
+            for (let nudge = 0; nudge < 12 && !started; nudge++) {
+                await page.mouse.move(a.x + (6 + nudge % 2) * Math.sign(b.x - a.x), a.y);
+                started = await dragging();
+            }
         }
         if (!started) throw new Error("the drag didn't start");
+        const dir = b.x > a.x ? 1 : -1;
         const steps = 12;
         for (let i = 1; i <= steps; i++) {
             await page.mouse.move(a.x + 6 * dir + (b.x - a.x - 6 * dir + 10 * dir) * i / steps, a.y);

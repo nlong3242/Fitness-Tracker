@@ -3,7 +3,7 @@
    Back returns to the History tab, showing the change; Next past the last
    exercise shows the workout's summary, whose Back also returns there.
    A reload on either page keeps that way back (router.js, "back"). */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "histedit", workoutName: "History Edit", exercises: 2 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -23,15 +23,16 @@ run({ prefix: "histedit", workoutName: "History Edit", exercises: 2 }, "#/workou
     const goTo = async hash => {
         await page.goto(base + hash, { waitUntil: "domcontentloaded" });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await t.appStarted();
     };
     const waitHistory = async () => {
         await page.waitForSelector(".exh-session");
-        await wait(400);
+        await t.settle();
     };
     const openRow = async () => {
         await page.click(".exh-session-open");
         await page.waitForSelector("#edit-session-back-btn");
-        await wait(400);
+        await t.settle();
     };
     const changeWeight = async text => {
         const el = await page.$(".exercise-card.active .set-input-row .weight-input");
@@ -68,8 +69,9 @@ run({ prefix: "histedit", workoutName: "History Edit", exercises: 2 }, "#/workou
     // 3. A reload on the editing page: Back still goes to the History tab
     await openRow();
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector("#edit-session-back-btn");
-    await wait(500);
+    await t.settle();
     check("after a reload: still editing that exercise", (await activeTitle()) === first.name, await activeTitle());
     await page.click("#edit-session-back-btn");
     await waitHistory();
@@ -78,11 +80,11 @@ run({ prefix: "histedit", workoutName: "History Edit", exercises: 2 }, "#/workou
     // 4. Next past the last exercise: the summary; its Back to the History tab
     await openRow();
     await page.click("#exercise-nav-next");
-    await wait(300);
+    await t.settle();
     check("Next: the workout's other exercise", (await activeTitle()) === second.name, await activeTitle());
     await page.click("#exercise-nav-next");
     await page.waitForSelector(".summary-exercise-card");
-    await wait(500);
+    await t.settle();
     check("Next on the last: the summary", page.url().includes(`/sessions/${s.id}?date=`), page.url());
     check("its route keeps the way back", page.url().includes(`&back=exercises/${first.id}/history`), page.url());
     check("the tab bar is back on the summary", !(await navHidden()));
@@ -94,12 +96,13 @@ run({ prefix: "histedit", workoutName: "History Edit", exercises: 2 }, "#/workou
     // 5. A reload on that summary: Back still goes to the History tab
     await openRow();
     await page.click("#exercise-nav-next");
-    await wait(300);
+    await t.settle();
     await page.click("#exercise-nav-next");
     await page.waitForSelector(".summary-exercise-card");
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector(".summary-exercise-card");
-    await wait(500);
+    await t.settle();
     await page.click("#summary-top-back-btn, #summary-back-btn");
     await waitHistory();
     check("after a reload: the summary's Back to the History tab", page.url().endsWith(historyHash), page.url());

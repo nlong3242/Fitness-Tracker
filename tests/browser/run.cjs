@@ -9,7 +9,8 @@
    folder, deleted afterwards) and serves the front end (port 5591), so
    the real backend on 8080 and its data are never touched and can keep
    running. The backend jar is rebuilt first if it's missing or older than
-   the backend's source. Tests run side by side, each with its own account.
+   the backend's source. Tests run side by side (one per CPU core; JOBS=n
+   to change it), each with its own account.
    Screenshots go to "test screenshots/" at the repo root.
 
    Needs Java (as for the backend) and Chrome or Edge (or set CHROME). */
@@ -160,9 +161,20 @@ function runTest(file) {
     let results = [];
     try {
         [backend, server] = await Promise.all([startBackend(dbDir), serveFrontend()]);
-        console.log(`Running ${files.length} test file(s) against a throwaway backend on ${API_PORT}…\n`);
+        /* Side by side, but at most one per CPU core (JOBS=n to change it):
+           33 Chromes started at once on a busy machine can't all load their
+           first page in time, which fails scripts that did nothing wrong. */
+        const jobs = Math.max(1, Number(process.env.JOBS) || os.cpus().length);
+        console.log(`Running ${files.length} test file(s), ${Math.min(jobs, files.length)} at a time, against a throwaway backend on ${API_PORT}…\n`);
         const started = Date.now();
-        results = await Promise.all(files.map(runTest));
+        results = new Array(files.length);
+        let next = 0;
+        await Promise.all(Array.from({ length: Math.min(jobs, files.length) }, async () => {
+            while (next < files.length) {
+                const i = next++;
+                results[i] = await runTest(files[i]);
+            }
+        }));
         for (const r of results) {
             console.log(`=== ${r.file}`);
             console.log(r.output.trimEnd());

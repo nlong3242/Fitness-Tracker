@@ -2,7 +2,7 @@
    workout and its exercise picker, creating an exercise, and the summary
    right after Finish (Back → Home, also after a reload). It stays on
    browsing pages, and comes back as soon as a flow is left. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "taskbar", workoutName: "Flow Day", exercises: 1 }, "#/home", async t => {
     const { page, check, workout } = t;
@@ -20,36 +20,36 @@ run({ prefix: "taskbar", workoutName: "Flow Day", exercises: 1 }, "#/home", asyn
     // 1. Create Workout, then its exercise picker, then Back
     await page.click('#bottom-nav [data-tab="workouts"]');
     await page.waitForSelector("#workouts-create-btn", { visible: true });
-    await wait(300);
+    await t.settle();
     check("Workouts: bar shown", await barShown());
     await page.click("#workouts-create-btn");
     await page.waitForSelector("#new-workout-name");
-    await wait(200);
+    await t.settle();
     check("Create Workout: no bar", !(await barShown()));
     check("…and no space kept for it", await navHeight() < browsingPad, `${await navHeight()} vs ${browsingPad}`);
     await page.click("#add-exercise-btn");
     await page.waitForSelector("#picker-cancel-btn", { visible: true });
-    await wait(300);
+    await t.settle();
     check("its exercise picker: no bar", !(await barShown()));
     await t.shot("task-flow-01-picker");
     await page.click("#picker-cancel-btn");
     await page.waitForSelector("#new-workout-name");
     await page.click("#back-btn");
     await page.waitForSelector("#workouts-create-btn", { visible: true });
-    await wait(200);
+    await t.settle();
     check("Back to Workouts: bar again", await barShown());
 
     // 2. Create Exercise from the library, then Cancel
     await page.click('#bottom-nav [data-tab="exercises"]');
     await page.waitForSelector("#library-create-btn", { visible: true });
-    await wait(300);
+    await t.settle();
     await page.click("#library-create-btn");
     await page.waitForSelector("#exe-cancel-btn", { visible: true });
-    await wait(200);
+    await t.settle();
     check("Create Exercise: no bar", !(await barShown()));
     await page.click("#exe-cancel-btn");
     await page.waitForSelector("#library-create-btn", { visible: true });
-    await wait(200);
+    await t.settle();
     check("Cancel: bar again", await barShown());
 
     // 3. Finish a workout: its summary has no bar, and Done
@@ -60,7 +60,7 @@ run({ prefix: "taskbar", workoutName: "Flow Day", exercises: 1 }, "#/home", asyn
     await t.startWorkout();
     for (let i = 0; i < 4 && !(await page.$("#summary-finish-btn")); i++) {
         await page.click("#exercise-nav-next");
-        await wait(400);
+        await t.settle();
     }
     const finished = page.waitForResponse(r =>
         r.request().method() === "POST" && /\/sessions\/\d+\/finish$/.test(r.url()), { timeout: 15000 });
@@ -69,7 +69,7 @@ run({ prefix: "taskbar", workoutName: "Flow Day", exercises: 1 }, "#/home", asyn
     if (choice) await choice.click();
     await finished;
     await page.waitForSelector("#summary-back-btn", { visible: true });
-    await wait(400);
+    await t.settle();
     let label = await page.$eval("#summary-back-btn", b => b.textContent.replace("‹", "").trim());
     check("just finished: no bar", !(await barShown()));
     check("…its way out: ‹ Back", label === "Back", label);
@@ -78,20 +78,21 @@ run({ prefix: "taskbar", workoutName: "Flow Day", exercises: 1 }, "#/home", asyn
 
     // A reload keeps it that way; Back goes Home with the bar
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector("#summary-back-btn", { visible: true });
-    await wait(400);
+    await t.settle();
     label = await page.$eval("#summary-back-btn", b => b.textContent.replace("‹", "").trim());
     check("after a reload: still no bar", !(await barShown()) && label === "Back", label);
     await page.click("#summary-back-btn");
     await page.waitForSelector("#home-day-card");
-    await wait(300);
+    await t.settle();
     check("Back: Home, bar back", await barShown());
 
     // 4. The same summary opened from Home (browsing): bar shown
     await page.waitForFunction(() => document.querySelector("#home-last-row:not([disabled])"));
     await page.click("#home-last-row");
     await page.waitForSelector("#summary-back-btn", { visible: true });
-    await wait(400);
+    await t.settle();
     label = await page.$eval("#summary-back-btn", b => b.textContent.replace("‹", "").trim());
     check("a summary opened later: bar shown", (await barShown()) && label === "Back", label);
 });

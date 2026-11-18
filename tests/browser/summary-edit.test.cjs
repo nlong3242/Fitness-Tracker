@@ -2,7 +2,7 @@
    → views/editSession.js); its name still opens the details and its notes
    still work. Back returns to the same summary, showing the change: from
    Past sessions, right after Finish, and from a calendar day. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -16,8 +16,9 @@ run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workout
     const openSummary = async hash => {
         await page.goto(base + hash, { waitUntil: "domcontentloaded" });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await t.appStarted();
         await page.waitForSelector(".summary-exercise-card");
-        await wait(500);
+        await t.settle();
     };
     const firstWeight = () => page.$eval(".summary-exercise-card .summary-set-row .summary-set-cell",
         c => c.firstChild.textContent.trim());
@@ -32,7 +33,7 @@ run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workout
         await page.click("#edit-session-back-btn");   // leaving the row saves it
         await put;
         await page.waitForSelector(".summary-exercise-card");
-        await wait(500);
+        await t.settle();
     };
 
     // 1. From Past sessions: the name opens the details, not the editing page
@@ -44,17 +45,17 @@ run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workout
     check("and not the editing page", !(await onEditPage()));
     await page.keyboard.press("Escape");
     await page.evaluate(() => document.querySelectorAll(".modal-overlay").forEach(o => o.remove()));
-    await wait(200);
+    await t.settle();
 
     // The notes button opens notes, not the editing page
     await page.click(".summary-exercise-card .notes-toggle-btn");
-    await wait(300);
+    await t.settle();
     check("Add Notes stays on the summary", !(await onEditPage()));
 
     // 2. The box opens the editing page on that exercise; Back shows the change
     await page.click(".summary-exercise-card .summary-exercise-count");
     await page.waitForSelector("#edit-session-back-btn");
-    await wait(400);
+    await t.settle();
     check("the box opens the editing page", await onEditPage());
     check("on that exercise", (await page.$eval(".exercise-card.active .exercise-card-title", e => e.textContent)) === bench.name);
     await t.shot("summary-edit-01-editing");
@@ -65,7 +66,7 @@ run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workout
 
     // 3. Right after Finish
     await t.startWorkout();
-    await wait(400);
+    await t.settle();
     const posted = page.waitForResponse(r => r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()));
     const row = await page.$(".exercise-card.active .set-input-row");
     await (await row.$(".weight-input")).type("90");
@@ -74,16 +75,16 @@ run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workout
     await posted;
     await page.click("#exercise-nav-next");
     await page.waitForSelector("#summary-finish-btn");
-    await wait(300);
+    await t.settle();
     await page.click("#summary-finish-btn");
     await page.waitForFunction(() => /#\/workouts\/\d+\/sessions\/\d+\?date=/.test(location.hash) && !document.querySelector("#summary-finish-btn"));
     await page.waitForSelector(".summary-exercise-card");
-    await wait(500);
+    await t.settle();
     const finished = page.url().split("#")[1];
     check("after Finish: the box is tappable", await page.$eval(".summary-exercise-card", c => c.classList.contains("clickable")));
     await page.click(".summary-exercise-card .summary-exercise-count");
     await page.waitForSelector("#edit-session-back-btn");
-    await wait(400);
+    await t.settle();
     check("after Finish: the box opens the editing page", await onEditPage());
     await changeWeight("92.5");
     await backToSummary();
@@ -97,7 +98,7 @@ run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workout
     await openSummary(calendarHash);
     await page.click(".summary-exercise-card .summary-exercise-count");
     await page.waitForSelector("#edit-session-back-btn");
-    await wait(400);
+    await t.settle();
     await changeWeight("95");
     await backToSummary();
     check("from the calendar: Back to the calendar's summary", page.url().endsWith(calendarHash), page.url());
@@ -106,11 +107,11 @@ run({ prefix: "sumedit", workoutName: "Summary Edit", exercises: 1 }, "#/workout
 
     // 5. The live review keeps its own box tap (back to that exercise)
     await t.startWorkout();
-    await wait(400);
+    await t.settle();
     await page.click("#exercise-nav-next");
     await page.waitForSelector("#summary-finish-btn");
-    await wait(300);
+    await t.settle();
     await page.click("#preview-summary .summary-exercise-card");
-    await wait(400);
+    await t.settle();
     check("review: the box goes back to the live exercise", !(await onEditPage()) && (await page.$(".exercise-card.active")) !== null);
 });

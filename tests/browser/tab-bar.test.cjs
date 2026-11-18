@@ -3,12 +3,12 @@
    icons only (each tab still named for screen readers), the lit tab a
    rose pill, the live light on Home while a workout is open. Pages keep
    their last content clear of it, and it still switches tabs. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "tabbar", workoutName: "Bar Day", exercises: 1 }, "#/home", async t => {
     const { page, check } = t;
     await page.waitForSelector("#home-day-card");
-    await wait(400);
+    await t.settle();
 
     const bar = await page.evaluate(() => {
         const nav = document.getElementById("bottom-nav").getBoundingClientRect();
@@ -39,13 +39,13 @@ run({ prefix: "tabbar", workoutName: "Bar Day", exercises: 1 }, "#/home", async 
     // Tabs switch, and a long page's end stays clear of the bar
     for (const tab of ["workouts", "calendar", "exercises"]) {
         await page.click(`#bottom-nav [data-tab="${tab}"]`);
-        await wait(700);
+        await t.settle();
         const lit = await page.$eval(`#bottom-nav [data-tab="${tab}"]`, b => b.classList.contains("active"));
         check(`${tab}: switches and lights up`, lit);
     }
     await page.waitForSelector(".library-row, #library-list li, .exercise-row").catch(() => {});
     await page.evaluate(() => document.getElementById("app-scroll").scrollTo(0, 1e6));
-    await wait(300);
+    await t.settle();
     const clear = await page.evaluate(() => {
         const content = document.getElementById("app-content");
         const last = content.lastElementChild;
@@ -63,7 +63,7 @@ run({ prefix: "tabbar", workoutName: "Bar Day", exercises: 1 }, "#/home", async 
     await t.startWorkout();
     await page.click("#workout-home-btn");
     await page.waitForSelector("#home-day-card");
-    await wait(400);
+    await t.settle();
     const dot = await page.evaluate(() => {
         const d = document.querySelector('#bottom-nav [data-tab="home"] .nav-live-dot').getBoundingClientRect();
         const pill = document.querySelector("#bottom-nav .nav-bar").getBoundingClientRect();

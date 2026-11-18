@@ -2,7 +2,7 @@
    page and on the list, has Reset workout, which says how much goes,
    always asks, and then deletes every finished session of it. The workout
    and its exercises stay. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "resetwk", workoutName: "Reset Workout Test", exercises: 1 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -20,8 +20,9 @@ run({ prefix: "resetwk", workoutName: "Reset Workout Test", exercises: 1 }, "#/w
     const openPage = async () => {
         await page.goto(page.url().split("#")[0] + `#/workouts/${workout.id}`, { waitUntil: "domcontentloaded" });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await t.appStarted();
         await page.waitForSelector(".page-top .more-btn");
-        await wait(500);
+        await t.settle();
     };
     const menu = async selector => {
         await page.click(selector);
@@ -50,7 +51,7 @@ run({ prefix: "resetwk", workoutName: "Reset Workout Test", exercises: 1 }, "#/w
     check("the button says Reset", (await page.$eval(".modal-confirm", b => b.textContent)) === "Reset");
     await t.shot("reset-workout-02-confirm");
     await page.click(".modal-cancel");
-    await wait(300);
+    await t.settle();
     check("Cancel keeps the history", (await t.api("GET", `/workouts/${workout.id}/history/count`)).sessions === 2);
 
     // 3. Reset: sessions gone, still on the workout's page
@@ -60,7 +61,7 @@ run({ prefix: "resetwk", workoutName: "Reset Workout Test", exercises: 1 }, "#/w
     await page.click(".modal-confirm");
     check("Reset sends the delete", (await reset).ok());
     await page.waitForSelector(".page-top .more-btn");
-    await wait(500);
+    await t.settle();
     check("still on the workout's page", page.url().endsWith(`#/workouts/${workout.id}`), page.url());
     check("no sessions left", (await t.api("GET", `/workouts/${workout.id}/sessions`)).content.length === 0);
     check("the bench's history is gone too", (await t.api("GET", `/exercises/${bench.id}/history/count`)).sets === 0);
@@ -75,11 +76,12 @@ run({ prefix: "resetwk", workoutName: "Reset Workout Test", exercises: 1 }, "#/w
     // 5. From the list's ⋮, with nothing left: says so
     await page.goto(page.url().split("#")[0] + "#/workouts", { waitUntil: "domcontentloaded" });
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector(".workout-row .more-btn");
-    await wait(500);
+    await t.settle();
     items = await menu(".workout-row .more-btn");
     await pickReset(items);
     check("nothing left: says so", (await message()) === `${workout.name} has no history to reset.`, await message());
     await page.click(".modal-confirm");
-    await wait(300);
+    await t.settle();
 });

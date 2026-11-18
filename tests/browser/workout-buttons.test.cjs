@@ -1,6 +1,6 @@
 /* The live workout's Add Set and Add Notes: full-width, big tap targets
    under the sets, and still doing their jobs. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "wbuttons", workoutName: "Buttons Test" }, "#/workouts", async t => {
     const { page, check } = t;
@@ -28,12 +28,12 @@ run({ prefix: "wbuttons", workoutName: "Buttons Test" }, "#/workouts", async t =
     const rows = () => page.$$eval(".exercise-card.active .set-input-row", els => els.length);
     const before = await rows();
     await page.click(".exercise-card.active .add-set-btn");
-    await wait(200);
+    await t.settle();
     check("Add Set adds a row", (await rows()) === before + 1, `${before} -> ${await rows()}`);
 
     // Add Notes still opens the editor
     await page.click(".exercise-card.active .notes-toggle-btn");
-    await wait(200);
+    await t.settle();
     check("Add Notes opens the note editor",
         await page.$eval(".exercise-card.active .notes-panel", el => getComputedStyle(el).display !== "none"));
     await t.shot("workout-buttons-02-notes-open");
@@ -61,20 +61,20 @@ run({ prefix: "wbuttons", workoutName: "Buttons Test" }, "#/workouts", async t =
     await page.waitForSelector(".modal-confirm");
     await t.shot("workout-buttons-04-confirm");
     await page.click(".modal-cancel");
-    await wait(300);
+    await t.settle();
     check("Cancel keeps the workout", (await page.$(".exercise-card.active")) !== null);
 
     // Review is still reachable: Next past the last exercise
     for (let i = 0; i < 10 && !(await page.$("#summary-finish-btn")); i++) {
         await page.click("#exercise-nav-next");
-        await wait(400);
+        await t.settle();
     }
     check("Next on the last exercise opens the review", (await page.$("#summary-finish-btn")) !== null);
 
     // The review's Finish Workout: the picker's pink bar, floating at the
     // bottom on a strip painted like the page itself (grid lined up), so
     // it looks like empty page but hides what scrolls under it
-    await wait(300);
+    await t.settle();
     const bar = await page.evaluate(() => {
         const f = document.querySelector(".summary-finish-footer");
         const b = f && f.querySelector(".summary-finish-bar");
@@ -111,17 +111,18 @@ run({ prefix: "wbuttons", workoutName: "Buttons Test" }, "#/workouts", async t =
     const barTop = () => page.$eval("#summary-finish-btn", b => Math.round(b.getBoundingClientRect().top));
     const topBefore = await barTop();
     await page.evaluate(() => document.getElementById("app-scroll").scrollBy(0, 400));
-    await wait(200);
+    await t.settle();
     const topAfter = await barTop();
     check("it stays put when the page scrolls", topBefore === topAfter, `${topBefore} → ${topAfter}`);
     await t.shot("workout-buttons-05-finish-bar");
     // Back to the exercise, then Discard for real
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector(".exercise-card.active");
     await page.click(".workout-title-row .more-btn");
     await page.click(".action-menu-item.danger:last-child");
     await page.waitForSelector(".modal-confirm");
     await page.click(".modal-confirm");
-    await wait(600);
+    await t.settle();
     check("Discard leaves the workout", (await page.$(".exercise-card.active")) === null);
 });

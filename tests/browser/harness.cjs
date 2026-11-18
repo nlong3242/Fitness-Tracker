@@ -204,11 +204,18 @@ function run(seed, hash, body) {
                 }, err => { window.__pendingFetches--; throw err; });
             };
         });
-        // An answer can set off the next call (a rebuilt page fetching its
-        // data), so it's quiet only once nothing starts across two frames.
+        /* Quiet: no fetch open and no one-off animation running (a sliding
+           bar, a scroll), across two frames: an answer can set off the next
+           call, a rebuilt page its own animation. Looping animations (a
+           pulsing light) never end, so they don't count, nor do the rest
+           timer's rings, which ease to each new value 4 times a second
+           while a rest runs. */
         settled = () => page.waitForFunction(() => new Promise(resolve => {
-            if (window.__pendingFetches > 0) return resolve(false);
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve(window.__pendingFetches === 0)));
+            const busy = () => window.__pendingFetches > 0 || document.getAnimations().some(a =>
+                a.playState === "running" && a.effect && a.effect.getTiming().iterations !== Infinity
+                && !(a.effect.target && a.effect.target.closest && a.effect.target.closest(".rest-ring-arc")));
+            if (busy()) return resolve(false);
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve(!busy())));
         }), { timeout: 15000, polling: 20 });
         page.on("request", req => {
             let url = req.url();
@@ -250,6 +257,60 @@ function run(seed, hash, body) {
                         if (tries >= 5 || !/detached|not clickable|not an Element/i.test(e.message)) throw e;
                     }
                 }
+            },
+            /* Live and editing workout pages (views/activeWorkout.js,
+               editSession.js), shared by many scripts. */
+            // Shows exercise n (1-based) by its pill.
+            async goToPill(n) {
+                await page.click(`#exercise-pills .exercise-pill:nth-child(${n})`);
+                await page.waitForSelector(`#exercise-pills .exercise-pill:nth-child(${n}).active`);
+                await settled();
+            },
+            /* Adds a set to the showing exercise, types weight × reps and
+               leaves the row, which saves it; returns once it's saved. */
+            async logSet(weight, reps) {
+                const rows = ".exercise-card.active .set-input-row";
+                const before = (await page.$$(rows)).length;
+                await page.click(".exercise-card.active > .add-set-btn");
+                await page.waitForFunction((s, n) => document.querySelectorAll(s).length === n + 1, {}, rows, before);
+                const row = (await page.$$(rows)).pop();
+                const posted = page.waitForResponse(r => r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()),
+                    { timeout: 15000 });
+                await (await row.$(".weight-input")).type(String(weight));
+                await (await row.$(".reps-input")).type(String(reps));
+                await page.evaluate(() => document.activeElement.blur());
+                await posted;
+                await page.waitForFunction(s => { const all = document.querySelectorAll(s); return all.length > 0 && all[all.length - 1].classList.contains("saved"); }, {}, rows);
+                await settled();
+            },
+            // Closes an open ⋮ menu by tapping outside it.
+            async closeMenu() {
+                await page.mouse.click(4, 4); // the backdrop
+                await page.waitForFunction(() => !document.querySelector(".action-menu-item"));
+            },
+            /* Types into the exercise picker's search and waits for the list
+               to narrow: every row's name contains `text` (any case). */
+            async searchPicker(text) {
+                await page.waitForSelector("#picker-list .picker-checkbox");
+                await page.type("#picker-search", text);
+                await page.waitForFunction(x => {
+                    const names = [...document.querySelectorAll("#picker-list .picker-select-name")];
+                    return names.length > 0 && names.every(n => n.textContent.toLowerCase().includes(x.toLowerCase()));
+                }, { timeout: 15000 }, text);
+            },
+            // Ticks a picker row, waits for Add to enable, and taps it.
+            async pickAndAdd(row) {
+                await row.click();
+                await page.waitForSelector("#picker-add-btn:not([disabled])");
+                await page.click("#picker-add-btn");
+            },
+            // Next until the review (Finish) shows.
+            async toReview() {
+                for (let i = 0; i < 8 && !(await page.$("#summary-finish-btn")); i++) {
+                    await page.click("#exercise-nav-next");
+                    await settled();
+                }
+                await page.waitForSelector("#summary-finish-btn", { visible: true });
             },
             // After a reload: the app has its profile and has opened the page.
             appStarted: () => appStarted(page),

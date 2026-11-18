@@ -1,6 +1,24 @@
 # Tsu2Track (Fitness-Tracker)
 
+[![Backend tests](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/backend-tests.yml/badge.svg?branch=master)](https://github.com/nlong3242/Fitness-Tracker/actions/workflows/backend-tests.yml)
+
 A mobile-first workout tracker: plan workouts, log every set at the gym, and see how you're doing against last time. It runs as a web app (added to the iPhone Home Screen) on top of a Spring Boot backend, with an iOS app wrapper in progress.
+
+<p>
+  <img src="docs/screenshots/home.png" alt="Home: week strip, today's workout, bodyweight and steps tiles" width="260">
+  <img src="docs/screenshots/set-logging.png" alt="Logging sets, with green and red arrows against last time" width="260">
+  <img src="docs/screenshots/summary.png" alt="Workout summary with totals and the workout's time" width="260">
+</p>
+
+## Testing
+
+380 backend tests and 33 browser test scripts. The backend tests run on GitHub Actions for every push and pull request.
+
+- **Service and repository tests** (`@DataJpaTest`) run the business logic and queries against an in-memory database, such as auth, bodyweight, exercise history and finishing a workout.
+- **MockMvc tests** call the REST endpoints the way the app does, checking status codes, JSON and validation. [`DataIsolationTest`](backend/fitness-tracker/src/test/java/com/tsu2track/fitness_tracker/DataIsolationTest.java) has account B try every endpoint with account A's ids, and expects "not found" each time.
+- **Browser tests** drive the real app in Chrome with Puppeteer. Each run starts its own backend with a throwaway database, so real data is never touched.
+
+How to run them is under [Running the tests](#running-the-tests).
 
 ## Features
 
@@ -60,7 +78,7 @@ A mobile-first workout tracker: plan workouts, log every set at the gym, and see
 - **Backend**: Java 25, Spring Boot 4 (Web MVC, Data JPA, Security, Validation), H2 file database, Flyway migrations (`V1`–`V20`), Maven wrapper
 - **Frontend**: plain HTML, CSS and JavaScript modules, no framework or build step, with a hash router
 - **iOS**: [Capacitor](https://capacitorjs.com/) wrapping `frontend/` (`mobile/`), with unsigned builds on Codemagic (`codemagic.yaml`)
-- **Tests**: JUnit + MockMvc for the backend, Puppeteer browser tests (`tests/browser`), and GitHub Actions CI
+- **Tests**: JUnit 5, MockMvc and `@DataJpaTest` for the backend, Puppeteer browser tests (`tests/browser`), and GitHub Actions CI
 
 ## Project layout
 
@@ -107,7 +125,7 @@ Open the printed `http://<tailscale-ip>:5500` in Safari on the phone and add it 
 | `APP_INVITE_CODE` | *(blank: sign-up closed)* | Code needed to create an account |
 | `APP_CORS_ORIGINS` | `http://127.0.0.1:5500` | Comma-separated origins allowed to call the API |
 
-## Tests
+## Running the tests
 
 - **Backend** (380 tests, in-memory database, safe to run while the app is up):
   ```

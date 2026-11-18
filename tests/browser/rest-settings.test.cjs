@@ -97,7 +97,9 @@ run({ prefix: "restset", workoutName: "Settings Rest" }, "#/settings", async t =
     // 7. Upper limit 10:00 (9:45 set on the account, read on reload)
     await api("PUT", "/profile/rest-seconds", { seconds: 585 });
     await page.reload({ waitUntil: "domcontentloaded" });
+    await t.appStarted();
     await page.waitForSelector("#rest-settings-value");
+    await t.settle(); // drawn with the account's time, so + lands on the page that stays
     check("reload stays on the Timers page", (await hash()) === "#/settings/rest");
     check("reload shows the account's 9:45", (await value()) === "9:45", await value());
     put = restPut(600);

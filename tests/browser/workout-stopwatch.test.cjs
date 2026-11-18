@@ -36,14 +36,17 @@ run({ prefix: "stopwatch", workoutName: "Stopwatch Test" }, "#/workouts", async 
     check("on the same line as the name, at the right (before the ⋮)", place.sameLine && place.left >= 0 && place.right >= 0 && place.right <= 24, JSON.stringify(place));
     // From here the page's time only moves when the test says.
     await clock.install();
-    const atInstall = await watchSec();
+    // Where the stopwatch stands, from the stopped clock and the Start time
+    // (not its text, which only redraws every 500 ms and can be behind).
+    const atInstall = await page.evaluate(() =>
+        Math.floor((Date.now() - JSON.parse(localStorage.getItem("fitness.startedWorkout")).startedAt) / 1000));
     await clock.tick(2000);
     check("it counts", await watchReads(atInstall + 2), `${atInstall}s → ${await watchSec()}s`);
     await t.shot("stopwatch-01-live");
 
     // 2. Before any set: the Start time is on the device, and survives a reload
     const s = await started();
-    check("the Start time is kept on the device", s && s.workoutId === workout.id && Math.abs(Date.now() - s.startedAt) < 10000);
+    check("the Start time is kept on the device", s && s.workoutId === workout.id && Math.abs((await clock.now()) - s.startedAt) < 10000);
     await page.evaluate(() => {
         const s = JSON.parse(localStorage.getItem("fitness.startedWorkout"));
         s.startedAt = Date.now() - (12 * 60 + 5) * 1000; // "tapped Start 12:05 ago"

@@ -14,6 +14,10 @@ run({ prefix: "livereorder", workoutName: "Live Reorder", exercises: 3 }, "#/wor
 
     // Long-press pill `from` (1-based) and drag it onto pill `to`.
     async function dragPill(from, to) {
+        // The drag listens on the pill itself, so the pills must be drawn for
+        // good first: one redrawn mid-press (the workout's data still
+        // arriving) takes the press with it.
+        await t.settle();
         const box = n => page.$eval(`#exercise-pills .exercise-pill:nth-child(${n})`, el => {
             const r = el.getBoundingClientRect();
             return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
@@ -21,21 +25,27 @@ run({ prefix: "livereorder", workoutName: "Live Reorder", exercises: 3 }, "#/wor
         const a = await box(from);
         const b = await box(to);
         await page.mouse.move(a.x, a.y);
-        /* The long-press arms the drag on the app's own timer (utils/
-           dragDrop.js, 180 ms), started by the press. This listener runs on
-           the same press just before the app's, and starts a longer timer,
-           which can't fire first however slow the machine. */
-        await page.evaluate(() => {
-            window.__pressArmed = new Promise(armed => window.addEventListener("pointerdown",
-                () => setTimeout(armed, 250), { capture: true, once: true }));
-        });
         await page.mouse.down();
-        await page.evaluate(() => window.__pressArmed);
+        /* Hold, then start the drag the way a finger does: utils/dragDrop.js
+           arms it 180 ms into the press, and then a move of more than 5 px
+           over the pill starts it (the app listens on the pill itself; a
+           finger stays on it, a mouse doesn't, hence small moves first).
+           Until it's armed, moves of up to 8 px are let through as a shaky
+           finger, so the test nudges 6-7 px from the press point until the
+           drag starts, rather than guessing when the app's timer fires. */
+        const dir = b.x > a.x ? 1 : -1;
+        const dragging = () => t.waitFor(() => !!document.querySelector("#exercise-pills .exercise-pill.dragging"),
+            undefined, { timeout: 250 });
+        let started = false;
+        for (let nudge = 0; nudge < 40 && !started; nudge++) {
+            await page.mouse.move(a.x + (6 + nudge % 2) * dir, a.y);
+            started = await dragging();
+        }
+        if (!started) throw new Error("the drag didn't start");
         const steps = 12;
         for (let i = 1; i <= steps; i++) {
-            await page.mouse.move(a.x + (b.x - a.x + (b.x > a.x ? 10 : -10)) * i / steps, a.y);
+            await page.mouse.move(a.x + 6 * dir + (b.x - a.x - 6 * dir + 10 * dir) * i / steps, a.y);
         }
-        await page.waitForSelector("#exercise-pills .exercise-pill.dragging");
         await page.mouse.up();
         await page.waitForFunction(() => !document.querySelector("#exercise-pills .dragging, #exercise-pills .drag-placeholder"));
         await t.settle();

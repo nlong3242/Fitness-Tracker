@@ -2,7 +2,7 @@
    (added or swapped in, or new to it): they come from the last time it was
    done in any workout, and the card says where ("Last time: from Push Day,
    3 Nov"). Once it has history in this workout, that wins and the note goes. */
-const { run, wait } = require("./harness.cjs");
+const { run } = require("./harness.cjs");
 
 run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", async t => {
     const { page, check, workout } = t;
@@ -39,7 +39,8 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
     await page.click(".action-menu-item:not(.danger)");
     await page.waitForSelector("#picker-search");
     await page.type("#picker-search", extra.name);
-    await wait(300);
+    await page.waitForFunction(n => [...document.querySelectorAll("#picker-list .picker-select-name")]
+        .some(e => e.textContent.replace(/Custom$/, "").trim() === n), {}, extra.name);
     const rows = await page.$$("#picker-list .picker-select-row");
     for (const row of rows) {
         if ((await row.$eval(".picker-select-name", e => e.textContent.replace(/Custom$/, "").trim())) === extra.name) {
@@ -47,11 +48,11 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
             break;
         }
     }
-    await wait(400);
+    await page.waitForSelector("#picker-add-btn:not([disabled])");
     await page.click("#picker-add-btn");
     await page.waitForFunction(() => document.querySelectorAll("#exercise-pills .exercise-pill").length === 2, { timeout: 15000 });
     await page.waitForSelector(".exercise-card.active");
-    await wait(400);
+    await t.settle();
     check("added exercise: says where the hints are from", (await note()) === `Last time: from Push Day, ${day}`, await note());
     check("one row per set from last time, with its numbers", JSON.stringify(await hints()) === JSON.stringify(["22.5x7", "25x6"]),
         (await hints()).join(", "));
@@ -62,14 +63,18 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
         r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()), { timeout: 15000 });
     await page.click(".exercise-card.active .set-input-row .set-input-num");
     await posted;
-    await wait(300);
+    await t.settle();
     const firstRow = await page.$eval(".exercise-card.active .set-input-row", r =>
         `${r.querySelector(".weight-input").value}x${r.querySelector(".reps-input").value}`);
     check("Set 01 fills last time's numbers", firstRow === "22.5x7", firstRow);
 
     // 4. Log the bench here too, finish; next time the bench uses Upper A's own
     await page.click("#exercise-pills .exercise-pill:nth-child(1)");
-    await wait(300);
+    await page.waitForFunction(n => {
+        const title = document.querySelector(".exercise-card.active .exercise-card-title");
+        return title && title.textContent === n;
+    }, {}, bench.name);
+    await t.settle();
     const posted2 = page.waitForResponse(r =>
         r.request().method() === "POST" && /\/sets\?exerciseId=/.test(r.url()), { timeout: 15000 });
     const w = await page.$(".exercise-card.active .set-input-row .weight-input");
@@ -77,10 +82,10 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
     await (await page.$(".exercise-card.active .set-input-row .reps-input")).type("5");
     await page.evaluate(() => document.activeElement.blur());
     await posted2;
-    await wait(300);
+    await t.settle();
     for (let i = 0; i < 4 && !(await page.$("#summary-finish-btn")); i++) {
         await page.click("#exercise-nav-next");
-        await wait(400);
+        await t.settle();
     }
 
     // The summary compares with Push Day too, and says so, on the review
@@ -90,7 +95,11 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
         note: c.querySelector(".last-done-note") ? c.querySelector(".last-done-note").textContent : null,
         arrows: Array.from(c.querySelectorAll(".delta")).map(d => d.textContent)
     })));
-    await page.waitForSelector(".summary-exercise-card .summary-set-header");
+    // Both exercises' cards, drawn with their comparisons.
+    const bothCards = () => page.waitForFunction(() =>
+        document.querySelectorAll(".summary-exercise-card .summary-set-header").length === 2, { timeout: 15000 });
+    await bothCards();
+    await t.settle();
     let cards = await summaryCards();
     let benchCard = cards.find(c => c.name === bench.name);
     check("review: says it compares with Push Day", benchCard && benchCard.note === `Compared with Push Day, ${day}`, JSON.stringify(benchCard));
@@ -104,8 +113,8 @@ run({ prefix: "lastdone", workoutName: "Upper A", exercises: 1 }, "#/workouts", 
     await finished;
     await page.waitForFunction(() => /\/sessions\/\d+/.test(location.hash)
         && !document.getElementById("summary-finish-btn") && document.getElementById("summary-back-btn"), { timeout: 15000 });
-    await page.waitForSelector(".summary-exercise-card .summary-set-header");
-    await wait(300);
+    await bothCards();
+    await t.settle();
     cards = await summaryCards();
     benchCard = cards.find(c => c.name === bench.name);
     const extraCard = cards.find(c => c.name === extra.name);

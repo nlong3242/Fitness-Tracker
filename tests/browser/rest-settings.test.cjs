@@ -58,8 +58,9 @@ run({ prefix: "restset", workoutName: "Settings Rest" }, "#/settings", async t =
     };
     page.on("response", countSaves);
     let put = restPut(210);
-    await page.click("#rest-settings-plus");
-    await page.click("#rest-settings-plus");
+    // Two quick taps, in one go: two separate clicks from the test can be
+    // more than the 600 ms save delay apart on a slow machine.
+    await page.$eval("#rest-settings-plus", b => { b.click(); b.click(); });
     check("+ twice shows 3:30", (await value()) === "3:30", await value());
     check("no quick time highlighted for 3:30", (await mine()) === "", await mine());
     await put;
